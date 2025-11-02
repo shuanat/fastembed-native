@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <Reference Include="FastEmbed">
+      <HintPath>src/bin/Debug/net8.0/FastEmbed.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Compile Include="test_csharp_native.cs" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Compile Remove="benchmark.cs" />
+  </ItemGroup>
+</Project>
+

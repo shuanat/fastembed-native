@@ -143,10 +143,7 @@ jobs:
           ls -lh bindings/shared/build/fastembed.so
 
       - name: Build C# binding
-        working-directory: bindings/csharp
-        run: |
-          dotnet build src/FastEmbed.csproj
-          dotnet build test_csharp_native.csproj
+        run: dotnet build bindings/csharp/src/FastEmbed.csproj && dotnet build bindings/csharp/test_csharp_native.csproj
 
       - name: Run tests
         working-directory: bindings/csharp
