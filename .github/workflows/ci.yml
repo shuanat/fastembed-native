@@ -120,7 +120,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "6.0.x"
+          dotnet-version: "8.0.x"
 
       - name: Install dependencies
         run: |
@@ -140,7 +140,8 @@ jobs:
       - name: Run tests
         run: |
           cd bindings/csharp
-          LD_LIBRARY_PATH=../shared/build dotnet run --project test_csharp_native.csproj --no-build
+          export LD_LIBRARY_PATH=$PWD/../shared/build:$LD_LIBRARY_PATH
+          dotnet run --project test_csharp_native.csproj --no-build
 
   test-java:
     name: Test Java Binding
@@ -183,7 +184,7 @@ jobs:
       - name: Run tests
         run: |
           cd bindings/java
-          java -Djava.library.path=target/lib -cp target/fastembed-1.0-SNAPSHOT.jar TestFastEmbedJava
+          bash run_benchmark.sh
 
   build-summary:
     name: Build Summary
