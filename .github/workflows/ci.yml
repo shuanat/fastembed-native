@@ -140,8 +140,7 @@ jobs:
       - name: Run tests
         run: |
           cd bindings/csharp
-          export LD_LIBRARY_PATH=$PWD/../shared/build:$LD_LIBRARY_PATH
-          dotnet run --project test_csharp_native.csproj --no-build
+          export LD_LIBRARY_PATH=$PWD/../shared/build:$LD_LIBRARY_PATH && dotnet run --project test_csharp_native.csproj --no-build
 
   test-java:
     name: Test Java Binding
