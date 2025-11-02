@@ -143,14 +143,14 @@ jobs:
           ls -lh bindings/shared/build/fastembed.so
 
       - name: Build C# binding
+        working-directory: bindings/csharp
         run: |
-          cd bindings/csharp && \
-          dotnet build src/FastEmbed.csproj && \
+          dotnet build src/FastEmbed.csproj
           dotnet build test_csharp_native.csproj
 
       - name: Run tests
+        working-directory: bindings/csharp
         run: |
-          cd bindings/csharp
           export LD_LIBRARY_PATH=$PWD/../shared/build:$LD_LIBRARY_PATH && dotnet run --project test_csharp_native.csproj
 
   test-java:
