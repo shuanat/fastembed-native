@@ -123,8 +123,8 @@ scripts\build_windows.bat
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/fastembed.git
-cd fastembed
+git clone https://github.com/shuanat/fastembed-native.git
+cd fastembed-native
 
 # Build shared C/Assembly library
 make shared

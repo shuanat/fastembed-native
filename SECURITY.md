@@ -127,8 +127,8 @@ Security updates will be released as:
 
 Subscribe to:
 
-- **GitHub Releases:** <https://github.com/yourusername/fastembed/releases>
-- **Security Advisories:** <https://github.com/yourusername/fastembed/security/advisories>
+- **GitHub Releases:** <https://github.com/shuanat/fastembed-native/releases>
+- **Security Advisories:** <https://github.com/shuanat/fastembed-native/security/advisories>
 
 ---
 
@@ -156,7 +156,7 @@ We thank the following security researchers for responsibly disclosing vulnerabi
 
 ## Contact
 
-For non-security issues, use [GitHub Issues](https://github.com/yourusername/fastembed/issues).
+For non-security issues, use [GitHub Issues](https://github.com/shuanat/fastembed-native/issues).
 
 For security issues, please use GitHub Security Advisories (see "Reporting a Vulnerability" above).
 

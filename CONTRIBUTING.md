@@ -77,8 +77,8 @@ Use the [Feature Request template](.github/ISSUE_TEMPLATE/feature_request.md).
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/fastembed.git
-cd fastembed
+git clone https://github.com/shuanat/fastembed-native.git
+cd fastembed-native
 
 # Build all bindings
 make all
@@ -321,8 +321,8 @@ By contributing, you agree that your contributions will be licensed under the pr
 
 ## Questions?
 
-- **GitHub Issues:** [Open an issue](https://github.com/yourusername/fastembed/issues)
-- **GitHub Discussions:** [Join discussions](https://github.com/yourusername/fastembed/discussions)
+- **GitHub Issues:** [Open an issue](https://github.com/shuanat/fastembed-native/issues)
+- **GitHub Discussions:** [Join discussions](https://github.com/shuanat/fastembed-native/discussions)
 
 ---
 
