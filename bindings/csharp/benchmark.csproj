@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>FastEmbedBenchmark</AssemblyName>
+    <RootNamespace>FastEmbed</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src/FastEmbedNative.cs" />
+    <Compile Include="src/FastEmbed.cs" />
+    <Compile Include="benchmark.cs" />
+  </ItemGroup>
+
+</Project>
+

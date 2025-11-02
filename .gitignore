@@ -1,0 +1,84 @@
+# Build artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.exe
+*.node
+*.exp
+*.iobj
+*.ipdb
+*.pdb
+build/
+bin/
+obj/
+target/
+out/
+
+# Language-specific binaries
+*.cpython-*.so
+*.pyc
+*.pyo
+__pycache__/
+*.class
+
+# Package managers
+node_modules/
+.npm/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+test_*
+!test_*.c
+!test_*.cpp
+!test_*.ts
+!test_*.py
+!test_*.java
+!test_*.cs
+
+# Temporary files
+temp-*
+*.tmp
+*.log
+
+# Models (large files)
+models/*.onnx
+onnxruntime/
+
+# Documentation experiments
+docs/experiments/
+
+# ONNX Runtime (large, should be downloaded separately)
+onnxruntime/
+
+# ONNX models (large, should be downloaded separately)
+models/*.onnx
+models/nomic-embed-text/
+models/nomic-embed-text-tokenizer/
+
+# Python
+venv/
+.venv/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# Internal experiments journal (not for public repository)
+docs/experiments/
+
+# Generated benchmark results
+BENCHMARK_RESULTS.md

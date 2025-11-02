@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    
+    <!-- Package metadata -->
+    <PackageId>FastEmbed.Native</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>FastEmbed Team</Authors>
+    <Company>FastEmbed</Company>
+    <Description>High-performance hash-based text embedding library with native SIMD acceleration</Description>
+    <PackageTags>embedding;nlp;machine-learning;simd;native</PackageTags>
+    <RepositoryUrl>https://github.com/yourusername/fastembed</RepositoryUrl>
+    <PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
+    
+    <!-- Native library settings -->
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>true</Optimize>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <Optimize>false</Optimize>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <!-- Include native libraries in output -->
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <None Include="../../shared/build/fastembed.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(OS)' == 'Unix'">
+    <None Include="../../shared/build/fastembed.so" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
+

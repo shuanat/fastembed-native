@@ -1,0 +1,37 @@
+{
+    "name": "fastembed",
+    "version": "1.0.0",
+    "description": "Ultra-fast native embedding library with SIMD optimizations",
+    "type": "module",
+    "main": "lib/fastembed-native.js",
+    "scripts": {
+        "build": "node-gyp rebuild",
+        "build:debug": "node-gyp rebuild --debug",
+        "clean": "node-gyp clean",
+        "install": "node-gyp rebuild || echo 'Native build failed, CLI fallback available'",
+        "test:integration": "vitest run tests/integration",
+        "test:integration:watch": "vitest watch tests/integration",
+        "test:integration:ui": "vitest --ui tests/integration"
+    },
+    "gypfile": true,
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "node-addon-api": "^8.5.0",
+        "node-gyp": "^11.5.0",
+        "vitest": "^2.1.0",
+        "weaviate-ts-client": "^2.2.0"
+    },
+    "keywords": [
+        "embeddings",
+        "vector",
+        "simd",
+        "onnx",
+        "fast"
+    ],
+    "author": "",
+    "license": "SEE LICENSE IN ../../LICENSING.md",
+    "optionalDependencies": {
+        "ffi-napi": "file:temp-ffi/package",
+        "ref-napi": "^3.0.3"
+    }
+}

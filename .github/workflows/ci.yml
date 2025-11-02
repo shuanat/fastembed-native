@@ -1,0 +1,201 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  build-shared-linux:
+    name: Build Shared Library (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc make
+
+      - name: Build shared library
+        run: |
+          cd bindings/shared
+          make all
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastembed-shared-linux
+          path: bindings/shared/build/*.so
+          retention-days: 7
+
+  test-nodejs:
+    name: Test Node.js Binding
+    needs: build-shared-linux
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16, 18, 20]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc make
+
+      - name: Build shared library
+        run: |
+          cd bindings/shared
+          make all
+
+      - name: Build Node.js binding
+        run: |
+          cd bindings/nodejs
+          npm install
+          npm run build
+
+      - name: Run tests
+        run: |
+          cd bindings/nodejs
+          node test-native.js
+
+  test-python:
+    name: Test Python Binding
+    needs: build-shared-linux
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc make
+          python -m pip install --upgrade pip
+          pip install pybind11 numpy
+
+      - name: Build shared library
+        run: |
+          cd bindings/shared
+          make all
+
+      - name: Build Python binding
+        run: |
+          cd bindings/python
+          python setup.py build_ext --inplace
+
+      - name: Run tests
+        run: |
+          cd bindings/python
+          python test_python_native.py
+
+  test-csharp:
+    name: Test C# Binding
+    needs: build-shared-linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "6.0.x"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc make
+
+      - name: Build shared library
+        run: |
+          cd bindings/shared
+          make all
+
+      - name: Build C# binding
+        run: |
+          cd bindings/csharp
+          dotnet build src/FastEmbed.csproj
+
+      - name: Run tests
+        run: |
+          cd bindings/csharp
+          LD_LIBRARY_PATH=../shared/build dotnet run --project test_csharp_native.csproj --no-build
+
+  test-java:
+    name: Test Java Binding
+    needs: build-shared-linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: "11"
+          distribution: "temurin"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc make maven
+
+      - name: Build shared library
+        run: |
+          cd bindings/shared
+          make all
+
+      - name: Compile JNI wrapper
+        run: |
+          cd bindings/java
+          gcc -shared -fPIC -O3 \
+            -I"${JAVA_HOME}/include" -I"${JAVA_HOME}/include/linux" \
+            -o target/lib/libfastembed.so \
+            native/fastembed_jni.c \
+            ../shared/build/*.o -lm
+
+      - name: Build Java project
+        run: |
+          cd bindings/java
+          mvn clean install -DskipTests
+
+      - name: Run tests
+        run: |
+          cd bindings/java
+          java -Djava.library.path=target/lib -cp target/fastembed-1.0-SNAPSHOT.jar TestFastEmbedJava
+
+  build-summary:
+    name: Build Summary
+    needs: [test-nodejs, test-python, test-csharp, test-java]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check build status
+        run: |
+          echo "Build Summary:"
+          echo "- Node.js: ${{ needs.test-nodejs.result }}"
+          echo "- Python: ${{ needs.test-python.result }}"
+          echo "- C#: ${{ needs.test-csharp.result }}"
+          echo "- Java: ${{ needs.test-java.result }}"
