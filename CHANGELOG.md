@@ -128,7 +128,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting bugs, request
 
 ## Links
 
-- [GitHub Repository](https://github.com/yourusername/fastembed)
-- [Issue Tracker](https://github.com/yourusername/fastembed/issues)
-- [Discussions](https://github.com/yourusername/fastembed/discussions)
+- [GitHub Repository](https://github.com/shuanat/fastembed-native)
+- [Issue Tracker](https://github.com/shuanat/fastembed-native/issues)
+- [Discussions](https://github.com/shuanat/fastembed-native/discussions)
 - [Documentation](docs/)

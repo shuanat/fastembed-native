@@ -199,8 +199,8 @@ Found a typo or want to improve documentation? See [CONTRIBUTING.md](../CONTRIBU
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/fastembed/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/fastembed/discussions)
+- **Issues**: [GitHub Issues](https://github.com/shuanat/fastembed-native/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/shuanat/fastembed-native/discussions)
 - **Documentation**: You're here!
 
 ---

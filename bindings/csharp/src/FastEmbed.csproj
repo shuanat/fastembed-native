@@ -13,7 +13,7 @@
     <Company>FastEmbed</Company>
     <Description>High-performance hash-based text embedding library with native SIMD acceleration</Description>
     <PackageTags>embedding;nlp;machine-learning;simd;native</PackageTags>
-    <RepositoryUrl>https://github.com/yourusername/fastembed</RepositoryUrl>
+    <RepositoryUrl>https://github.com/shuanat/fastembed-native</RepositoryUrl>
     <PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
     
     <!-- Native library settings -->

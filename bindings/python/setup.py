@@ -133,7 +133,7 @@ setup(
     description="Ultra-fast native embedding library with SIMD optimizations",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/fastembed",
+    url="https://github.com/shuanat/fastembed-native",
     ext_modules=[Extension("fastembed_native", sources=[])],
     cmdclass={"build_ext": CMakeBuild},
     install_requires=[
