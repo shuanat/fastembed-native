@@ -131,16 +131,27 @@ jobs:
         run: |
           cd bindings/shared
           make all
+          make shared
+          ls -la build/*.so || echo "Warning: fastembed.so not found"
+
+      - name: Verify native library exists
+        run: |
+          if [ ! -f "bindings/shared/build/fastembed.so" ]; then
+            echo "Error: fastembed.so not found after build"
+            exit 1
+          fi
+          ls -lh bindings/shared/build/fastembed.so
 
       - name: Build C# binding
         run: |
           cd bindings/csharp
           dotnet build src/FastEmbed.csproj
+          dotnet build test_csharp_native.csproj
 
       - name: Run tests
         run: |
           cd bindings/csharp
-          export LD_LIBRARY_PATH=$PWD/../shared/build:$LD_LIBRARY_PATH && dotnet run --project test_csharp_native.csproj --no-build
+          export LD_LIBRARY_PATH=$PWD/../shared/build:$LD_LIBRARY_PATH && dotnet run --project test_csharp_native.csproj
 
   test-java:
     name: Test Java Binding
@@ -169,21 +180,56 @@ jobs:
       - name: Compile JNI wrapper
         run: |
           cd bindings/java
+          mkdir -p target/lib
+          JNI_SRC=""
+          if [ -f "java/native/fastembed_jni.c" ]; then
+            JNI_SRC="java/native/fastembed_jni.c"
+          elif [ -f "native/fastembed_jni.c" ]; then
+            JNI_SRC="native/fastembed_jni.c"
+          else
+            echo "Error: JNI source file not found"
+            exit 1
+          fi
           gcc -shared -fPIC -O3 \
             -I"${JAVA_HOME}/include" -I"${JAVA_HOME}/include/linux" \
+            -I"../shared/include" \
             -o target/lib/libfastembed.so \
-            native/fastembed_jni.c \
-            ../shared/build/*.o -lm
+            "$JNI_SRC" \
+            ../shared/build/embedding_lib.o \
+            ../shared/build/embedding_generator.o \
+            ../shared/build/embedding_lib_c.o \
+            -lm
 
       - name: Build Java project
         run: |
           cd bindings/java
-          mvn clean install -DskipTests
+          mkdir -p target/classes target/test-classes
+          JAVA_SRC=""
+          if [ -f "java/src/main/java/com/fastembed/FastEmbed.java" ]; then
+            JAVA_SRC="java/src/main/java/com/fastembed/FastEmbed.java"
+          elif [ -f "src/main/java/com/fastembed/FastEmbed.java" ]; then
+            JAVA_SRC="src/main/java/com/fastembed/FastEmbed.java"
+          else
+            echo "Error: FastEmbed.java not found"
+            exit 1
+          fi
+          BENCHMARK_SRC=""
+          if [ -f "src/test/java/com/fastembed/FastEmbedBenchmark.java" ]; then
+            BENCHMARK_SRC="src/test/java/com/fastembed/FastEmbedBenchmark.java"
+          elif [ -f "src/test/java/FastEmbedBenchmark.java" ]; then
+            BENCHMARK_SRC="src/test/java/FastEmbedBenchmark.java"
+          else
+            echo "Error: FastEmbedBenchmark.java not found"
+            exit 1
+          fi
+          javac -d target/classes "$JAVA_SRC"
+          javac -d target/test-classes -cp target/classes "$BENCHMARK_SRC"
 
       - name: Run tests
         run: |
           cd bindings/java
-          bash run_benchmark.sh
+          export LD_LIBRARY_PATH="$PWD/../shared/build:target/lib:$LD_LIBRARY_PATH"
+          java -Djava.library.path=target/lib -cp target/classes:target/test-classes com.fastembed.FastEmbedBenchmark
 
   build-summary:
     name: Build Summary

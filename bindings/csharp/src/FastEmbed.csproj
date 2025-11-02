@@ -36,8 +36,8 @@
     <None Include="../../shared/build/fastembed.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   
-  <ItemGroup Condition="'$(OS)' == 'Unix'">
-    <None Include="../../shared/build/fastembed.so" CopyToOutputDirectory="PreserveNewest" />
+  <ItemGroup>
+    <None Include="../../shared/build/fastembed.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/build/fastembed.so')" />
   </ItemGroup>
 
 </Project>
