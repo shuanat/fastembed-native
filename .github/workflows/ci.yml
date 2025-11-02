@@ -146,7 +146,7 @@ jobs:
         run: |
           cd bindings/csharp
           dotnet build src/FastEmbed.csproj
-          dotnet build ./test_csharp_native.csproj
+          dotnet build test_csharp_native.csproj
 
       - name: Run tests
         run: |
