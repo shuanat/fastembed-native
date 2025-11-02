@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "../../../../shared/include/fastembed.h"
+#include "fastembed.h"
 
 /*
  * Class:     com_fastembed_FastEmbed
