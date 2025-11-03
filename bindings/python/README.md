@@ -54,9 +54,13 @@ python setup.py install               # Install system-wide
 
 ## Performance
 
-**Measured Performance** (Nov 2025):
+**ONNX Runtime Performance** (Nov 2025):
 
-- Embedding generation: **0.012-0.047 ms** (20K-84K ops/sec)
-- Vector operations: **Sub-microsecond** (up to **1.48M ops/sec**)
+- ONNX embeddings: **28.6-123.0 ms** (8-35 emb/s depending on text length)
+  - Short text (108 chars): **28.6 ms** (35 emb/s)
+  - Medium text (460 chars): **51.9 ms** (19 emb/s)
+  - Long text (1574 chars): **123.0 ms** (8 emb/s)
+- Hash-based embeddings: **~0.01-0.1 ms** (~27,000 emb/s average)
+- Vector operations: **Sub-microsecond** latency
 
 See [BENCHMARK_RESULTS.md](../../BENCHMARK_RESULTS.md) for complete benchmark data.
