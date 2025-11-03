@@ -262,13 +262,14 @@ jobs:
           dotnet build src/FastEmbed.csproj || echo "⚠️  C# ONNX build failed"
 
           # Java - build with ONNX
-          cd ../../java
-          if [ -d "java" ] && [ -f "java/build_jni_linux.sh" ]; then
-            cd java
+          cd ../../java/java
+          if [ -f "build_jni_linux.sh" ]; then
             chmod +x build_jni_linux.sh
-            bash build_jni_linux.sh || echo "⚠️  Java ONNX build failed"
+            export ONNX_RUNTIME_PATH="${{ steps.setup-onnx.outputs.path }}"
+            bash build_jni_linux.sh
           else
-            echo "⚠️  Java build_jni_linux.sh not found, skipping Java ONNX build"
+            echo "❌ ERROR: build_jni_linux.sh not found!"
+            exit 1
           fi
 
       - name: Run ONNX benchmarks (if available)
