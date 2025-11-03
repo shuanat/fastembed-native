@@ -262,7 +262,7 @@ jobs:
           dotnet build src/FastEmbed.csproj || echo "⚠️  C# ONNX build failed"
 
           # Java - build with ONNX
-          cd ../../java/java
+          cd "$GITHUB_WORKSPACE/bindings/java/java"
           if [ -f "build_jni_linux.sh" ]; then
             chmod +x build_jni_linux.sh
             export ONNX_RUNTIME_PATH="${{ steps.setup-onnx.outputs.path }}"
