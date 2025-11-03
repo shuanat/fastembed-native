@@ -44,7 +44,11 @@ CLI_TARGETS = $(BUILD_DIR)/vector_ops_cli$(if $(filter Windows_NT,$(OS)),.exe,) 
 INCLUDES = -I$(INC_DIR)
 
 # Targets
-all: $(BUILD_DIR)/$(TARGET_LIB) $(CLI_TARGETS) onnx_cli
+# Build all standard targets (onnx_cli is optional, only if ONNX Runtime is available)
+all: $(BUILD_DIR)/$(TARGET_LIB) $(CLI_TARGETS)
+	@if [ "$(USE_ONNX)" = "1" ]; then \
+		$(MAKE) onnx_cli || echo "⚠️  ONNX CLI skipped (ONNX Runtime not available)"; \
+	fi
 
 # Convenience target for library only
 fastembed.a: $(BUILD_DIR)/$(TARGET_LIB)
