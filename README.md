@@ -51,12 +51,12 @@ Perfect for real-time semantic search, large-scale text processing, edge deploym
 
 ## 🌐 Supported Languages
 
-| Language    | Binding  | Status  | Performance (short text) | Install                              |
-| ----------- | -------- | ------- | ------------------------ | ------------------------------------ |
-| **Node.js** | N-API    | ✅ Ready | ⚡ 0.014 ms (measured)    | `npm install && npm run build`       |
-| **Python**  | pybind11 | ✅ Ready | ⚡ 0.012 ms (measured)    | `pip install .`                      |
-| **C#**      | P/Invoke | ✅ Ready | ⚡ 0.014 ms (measured)    | `dotnet build`                       |
-| **Java**    | JNI      | ✅ Ready | ⚡ 0.013 ms (measured)    | See [bindings/java/](bindings/java/) |
+| Language    | Binding  | Status  | Performance (ONNX, short text) | Install                              |
+| ----------- | -------- | ------- | ------------------------------ | ------------------------------------ |
+| **Java**    | JNI      | ✅ Ready | ⚡ 22.5 ms (45 emb/s)           | See [bindings/java/](bindings/java/) |
+| **Node.js** | N-API    | ✅ Ready | ⚡ 27.1 ms (37 emb/s)           | `npm install && npm run build`       |
+| **Python**  | pybind11 | ✅ Ready | ⚡ 28.6 ms (35 emb/s)           | `pip install .`                      |
+| **C#**      | P/Invoke | ✅ Ready | ⚡ 28.5 ms (35 emb/s)           | `dotnet build`                       |
 
 See [bindings/](bindings/) for detailed integration guides.
 
@@ -68,14 +68,14 @@ See [bindings/](bindings/) for detailed integration guides.
 
 ### Hash-based Embeddings (768-dimensional)
 
-**All bindings tested** - sub-millisecond performance across the board:
+**Ultra-fast deterministic embeddings** - sub-millisecond performance:
 
-| Language    | Short (16c) | Medium (45c) | Long (71c) | Best Vector Ops     |
-| ----------- | ----------- | ------------ | ---------- | ------------------- |
-| **Python**  | 0.012 ms    | 0.030 ms     | 0.048 ms   | 1.48M ops/sec       |
-| **Node.js** | 0.014 ms    | 0.032 ms     | 0.049 ms   | 2.73M ops/sec       |
-| **Java**    | 0.013 ms    | 0.030 ms     | 0.048 ms   | 1.97M ops/sec       |
-| **C#**      | 0.014 ms    | 0.031 ms     | 0.051 ms   | **5.72M ops/sec** 🚀 |
+- **Performance**: ~0.01-0.1 ms per embedding (~27,000 embeddings/sec average)
+- **SIMD optimized**: Consistent performance across text lengths
+- **Deterministic**: Same text always produces same embedding
+- **Vector operations**: Sub-microsecond latency (see Vector Operations section below)
+
+> **Note**: Hash-based embeddings are deterministic and fast, but lack semantic understanding. For semantic search, use ONNX-based embeddings below.
 
 ### ONNX-based Embeddings (768-dimensional, ONNX Runtime 1.23.2)
 
@@ -91,9 +91,9 @@ See [bindings/](bindings/) for detailed integration guides.
 **Key Features:**
 
 - **Semantic quality**: 0.72 similarity for semantically similar texts, 0.59 for different
-- **Batch processing**: 14-40 embeddings/sec (single), scales efficiently with batch sizes
+- **Batch processing**: 14-40 embeddings/sec (single), 14-17 emb/s (batch 100)
 - **Memory efficient**: 0-0.3 MB overhead per embedding
-- **Consistent performance** across all language bindings
+- **Consistent performance** across all language bindings (8-45 emb/s depending on text length)
 
 ### Vector Operations
 

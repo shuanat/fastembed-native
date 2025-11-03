@@ -9,10 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ONNX Runtime 1.23.2 integration** for semantic embeddings (all 4 language bindings)
+- Comprehensive ONNX benchmark suite with results for Node.js, Python, C#, Java
+- ONNX benchmark scripts: `benchmark_onnx.js`, `benchmark_onnx.py`, `benchmark_onnx.cs`, `benchmark_onnx.java`
+- Linux build scripts: `build_linux.sh`, `build_jni_linux.sh`, `run_onnx_benchmarks.sh`
 - GitHub Actions CI/CD pipeline for automated builds and tests
 - Comprehensive API documentation (docs/API.md)
 - Architecture documentation (docs/ARCHITECTURE.md)
 - Code of Conduct and Security Policy
+- ONNX benchmark documentation: `ONNX_BENCHMARK_REPORT.md`, updated `BENCHMARK_RESULTS.md`
 
 ### Changed
 
@@ -37,10 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - System V ABI compliance
 
 - **Language Bindings:**
-  - **Node.js:** N-API binding with `FastEmbedNativeClient` class (0.014-0.049 ms, measured)
-  - **Python:** pybind11 binding with `FastEmbedNative` class (0.012-0.047 ms, measured)
-  - **C#:** P/Invoke binding with `FastEmbedClient` class (0.014-0.051 ms, measured)
-  - **Java:** JNI binding with `FastEmbed` class (0.013-0.048 ms, measured)
+  - **Node.js:** N-API binding with `FastEmbedNativeClient` class
+  - **Python:** pybind11 binding with `FastEmbedNative` class
+  - **C#:** P/Invoke binding with `FastEmbedClient` class
+  - **Java:** JNI binding with `FastEmbed` class
+  - All bindings support ONNX Runtime 1.23.2 for semantic embeddings
 
 - **Build System:**
   - Cross-platform Makefile (Linux, macOS, Windows/WSL)
