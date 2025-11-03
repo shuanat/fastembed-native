@@ -13,7 +13,13 @@
   <ItemGroup>
     <Compile Include="src/FastEmbedNative.cs" />
     <Compile Include="src/FastEmbed.cs" />
-    <Compile Include="benchmark.cs" />
+    <Compile Include="benchmark_onnx.cs" />
+  </ItemGroup>
+
+  <!-- Copy native DLLs to output directory -->
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <None Include="../../bindings/shared/build/fastembed.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../bindings/shared/build/fastembed.dll')" />
+    <None Include="../../onnxruntime/lib/onnxruntime.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/onnxruntime.dll')" />
   </ItemGroup>
 
 </Project>

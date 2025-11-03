@@ -29,7 +29,19 @@
 #include <math.h>
 #include <ctype.h>
 #include <limits.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define PATH_MAX MAX_PATH
+#else
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+#endif
 
 #include <onnxruntime_c_api.h>
 #include "../include/fastembed_config.h"
@@ -75,6 +87,7 @@ static CachedModelSession g_cached_session = {0};
  * @brief Initialize ONNX Runtime API (standard approach)
  *
  * Gets the API base and retrieves the API structure.
+ * On Windows, ensures the correct onnxruntime.dll is loaded.
  *
  * @return 0 on success, -1 on error
  */
@@ -84,6 +97,71 @@ static int init_onnx_api(void)
     {
         return 0; // Already initialized
     }
+
+#ifdef _WIN32
+    // On Windows, set DLL directory to prefer loading from current directory
+    // This ensures we use the correct onnxruntime.dll, not the system one
+    HMODULE hModule = GetModuleHandleA("fastembed_jni.dll");
+    if (hModule == NULL)
+    {
+        hModule = GetModuleHandleA("fastembed.dll");
+    }
+    if (hModule != NULL)
+    {
+        char module_path[MAX_PATH];
+        if (GetModuleFileNameA(hModule, module_path, MAX_PATH) > 0)
+        {
+            // Extract directory
+            char *last_slash = strrchr(module_path, '\\');
+            if (last_slash != NULL)
+            {
+                *last_slash = '\0';
+                char dll_path[MAX_PATH];
+                snprintf(dll_path, sizeof(dll_path), "%s\\onnxruntime.dll", module_path);
+
+                // Use LoadLibraryEx with LOAD_WITH_ALTERED_SEARCH_PATH to bypass system32
+                // This flag forces Windows to search in the specified directory FIRST,
+                // ignoring the standard DLL search order (which includes system32)
+                HMODULE hOnnxDll = LoadLibraryExA(dll_path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+
+                if (hOnnxDll == NULL)
+                {
+                    // Fallback: try normal LoadLibrary if LoadLibraryEx fails
+                    hOnnxDll = LoadLibraryA(dll_path);
+                }
+
+                if (hOnnxDll == NULL)
+                {
+                    // Last resort: change DLL search directory
+                    SetDllDirectoryA(module_path);
+                }
+                else
+                {
+                    // Success - DLL loaded from our directory
+                    // Get OrtGetApiBase function pointer directly from our DLL
+                    typedef const OrtApiBase *(*OrtGetApiBaseFunc)(void);
+                    OrtGetApiBaseFunc getApiBase = (OrtGetApiBaseFunc)GetProcAddress(hOnnxDll, "OrtGetApiBase");
+                    if (getApiBase != NULL)
+                    {
+                        // Call OrtGetApiBase from our DLL, not the system one
+                        const OrtApiBase *api_base = getApiBase();
+                        if (api_base != NULL)
+                        {
+                            // Use this API base instead of the global one
+                            g_ort = api_base->GetApi(ORT_API_VERSION);
+                            if (g_ort != NULL)
+                            {
+                                // Success - we're using the correct ONNX Runtime version
+                                // Skip the standard initialization below
+                                goto skip_standard_init;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+#endif
 
     const OrtApiBase *api_base = OrtGetApiBase();
     if (api_base == NULL)
@@ -99,6 +177,7 @@ static int init_onnx_api(void)
         return -1;
     }
 
+skip_standard_init:
     return 0;
 }
 
@@ -133,7 +212,11 @@ static int load_or_get_cached_session(const char *model_path, CachedModelSession
     char resolved_path[PATH_MAX];
 
     /* Resolve model path */
+#ifdef _WIN32
+    if (_fullpath(resolved_path, model_path, PATH_MAX) == NULL)
+#else
     if (realpath(model_path, resolved_path) == NULL)
+#endif
     {
         fprintf(stderr, "Model file not found: %s\n", model_path);
         return -1;
@@ -177,7 +260,14 @@ static int load_or_get_cached_session(const char *model_path, CachedModelSession
     CHECK_ORT_STATUS(g_ort->CreateSessionOptions(&cached->session_options));
 
     /* Create session from file */
+#ifdef _WIN32
+    /* Convert path to wide string for Windows */
+    wchar_t wide_path[PATH_MAX];
+    MultiByteToWideChar(CP_UTF8, 0, resolved_path, -1, wide_path, PATH_MAX);
+    CHECK_ORT_STATUS(g_ort->CreateSession(cached->env, wide_path, cached->session_options, &cached->session));
+#else
     CHECK_ORT_STATUS(g_ort->CreateSession(cached->env, resolved_path, cached->session_options, &cached->session));
+#endif
 
     /* Get allocator */
     CHECK_ORT_STATUS(g_ort->GetAllocatorWithDefaultOptions(&cached->allocator));

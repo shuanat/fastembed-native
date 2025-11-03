@@ -142,6 +142,39 @@ namespace FastEmbed
             return texts.Select(GenerateEmbedding).ToArray();
         }
 
+        /// <summary>
+        /// Generate ONNX-based embedding for text using ML model
+        /// </summary>
+        /// <param name="modelPath">Path to ONNX model file</param>
+        /// <param name="text">Input text</param>
+        /// <returns>Embedding vector as float array</returns>
+        /// <exception cref="ArgumentNullException">If modelPath or text is null</exception>
+        /// <exception cref="FastEmbedException">If generation fails</exception>
+        public float[] GenerateOnnxEmbedding(string modelPath, string text)
+        {
+            if (modelPath == null)
+                throw new ArgumentNullException(nameof(modelPath));
+            if (text == null)
+                throw new ArgumentNullException(nameof(text));
+
+            var output = new float[_dimension];
+            int result = FastEmbedNative.fastembed_onnx_generate(modelPath, text, output, _dimension);
+
+            if (result != 0)
+                throw new FastEmbedException($"Failed to generate ONNX embedding (error code: {result})");
+
+            return output;
+        }
+
+        /// <summary>
+        /// Unload ONNX model from memory
+        /// </summary>
+        /// <returns>0 on success, -1 on error</returns>
+        public int UnloadOnnxModel()
+        {
+            return FastEmbedNative.fastembed_onnx_unload();
+        }
+
         private void ValidateVector(float[] vector)
         {
             if (vector == null)

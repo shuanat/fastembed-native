@@ -19,6 +19,7 @@
 FastEmbed is a **cross-platform, multi-language** text embedding library providing:
 
 - ⚡ **Blazing fast** hash-based embeddings (0.01-1ms per embedding)
+- 🧠 **ONNX Runtime support** (1.23.2) for semantic embeddings (all 4 languages)
 - 🌍 **4 native bindings**: Node.js, Python, C#, Java
 - 🚀 **SIMD optimized** assembly code (SSE4/AVX2)
 - 🔧 **Easy integration** with ML frameworks
@@ -33,6 +34,7 @@ Perfect for real-time semantic search, large-scale text processing, edge deploym
 ### Core Capabilities
 
 - **Hash-based embeddings**: Deterministic, fast generation without neural networks
+- **ONNX-based embeddings**: Semantic understanding with ONNX Runtime 1.23.2 (all 4 languages)
 - **Vector operations**: Cosine similarity, dot product, normalization, addition
 - **Batch processing**: Generate multiple embeddings efficiently
 - **Text similarity**: High-level API for semantic comparison
@@ -64,7 +66,7 @@ See [bindings/](bindings/) for detailed integration guides.
 
 > **📊 Full Benchmarks:** See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for comprehensive performance data and methodology.
 
-### Embedding Generation (1000 iterations, 768-dimensional embeddings)
+### Hash-based Embeddings (768-dimensional)
 
 **All bindings tested** - sub-millisecond performance across the board:
 
@@ -75,6 +77,24 @@ See [bindings/](bindings/) for detailed integration guides.
 | **Java**    | 0.013 ms    | 0.030 ms     | 0.048 ms   | 1.97M ops/sec       |
 | **C#**      | 0.014 ms    | 0.031 ms     | 0.051 ms   | **5.72M ops/sec** 🚀 |
 
+### ONNX-based Embeddings (768-dimensional, ONNX Runtime 1.23.2)
+
+**All 4 language bindings support ONNX Runtime** - semantic understanding with quality embeddings:
+
+| Language    | Short (108 chars) | Medium (460 chars) | Long (1574 chars) | Throughput (emb/s) |
+| ----------- | ----------------- | ------------------ | ----------------- | ------------------ |
+| **Java**    | 22.459 ms         | 47.361 ms          | 110.655 ms        | 45 (short)         |
+| **Node.js** | 27.144 ms         | 53.582 ms          | 123.068 ms        | 37 (short)         |
+| **Python**  | 28.569 ms         | 51.913 ms          | 123.028 ms        | 35 (short)         |
+| **C#**      | 28.502 ms         | 54.355 ms          | 129.634 ms        | 35 (short)         |
+
+**Key Features:**
+
+- **Semantic quality**: 0.72 similarity for semantically similar texts, 0.59 for different
+- **Batch processing**: 14-40 embeddings/sec (single), scales efficiently with batch sizes
+- **Memory efficient**: 0-0.3 MB overhead per embedding
+- **Consistent performance** across all language bindings
+
 ### Vector Operations
 
 All bindings achieve **sub-microsecond** latency with SIMD optimizations:
@@ -84,7 +104,7 @@ All bindings achieve **sub-microsecond** latency with SIMD optimizations:
 - **Vector Norm**: 0.000-0.001 ms (1.4M-5.7M ops/sec)
 - **Normalization**: 0.001-0.003 ms (350K-885K ops/sec)
 
-*Tested on x86_64 (WSL/Linux) with GCC `-O3 -march=native`, SIMD instructions (AVX2/SSE4)*
+*Tested on x86_64 (Windows/Linux) with GCC `-O3 -march=native`, SIMD instructions (AVX2/SSE4)*
 
 ---
 

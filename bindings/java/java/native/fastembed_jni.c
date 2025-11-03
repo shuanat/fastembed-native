@@ -156,3 +156,53 @@ JNIEXPORT void JNICALL Java_com_fastembed_FastEmbed_nativeAddVectors(JNIEnv *env
     (*env)->ReleaseFloatArrayElements(env, vectorB, vecB, JNI_ABORT);
     (*env)->ReleaseFloatArrayElements(env, result, vecResult, 0);
 }
+
+/*
+ * Class:     com_fastembed_FastEmbed
+ * Method:    nativeGenerateOnnxEmbedding
+ * Signature: (Ljava/lang/String;Ljava/lang/String;[FI)I
+ */
+JNIEXPORT jint JNICALL Java_com_fastembed_FastEmbed_nativeGenerateOnnxEmbedding(JNIEnv *env, jobject obj, jstring modelPath, jstring text, jfloatArray output, jint dimension)
+{
+    // Convert Java strings to C strings
+    const char *model_path_c = (*env)->GetStringUTFChars(env, modelPath, NULL);
+    const char *text_c = (*env)->GetStringUTFChars(env, text, NULL);
+
+    if (model_path_c == NULL || text_c == NULL)
+    {
+        if (model_path_c)
+            (*env)->ReleaseStringUTFChars(env, modelPath, model_path_c);
+        if (text_c)
+            (*env)->ReleaseStringUTFChars(env, text, text_c);
+        return -1;
+    }
+
+    // Get output array
+    jfloat *output_c = (*env)->GetFloatArrayElements(env, output, NULL);
+    if (output_c == NULL)
+    {
+        (*env)->ReleaseStringUTFChars(env, modelPath, model_path_c);
+        (*env)->ReleaseStringUTFChars(env, text, text_c);
+        return -1;
+    }
+
+    // Call native ONNX function
+    int result = fastembed_onnx_generate(model_path_c, text_c, output_c, dimension);
+
+    // Release resources
+    (*env)->ReleaseFloatArrayElements(env, output, output_c, 0);
+    (*env)->ReleaseStringUTFChars(env, modelPath, model_path_c);
+    (*env)->ReleaseStringUTFChars(env, text, text_c);
+
+    return result;
+}
+
+/*
+ * Class:     com_fastembed_FastEmbed
+ * Method:    nativeUnloadOnnxModel
+ * Signature: ()I
+ */
+JNIEXPORT jint JNICALL Java_com_fastembed_FastEmbed_nativeUnloadOnnxModel(JNIEnv *env, jobject obj)
+{
+    return fastembed_onnx_unload();
+}

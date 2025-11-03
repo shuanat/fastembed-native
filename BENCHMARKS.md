@@ -19,9 +19,22 @@ Measure and compare real-world performance across all language bindings:
 
 ### 1. Embedding Generation
 
+**Hash-based Embeddings:**
+
 - Various text lengths (short, medium, long)
 - Average time per operation
 - Throughput (operations/second)
+- Deterministic embeddings (same text = same embedding)
+
+**ONNX-based Embeddings:**
+
+- ONNX Runtime 1.23.2 support (all 4 languages: Node.js, Python, C#, Java)
+- Semantic understanding (quality over speed)
+- Model caching for performance
+- Semantic similarity search capability
+- Performance: 14-40 embeddings/sec (single), 14-46 emb/s (batch)
+- Memory: 0-0.3 MB overhead per embedding
+- Quality: 0.72 similarity for similar texts, 0.59 for different
 
 ### 2. Vector Operations
 
@@ -35,7 +48,16 @@ Measure and compare real-world performance across all language bindings:
 
 ## 🚀 Quick Start
 
-### Run All Benchmarks (Linux/WSL)
+### Run All Benchmarks
+
+**Windows:**
+
+```batch
+# Run ONNX benchmarks
+scripts\run_onnx_benchmarks.bat
+```
+
+**Linux/WSL:**
 
 ```bash
 # Build everything first
@@ -43,12 +65,15 @@ make all
 
 # Run comprehensive benchmark suite
 bash scripts/run_benchmarks.sh
+
+# Or run ONNX benchmarks only
+bash scripts/run_onnx_benchmarks.sh
 ```
 
 This will:
 
 1. Build the shared C/Assembly library
-2. Run benchmarks for all 4 language bindings
+2. Run benchmarks for all 4 language bindings (Node.js, Python, C#, Java)
 3. Generate `BENCHMARK_RESULTS.md` with results
 
 ### Run Individual Benchmarks
@@ -58,7 +83,7 @@ This will:
 ```bash
 cd bindings/nodejs
 npm install && npm run build
-node benchmark.js
+node benchmark_onnx.js
 ```
 
 #### Python
@@ -66,14 +91,14 @@ node benchmark.js
 ```bash
 cd bindings/python
 python setup.py build_ext --inplace
-LD_LIBRARY_PATH=../shared/build python benchmark.py
+LD_LIBRARY_PATH=../shared/build python benchmark_onnx.py
 ```
 
 #### C #
 
 ```bash
 cd bindings/csharp
-bash run_benchmark.sh
+dotnet run --project benchmark_onnx.cs
 ```
 
 Or manually:
@@ -82,25 +107,23 @@ Or manually:
 cd bindings/csharp
 export PATH="$HOME/.dotnet:$PATH"
 export LD_LIBRARY_PATH=../shared/build
-dotnet run --project benchmark.csproj -c Release
+dotnet run --project benchmark_onnx.cs
 ```
 
 #### Java
 
 ```bash
-cd bindings/java
-bash run_benchmark.sh
+cd bindings/java/java
+mvn compile
+java -Djava.library.path=build -cp target/classes benchmark_onnx
 ```
 
-Or manually:
+Or run ONNX benchmark:
 
 ```bash
-cd bindings/java
-# Build JNI wrapper and compile classes
-bash build_benchmark.sh
-
-# Run benchmark
-java -Djava.library.path=target/lib -cp target/classes:target/test-classes com.fastembed.FastEmbedBenchmark
+cd bindings/java/java
+mvn compile
+java -Djava.library.path=build -cp target/classes benchmark_onnx
 ```
 
 ---
@@ -227,13 +250,14 @@ top
 
 ## 📝 Benchmark Files
 
-| Language | Benchmark File                                        |
-| -------- | ----------------------------------------------------- |
-| Node.js  | `bindings/nodejs/benchmark.js`                        |
-| Python   | `bindings/python/benchmark.py`                        |
-| C#       | `bindings/csharp/benchmark.cs`                        |
-| Java     | `bindings/java/src/test/java/FastEmbedBenchmark.java` |
-| Runner   | `scripts/run_benchmarks.sh`                           |
+| Language | Benchmark File                              |
+| -------- | ------------------------------------------- |
+| Node.js  | `bindings/nodejs/benchmark_onnx.js`         |
+| Python   | `bindings/python/benchmark_onnx.py`         |
+| C#       | `bindings/csharp/benchmark_onnx.cs`         |
+| Java     | `bindings/java/java/benchmark_onnx.java`    |
+| Runner   | `scripts/run_onnx_benchmarks.bat` (Windows) |
+| Runner   | `scripts/run_onnx_benchmarks.sh` (Linux)    |
 
 ---
 
@@ -257,4 +281,4 @@ Want to add more benchmarks? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
-**Last updated:** November 1, 2024
+**Last updated:** November 3, 2025

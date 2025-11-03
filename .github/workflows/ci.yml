@@ -228,9 +228,66 @@ jobs:
           export LD_LIBRARY_PATH="$PWD/../shared/build:target/lib:$LD_LIBRARY_PATH"
           java -Djava.library.path=target/lib -cp target/classes:target/test-classes com.fastembed.FastEmbedBenchmark
 
+  test-onnx-linux:
+    name: Test ONNX Runtime (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc make wget
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz
+          tar -xzf onnxruntime-linux-x64-1.23.2.tgz
+
+      - name: Build shared library with ONNX
+        run: |
+          chmod +x scripts/build_linux.sh
+          bash scripts/build_linux.sh
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Build all bindings
+        run: |
+          cd bindings/nodejs && npm install && npm run build
+          cd ../python && pip install pybind11 numpy && python setup.py build_ext --inplace
+          cd ../csharp/src && dotnet build FastEmbed.csproj
+          cd ../../java/java && chmod +x build_jni_linux.sh && bash build_jni_linux.sh && mvn compile -q
+
+      - name: Run ONNX benchmarks
+        run: |
+          chmod +x scripts/run_onnx_benchmarks.sh
+          export LD_LIBRARY_PATH=$PWD/bindings/shared/build:$LD_LIBRARY_PATH
+          bash scripts/run_onnx_benchmarks.sh || true
+
   build-summary:
     name: Build Summary
-    needs: [test-nodejs, test-python, test-csharp, test-java]
+    needs: [test-nodejs, test-python, test-csharp, test-java, test-onnx-linux]
     runs-on: ubuntu-latest
     if: always()
 
@@ -242,3 +299,4 @@ jobs:
           echo "- Python: ${{ needs.test-python.result }}"
           echo "- C#: ${{ needs.test-csharp.result }}"
           echo "- Java: ${{ needs.test-java.result }}"
+          echo "- ONNX Runtime: ${{ needs.test-onnx-linux.result }}"

@@ -18,6 +18,8 @@ namespace py = pybind11;
 extern "C"
 {
     int fastembed_generate(const char *text, float *output, int dimension);
+    int fastembed_onnx_generate(const char *model_path, const char *text, float *output, int dimension);
+    int fastembed_onnx_unload(void);
     float fastembed_cosine_similarity(const float *vector_a, const float *vector_b, int dimension);
     float fastembed_dot_product(const float *vector_a, const float *vector_b, int dimension);
     float fastembed_vector_norm(const float *vector, int dimension);
@@ -48,6 +50,42 @@ py::array_t<float> generate_embedding(const std::string &text, int dimension = 7
     }
 
     return result;
+}
+
+/**
+ * Generate ONNX embedding from text
+ *
+ * @param model_path Path to ONNX model file
+ * @param text Input text string
+ * @param dimension Embedding dimension (default: 768)
+ * @return NumPy array with embedding vector
+ */
+py::array_t<float> generate_onnx_embedding(const std::string &model_path, const std::string &text, int dimension = 768)
+{
+    // Allocate output buffer
+    auto result = py::array_t<float>(dimension);
+    py::buffer_info buf = result.request();
+    float *ptr = static_cast<float *>(buf.ptr);
+
+    // Call C function
+    int status = fastembed_onnx_generate(model_path.c_str(), text.c_str(), ptr, dimension);
+
+    if (status != 0)
+    {
+        throw std::runtime_error("Failed to generate ONNX embedding");
+    }
+
+    return result;
+}
+
+/**
+ * Unload ONNX model from memory
+ *
+ * @return 0 on success, -1 on error
+ */
+int unload_onnx_model()
+{
+    return fastembed_onnx_unload();
 }
 
 /**
@@ -245,6 +283,16 @@ public:
         return ::add_vectors(vector_a, vector_b);
     }
 
+    py::array_t<float> generate_onnx_embedding(const std::string &model_path, const std::string &text)
+    {
+        return ::generate_onnx_embedding(model_path, text, dimension_);
+    }
+
+    int unload_onnx_model()
+    {
+        return ::unload_onnx_model();
+    }
+
     int get_dimension() const
     {
         return dimension_;
@@ -285,6 +333,15 @@ PYBIND11_MODULE(fastembed_native, m)
           py::arg("vector_a"),
           py::arg("vector_b"));
 
+    m.def("generate_onnx_embedding", &generate_onnx_embedding,
+          "Generate ONNX embedding from text",
+          py::arg("model_path"),
+          py::arg("text"),
+          py::arg("dimension") = 768);
+
+    m.def("unload_onnx_model", &unload_onnx_model,
+          "Unload ONNX model from memory");
+
     // FastEmbedNative class
     py::class_<FastEmbedNative>(m, "FastEmbedNative")
         .def(py::init<int>(),
@@ -311,6 +368,12 @@ PYBIND11_MODULE(fastembed_native, m)
              "Add two vectors",
              py::arg("vector_a"),
              py::arg("vector_b"))
+        .def("generate_onnx_embedding", &FastEmbedNative::generate_onnx_embedding,
+             "Generate ONNX embedding from text",
+             py::arg("model_path"),
+             py::arg("text"))
+        .def("unload_onnx_model", &FastEmbedNative::unload_onnx_model,
+             "Unload ONNX model from memory")
         .def_property_readonly("dimension", &FastEmbedNative::get_dimension,
                                "Get embedding dimension");
 
