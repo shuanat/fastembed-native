@@ -62,6 +62,9 @@ docs/experiments/
 
 # ONNX Runtime (large, should be downloaded separately)
 onnxruntime/
+onnxruntime-*/
+*.tgz
+*.tar.gz
 
 # ONNX models (large, should be downloaded separately)
 models/*.onnx
