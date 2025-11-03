@@ -51,6 +51,17 @@
 
 #include <stdint.h>
 
+// Export macros for Windows DLL
+#ifdef _WIN32
+#ifdef FASTEMBED_BUILDING_LIB
+#define FASTEMBED_EXPORT __declspec(dllexport)
+#else
+#define FASTEMBED_EXPORT __declspec(dllimport)
+#endif
+#else
+#define FASTEMBED_EXPORT
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -77,7 +88,7 @@ extern "C"
      * @note Current limitation: only supports dimension=768
      * @note Performance: O(text_length), optimized with SIMD
      */
-    int fastembed_generate(const char *text, float *output, int dimension);
+    FASTEMBED_EXPORT int fastembed_generate(const char *text, float *output, int dimension);
 
     /**
      * @brief Calculate dot product of two vectors
@@ -95,7 +106,7 @@ extern "C"
      * @note Vectors must have the same dimension
      * @note Performance: O(dimension), optimized with SIMD
      */
-    float fastembed_dot_product(const float *vec1, const float *vec2, int dimension);
+    FASTEMBED_EXPORT float fastembed_dot_product(const float *vec1, const float *vec2, int dimension);
 
     /**
      * @brief Calculate cosine similarity between two vectors
@@ -117,7 +128,7 @@ extern "C"
      * @note For normalized vectors, cosine similarity equals dot product
      * @note Performance: O(dimension), optimized with SIMD
      */
-    float fastembed_cosine_similarity(const float *vec1, const float *vec2, int dimension);
+    FASTEMBED_EXPORT float fastembed_cosine_similarity(const float *vec1, const float *vec2, int dimension);
 
     /**
      * @brief Calculate L2 (Euclidean) norm of a vector
@@ -134,7 +145,7 @@ extern "C"
      * @note Zero vector returns 0.0 norm
      * @note Performance: O(dimension), optimized with SIMD
      */
-    float fastembed_vector_norm(const float *vec, int dimension);
+    FASTEMBED_EXPORT float fastembed_vector_norm(const float *vec, int dimension);
 
     /**
      * @brief Normalize vector to unit length (L2 normalization)
@@ -153,7 +164,7 @@ extern "C"
      * @note Zero vectors remain unchanged (no division by zero)
      * @note Performance: O(dimension), optimized with SIMD
      */
-    void fastembed_normalize(float *vec, int dimension);
+    FASTEMBED_EXPORT void fastembed_normalize(float *vec, int dimension);
 
     /**
      * @brief Add two vectors element-wise
@@ -172,7 +183,7 @@ extern "C"
      * @note Result vector must be pre-allocated (not computed in-place)
      * @note Performance: O(dimension), optimized with SIMD
      */
-    void fastembed_add_vectors(const float *vec1, const float *vec2, float *result, int dimension);
+    FASTEMBED_EXPORT void fastembed_add_vectors(const float *vec1, const float *vec2, float *result, int dimension);
 
     /**
      * @brief Generate embedding using ONNX Runtime model
@@ -200,7 +211,7 @@ extern "C"
      * @note Output embedding is L2-normalized (unit vector)
      * @note Model is cached after first load - use fastembed_onnx_unload() to free memory
      */
-    int fastembed_onnx_generate(const char *model_path, const char *text, float *output, int dimension);
+    FASTEMBED_EXPORT int fastembed_onnx_generate(const char *model_path, const char *text, float *output, int dimension);
 
     /**
      * @brief Unload cached ONNX model session
@@ -216,7 +227,7 @@ extern "C"
      * @note Safe to call even if no model is loaded (returns 0)
      * @note This function only affects the cached session, not ONNX Runtime itself
      */
-    int fastembed_onnx_unload(void);
+    FASTEMBED_EXPORT int fastembed_onnx_unload(void);
 
     /**
      * @brief Generate embeddings for multiple texts in batch
@@ -239,7 +250,7 @@ extern "C"
      * @note On error, some embeddings may have been generated (partial results)
      * @note Uses hash-based embedding (not ONNX models)
      */
-    int fastembed_batch_generate(const char **texts, int num_texts, float **outputs, int dimension);
+    FASTEMBED_EXPORT int fastembed_batch_generate(const char **texts, int num_texts, float **outputs, int dimension);
 
 #ifdef __cplusplus
 }

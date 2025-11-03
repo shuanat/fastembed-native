@@ -158,6 +158,29 @@ namespace FastEmbed
             [Out] float[] result,
             int dimension
         );
+
+        /// <summary>
+        /// Generate ONNX-based embedding for text using ML model
+        /// </summary>
+        /// <param name="modelPath">Path to ONNX model file</param>
+        /// <param name="text">Input text (UTF-8)</param>
+        /// <param name="output">Output buffer for embedding</param>
+        /// <param name="dimension">Embedding dimension (must match model output)</param>
+        /// <returns>0 on success, non-zero on error</returns>
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        public static extern int fastembed_onnx_generate(
+            [MarshalAs(UnmanagedType.LPStr)] string modelPath,
+            [MarshalAs(UnmanagedType.LPStr)] string text,
+            [Out] float[] output,
+            int dimension
+        );
+
+        /// <summary>
+        /// Unload ONNX model from memory
+        /// </summary>
+        /// <returns>0 on success, -1 on error</returns>
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int fastembed_onnx_unload();
     }
 }
 

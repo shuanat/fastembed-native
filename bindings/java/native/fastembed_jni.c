@@ -103,3 +103,44 @@ Java_com_fastembed_FastEmbed_nativeAddVectors(JNIEnv *env, jobject obj,
     (*env)->ReleaseFloatArrayElements(env, vectorB, arrB, JNI_ABORT);
     (*env)->ReleaseFloatArrayElements(env, result, arrResult, 0);
 }
+
+JNIEXPORT jint JNICALL
+Java_com_fastembed_FastEmbed_nativeGenerateOnnxEmbedding(JNIEnv *env, jobject obj,
+                                                         jstring modelPath, jstring text,
+                                                         jfloatArray output, jint dimension)
+{
+    const char *model_path_str = (*env)->GetStringUTFChars(env, modelPath, NULL);
+    if (model_path_str == NULL)
+        return -1;
+
+    const char *text_str = (*env)->GetStringUTFChars(env, text, NULL);
+    if (text_str == NULL)
+    {
+        (*env)->ReleaseStringUTFChars(env, modelPath, model_path_str);
+        return -1;
+    }
+
+    jfloat *output_arr = (*env)->GetFloatArrayElements(env, output, NULL);
+    if (output_arr == NULL)
+    {
+        (*env)->ReleaseStringUTFChars(env, text, text_str);
+        (*env)->ReleaseStringUTFChars(env, modelPath, model_path_str);
+        return -1;
+    }
+
+    extern int fastembed_onnx_generate(const char *model_path, const char *text, float *output, int dimension);
+    int result = fastembed_onnx_generate(model_path_str, text_str, output_arr, dimension);
+
+    (*env)->ReleaseFloatArrayElements(env, output, output_arr, 0);
+    (*env)->ReleaseStringUTFChars(env, text, text_str);
+    (*env)->ReleaseStringUTFChars(env, modelPath, model_path_str);
+
+    return result;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_fastembed_FastEmbed_nativeUnloadOnnxModel(JNIEnv *env, jobject obj)
+{
+    extern int fastembed_onnx_unload(void);
+    return fastembed_onnx_unload();
+}

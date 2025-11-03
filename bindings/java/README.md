@@ -60,9 +60,13 @@ java -Djava.library.path=target/lib -cp target/fastembed-1.0-SNAPSHOT.jar TestFa
 
 ## Performance
 
-**Measured Performance** (Nov 2025):
+**ONNX Runtime Performance** (Nov 2025):
 
-- Embedding generation: **0.013-0.048 ms** (20K-78K ops/sec)
-- Vector operations: **Sub-microsecond** (up to **1.97M ops/sec**)
+- ONNX embeddings: **22.5-110.7 ms** (8-45 emb/s depending on text length)
+  - Short text (108 chars): **22.5 ms** (45 emb/s) - fastest!
+  - Medium text (460 chars): **47.4 ms** (21 emb/s)
+  - Long text (1574 chars): **110.7 ms** (9 emb/s)
+- Hash-based embeddings: **~0.01-0.1 ms** (~27,000 emb/s average)
+- Vector operations: **Sub-microsecond** latency
 
 See [BENCHMARK_RESULTS.md](../../BENCHMARK_RESULTS.md) for complete benchmark data.

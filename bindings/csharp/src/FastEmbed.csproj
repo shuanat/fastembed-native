@@ -34,10 +34,15 @@
   <!-- Include native libraries in output -->
   <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
     <None Include="../../shared/build/fastembed.dll" CopyToOutputDirectory="PreserveNewest" />
+    <!-- ONNX Runtime DLL -->
+    <None Include="../../onnxruntime/lib/onnxruntime.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/onnxruntime.dll')" />
   </ItemGroup>
   
-  <ItemGroup Condition="'$(OS)' == 'Unix'">
-    <None Include="../../shared/build/fastembed.so" CopyToOutputDirectory="PreserveNewest" />
+  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+    <None Include="../../shared/build/fastembed.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/build/fastembed.so')" />
+    <!-- ONNX Runtime shared library -->
+    <None Include="../../onnxruntime/lib/libonnxruntime.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/libonnxruntime.so')" />
+    <None Include="../../onnxruntime/lib/libonnxruntime.so.*" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/libonnxruntime.so')" />
   </ItemGroup>
 
 </Project>

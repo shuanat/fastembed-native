@@ -104,12 +104,42 @@ echo ========================================
 echo Compiling C files...
 echo ========================================
 
-cl /O2 /W3 /c /I"!INC_DIR!" "!SRC_DIR!\embedding_lib_c.c" /Fo:"!BUILD_DIR!\embedding_lib_c.obj" >nul 2>&1
+REM Check if ONNX Runtime is available (paths relative to PROJECT_ROOT)
+set "ONNX_DIR=onnxruntime"
+set "ONNX_INCLUDE=!PROJECT_ROOT!\!ONNX_DIR!\include"
+set "ONNX_LIB=!PROJECT_ROOT!\!ONNX_DIR!\lib"
+set "USE_ONNX=0"
+if exist "!ONNX_LIB!\onnxruntime.lib" (
+    set "USE_ONNX=1"
+    echo ONNX Runtime found - enabling ONNX support
+)
+
+REM Compile embedding_lib_c.c with ONNX support if available
+if "!USE_ONNX!"=="1" (
+    cl /O2 /W3 /c /I"!INC_DIR!" /I"!ONNX_INCLUDE!" /DUSE_ONNX_RUNTIME /DFASTEMBED_BUILDING_LIB "!SRC_DIR!\embedding_lib_c.c" /Fo:"!BUILD_DIR!\embedding_lib_c.obj" >nul 2>&1
+) else (
+    cl /O2 /W3 /c /I"!INC_DIR!" /DFASTEMBED_BUILDING_LIB "!SRC_DIR!\embedding_lib_c.c" /Fo:"!BUILD_DIR!\embedding_lib_c.obj" >nul 2>&1
+)
 if !errorlevel! neq 0 (
     echo ERROR: Failed to compile embedding_lib_c.c
     echo Running with verbose output...
-    cl /O2 /W3 /c /I"!INC_DIR!" "!SRC_DIR!\embedding_lib_c.c" /Fo:"!BUILD_DIR!\embedding_lib_c.obj"
+    if "!USE_ONNX!"=="1" (
+        cl /O2 /W3 /c /I"!INC_DIR!" /I"!ONNX_INCLUDE!" /DUSE_ONNX_RUNTIME /DFASTEMBED_BUILDING_LIB "!SRC_DIR!\embedding_lib_c.c" /Fo:"!BUILD_DIR!\embedding_lib_c.obj"
+    ) else (
+        cl /O2 /W3 /c /I"!INC_DIR!" /DFASTEMBED_BUILDING_LIB "!SRC_DIR!\embedding_lib_c.c" /Fo:"!BUILD_DIR!\embedding_lib_c.obj"
+    )
     exit /b 1
+)
+
+REM Compile ONNX loader if ONNX Runtime is available
+if "!USE_ONNX!"=="1" (
+    cl /O2 /W3 /c /I"!INC_DIR!" /I"!ONNX_INCLUDE!" /DUSE_ONNX_RUNTIME /DFASTEMBED_BUILDING_LIB "!SRC_DIR!\onnx_embedding_loader.c" /Fo:"!BUILD_DIR!\onnx_embedding_loader.obj" >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo WARNING: Failed to compile onnx_embedding_loader.c - ONNX support disabled
+        set "USE_ONNX=0"
+    ) else (
+        echo Compiled onnx_embedding_loader.c with ONNX Runtime support
+    )
 )
 
 echo.
@@ -117,12 +147,31 @@ echo ========================================
 echo Linking DLL...
 echo ========================================
 
-link /DLL /OUT:"!BUILD_DIR!\fastembed.dll" "!BUILD_DIR!\embedding_lib.obj" "!BUILD_DIR!\embedding_generator.obj" "!BUILD_DIR!\embedding_lib_c.obj" /LIBPATH:"!VCToolsInstallDir!lib\x64" msvcrt.lib >nul 2>&1
+REM Build link command with ONNX support if available
+set "LINK_OBJS=!BUILD_DIR!\embedding_lib.obj !BUILD_DIR!\embedding_generator.obj !BUILD_DIR!\embedding_lib_c.obj"
+set "LINK_LIBS=msvcrt.lib"
+set "LINK_LIBPATHS=/LIBPATH:"!VCToolsInstallDir!lib\x64""
+
+if "!USE_ONNX!"=="1" (
+    set "LINK_OBJS=!LINK_OBJS! !BUILD_DIR!\onnx_embedding_loader.obj"
+    set "LINK_LIBPATHS=!LINK_LIBPATHS! /LIBPATH:"!ONNX_LIB!""
+    set "LINK_LIBS=!LINK_LIBS! onnxruntime.lib"
+)
+
+link /DLL /OUT:"!BUILD_DIR!\fastembed.dll" !LINK_OBJS! !LINK_LIBPATHS! !LINK_LIBS! >nul 2>&1
 if !errorlevel! neq 0 (
     echo ERROR: Failed to link DLL
     echo Running with verbose output...
-    link /DLL /OUT:"!BUILD_DIR!\fastembed.dll" "!BUILD_DIR!\embedding_lib.obj" "!BUILD_DIR!\embedding_generator.obj" "!BUILD_DIR!\embedding_lib_c.obj" /LIBPATH:"!VCToolsInstallDir!lib\x64" msvcrt.lib
+    link /DLL /OUT:"!BUILD_DIR!\fastembed.dll" !LINK_OBJS! !LINK_LIBPATHS! !LINK_LIBS!
     exit /b 1
+)
+
+REM Copy ONNX Runtime DLL to build directory if available
+if "!USE_ONNX!"=="1" (
+    if exist "!ONNX_LIB!\onnxruntime.dll" (
+        copy /Y "!ONNX_LIB!\onnxruntime.dll" "!BUILD_DIR!\" >nul 2>&1
+        echo Copied ONNX Runtime DLL to build directory
+    )
 )
 
 echo.

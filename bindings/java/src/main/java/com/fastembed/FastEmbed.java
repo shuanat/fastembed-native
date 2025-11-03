@@ -75,10 +75,28 @@ public class FastEmbed {
         return result;
     }
 
+    public float[] generateOnnxEmbedding(String modelPath, String text) {
+        if (modelPath == null || text == null) {
+            throw new IllegalArgumentException("Model path and text cannot be null");
+        }
+        float[] output = new float[dimension];
+        int result = nativeGenerateOnnxEmbedding(modelPath, text, output, dimension);
+        if (result != 0) {
+            throw new RuntimeException("Failed to generate ONNX embedding (error code: " + result + ")");
+        }
+        return output;
+    }
+
+    public int unloadOnnxModel() {
+        return nativeUnloadOnnxModel();
+    }
+
     private native int nativeGenerateEmbedding(String text, float[] output, int dimension);
     private native float nativeCosineSimilarity(float[] vectorA, float[] vectorB, int dimension);
     private native float nativeDotProduct(float[] vectorA, float[] vectorB, int dimension);
     private native float nativeVectorNorm(float[] vector, int dimension);
     private native void nativeNormalizeVector(float[] vector, int dimension);
     private native void nativeAddVectors(float[] vectorA, float[] vectorB, float[] result, int dimension);
+    private native int nativeGenerateOnnxEmbedding(String modelPath, String text, float[] output, int dimension);
+    private native int nativeUnloadOnnxModel();
 }

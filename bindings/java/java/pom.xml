@@ -98,9 +98,10 @@
                             </includes>
                         </source>
                         <source>
-                            <directory>../src</directory>
+                            <directory>../shared/src</directory>
                             <includes>
                                 <include>embedding_lib_c.c</include>
+                                <include>onnx_embedding_loader.c</include>
                             </includes>
                         </source>
                     </sources>
@@ -111,12 +112,17 @@
                         <compilerStartOption>-march=native</compilerStartOption>
                         <compilerStartOption>-I${JAVA_HOME}/include</compilerStartOption>
                         <compilerStartOption>-I${JAVA_HOME}/include/linux</compilerStartOption>
-                        <compilerStartOption>-I../include</compilerStartOption>
+                        <compilerStartOption>-I../shared/include</compilerStartOption>
+                        <compilerStartOption>-I../../onnxruntime/include</compilerStartOption>
+                        <compilerStartOption>-DUSE_ONNX_RUNTIME</compilerStartOption>
                     </compilerStartOptions>
 
                     <linkerStartOptions>
                         <linkerStartOption>-shared</linkerStartOption>
                         <linkerStartOption>-lm</linkerStartOption>
+                        <linkerStartOption>-L../../onnxruntime/lib</linkerStartOption>
+                        <linkerStartOption>-lonnxruntime</linkerStartOption>
+                        <linkerStartOption>-Wl,-rpath,../../onnxruntime/lib</linkerStartOption>
                     </linkerStartOptions>
 
                     <linkerFinalName>libfastembed_jni</linkerFinalName>

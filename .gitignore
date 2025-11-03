@@ -62,6 +62,9 @@ docs/experiments/
 
 # ONNX Runtime (large, should be downloaded separately)
 onnxruntime/
+onnxruntime-*/
+*.tgz
+*.tar.gz
 
 # ONNX models (large, should be downloaded separately)
 models/*.onnx
@@ -80,5 +83,12 @@ cmake_install.cmake
 # Internal experiments journal (not for public repository)
 docs/experiments/
 
-# Generated benchmark results
-BENCHMARK_RESULTS.md
+# Generated benchmark results (keep aggregated results, ignore temporary)
+benchmark_results/
+**/benchmark_*_results.json
+benchmark_output*.txt
+benchmark_final_output.txt
+
+# Keep main benchmark documentation
+!BENCHMARK_RESULTS.md
+!ONNX_BENCHMARK_REPORT.md

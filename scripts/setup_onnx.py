@@ -7,6 +7,7 @@ import platform
 import tempfile
 import shutil
 import tarfile
+import zipfile
 import urllib.request
 from pathlib import Path
 
@@ -20,10 +21,12 @@ def get_platform_info():
     arch = platform.machine()
     
     platform_map = {
-        ("Linux", "x86_64"): "linux-x64",
-        ("Linux", "aarch64"): "linux-aarch64",
-        ("Darwin", "x86_64"): "osx-x64",
-        ("Darwin", "arm64"): "osx-arm64",
+        ("Linux", "x86_64"): ("linux-x64", "tgz"),
+        ("Linux", "aarch64"): ("linux-aarch64", "tgz"),
+        ("Darwin", "x86_64"): ("osx-x64", "tgz"),
+        ("Darwin", "arm64"): ("osx-arm64", "tgz"),
+        ("Windows", "AMD64"): ("win-x64", "zip"),
+        ("Windows", "x86_64"): ("win-x64", "zip"),
     }
     
     key = (os_name, arch)
@@ -58,8 +61,8 @@ def main():
     script_dir = Path(__file__).parent
     project_dir = script_dir.parent
     onnx_dir = project_dir / "onnxruntime"
-    onnx_arch = get_platform_info()
-    onnx_url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ONNX_VERSION}/onnxruntime-{onnx_arch}-{ONNX_VERSION}.tgz"
+    onnx_arch, archive_type = get_platform_info()
+    onnx_url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ONNX_VERSION}/onnxruntime-{onnx_arch}-{ONNX_VERSION}.{archive_type}"
     
     print("Setting up ONNX Runtime for FastEmbed...")
     print(f"Platform: {platform.system()} {platform.machine()}")
@@ -67,9 +70,14 @@ def main():
     print(f"Target directory: {onnx_dir}")
     print(f"URL: {onnx_url}")
     
-    # Check if already installed
+    # Check if already installed (but allow force reinstall)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--force', action='store_true', help='Force reinstall even if already present')
+    args, unknown = parser.parse_known_args()
+    
     header_file = onnx_dir / "include" / "onnxruntime_c_api.h"
-    if header_file.exists():
+    if header_file.exists() and not args.force:
         print(f"\n✅ ONNX Runtime already installed at {onnx_dir}")
         print(f"   Include: {onnx_dir / 'include'}")
         if (onnx_dir / "lib").exists():
@@ -82,7 +90,7 @@ def main():
     # Download
     print(f"\n📥 Downloading ONNX Runtime {ONNX_VERSION} for {onnx_arch}...")
     with tempfile.TemporaryDirectory() as temp_dir:
-        archive_path = Path(temp_dir) / f"onnxruntime-{onnx_arch}-{ONNX_VERSION}.tgz"
+        archive_path = Path(temp_dir) / f"onnxruntime-{onnx_arch}-{ONNX_VERSION}.{archive_type}"
         
         if not download_file(onnx_url, str(archive_path)):
             print("\n❌ Failed to download ONNX Runtime")
@@ -96,50 +104,55 @@ def main():
         # Extract
         print("📦 Extracting ONNX Runtime...")
         try:
-            with tarfile.open(archive_path, "r:gz") as tar:
-                # Find the root directory in archive
-                members = tar.getmembers()
-                root_dirs = {m.name.split("/")[0] for m in members if "/" in m.name}
-                
-                # Extract to temp directory first
-                extract_dir = Path(temp_dir) / "extract"
-                extract_dir.mkdir()
-                tar.extractall(extract_dir)
-                
-                # Find onnxruntime directory
-                onnx_extracted = None
-                for root_dir in root_dirs:
-                    candidate = extract_dir / root_dir
-                    if (candidate / "include" / "onnxruntime_c_api.h").exists():
-                        onnx_extracted = candidate
-                        break
-                
-                if not onnx_extracted:
-                    # Try to find files directly
-                    header_candidates = list(extract_dir.rglob("onnxruntime_c_api.h"))
-                    if header_candidates:
-                        onnx_extracted = header_candidates[0].parent.parent
-                
-                if onnx_extracted and onnx_extracted.exists():
-                    # Move files to target
-                    for item in onnx_extracted.iterdir():
-                        dest = onnx_dir / item.name
-                        if item.is_dir():
-                            if dest.exists():
-                                shutil.rmtree(dest)
-                            shutil.copytree(item, dest)
-                        else:
-                            shutil.copy2(item, dest)
-                else:
-                    print("⚠️ Unexpected archive structure, trying to copy files...")
-                    # Fallback: copy important files
-                    for pattern in ["**/onnxruntime_c_api.h", "**/libonnxruntime.so*", "**/onnxruntime.dll"]:
-                        for file_path in extract_dir.rglob(pattern):
-                            rel_path = file_path.relative_to(extract_dir)
-                            dest_path = project_dir / rel_path
-                            dest_path.parent.mkdir(parents=True, exist_ok=True)
-                            if file_path.is_file():
-                                shutil.copy2(file_path, dest_path)
+            extract_dir = Path(temp_dir) / "extract"
+            extract_dir.mkdir()
+            
+            if archive_type == "zip":
+                # Windows ZIP archive
+                with zipfile.ZipFile(archive_path, "r") as zip_file:
+                    zip_file.extractall(extract_dir)
+                    root_dirs = {Path(m).parts[0] for m in zip_file.namelist() if "/" in m or "\\" in m}
+            else:
+                # Linux/macOS tarball
+                with tarfile.open(archive_path, "r:gz") as tar:
+                    tar.extractall(extract_dir)
+                    members = tar.getmembers()
+                    root_dirs = {m.name.split("/")[0] for m in members if "/" in m.name}
+            
+            # Find onnxruntime directory
+            onnx_extracted = None
+            for root_dir in root_dirs:
+                candidate = extract_dir / root_dir
+                if (candidate / "include" / "onnxruntime_c_api.h").exists():
+                    onnx_extracted = candidate
+                    break
+            
+            if not onnx_extracted:
+                # Try to find files directly
+                header_candidates = list(extract_dir.rglob("onnxruntime_c_api.h"))
+                if header_candidates:
+                    onnx_extracted = header_candidates[0].parent.parent
+            
+            if onnx_extracted and onnx_extracted.exists():
+                # Move files to target
+                for item in onnx_extracted.iterdir():
+                    dest = onnx_dir / item.name
+                    if item.is_dir():
+                        if dest.exists():
+                            shutil.rmtree(dest)
+                        shutil.copytree(item, dest)
+                    else:
+                        shutil.copy2(item, dest)
+            else:
+                print("⚠️ Unexpected archive structure, trying to copy files...")
+                # Fallback: copy important files
+                for pattern in ["**/onnxruntime_c_api.h", "**/libonnxruntime.so*", "**/onnxruntime.dll", "**/onnxruntime.lib"]:
+                    for file_path in extract_dir.rglob(pattern):
+                        rel_path = file_path.relative_to(extract_dir)
+                        dest_path = project_dir / rel_path
+                        dest_path.parent.mkdir(parents=True, exist_ok=True)
+                        if file_path.is_file():
+                            shutil.copy2(file_path, dest_path)
         
         except Exception as e:
             print(f"❌ Failed to extract archive: {e}")

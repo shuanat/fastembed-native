@@ -13,6 +13,8 @@
 extern "C"
 {
     int fastembed_generate(const char *text, float *output, int dimension);
+    int fastembed_onnx_generate(const char *model_path, const char *text, float *output, int dimension);
+    int fastembed_onnx_unload(void);
     float fastembed_cosine_similarity(const float *vector_a, const float *vector_b, int dimension);
     float fastembed_dot_product(const float *vector_a, const float *vector_b, int dimension);
     float fastembed_vector_norm(const float *vector, int dimension);
@@ -146,6 +148,84 @@ static napi_value GenerateEmbedding(napi_env env, napi_callback_info info)
     free(output);
 
     return typedarray;
+}
+
+/**
+ * Generate embedding from text using ONNX model
+ *
+ * @param modelPath - Path to ONNX model file
+ * @param text - Input text string
+ * @param dimension - Embedding dimension (default: 768)
+ * @returns Float32Array with embedding vector
+ */
+static napi_value GenerateOnnxEmbedding(napi_env env, napi_callback_info info)
+{
+    size_t argc = 3;
+    napi_value args[3];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    if (argc < 2)
+    {
+        napi_throw_error(env, nullptr, "Expected at least 2 arguments: modelPath, text");
+        return nullptr;
+    }
+
+    // Get model path argument
+    char *model_path = GetStringFromValue(env, args[0]);
+
+    // Get text argument
+    char *text = GetStringFromValue(env, args[1]);
+
+    // Get dimension argument (default: 768)
+    int dimension = 768;
+    if (argc >= 3)
+    {
+        napi_get_value_int32(env, args[2], &dimension);
+    }
+
+    // Allocate output buffer
+    float *output = (float *)malloc(dimension * sizeof(float));
+
+    // Call C function
+    int result = fastembed_onnx_generate(model_path, text, output, dimension);
+
+    free(model_path);
+    free(text);
+
+    if (result != 0)
+    {
+        free(output);
+        napi_throw_error(env, nullptr, "Failed to generate ONNX embedding");
+        return nullptr;
+    }
+
+    // Create Float32Array
+    napi_value arraybuffer;
+    void *data;
+    napi_create_arraybuffer(env, dimension * sizeof(float), &data, &arraybuffer);
+    memcpy(data, output, dimension * sizeof(float));
+
+    napi_value typedarray;
+    napi_create_typedarray(env, napi_float32_array, dimension, arraybuffer, 0, &typedarray);
+
+    free(output);
+
+    return typedarray;
+}
+
+/**
+ * Unload ONNX model from memory
+ *
+ * @returns Number (0 on success, -1 on error)
+ */
+static napi_value UnloadOnnxModel(napi_env env, napi_callback_info info)
+{
+    int result = fastembed_onnx_unload();
+
+    napi_value return_value;
+    napi_create_int32(env, result, &return_value);
+
+    return return_value;
 }
 
 /**
@@ -384,9 +464,11 @@ static napi_value AddVectors(napi_env env, napi_callback_info info)
 static napi_value Init(napi_env env, napi_value exports)
 {
     // Export functions
-    napi_value generate_fn, cosine_fn, dot_fn, norm_fn, normalize_fn, add_fn;
+    napi_value generate_fn, generate_onnx_fn, unload_onnx_fn, cosine_fn, dot_fn, norm_fn, normalize_fn, add_fn;
 
     napi_create_function(env, nullptr, 0, GenerateEmbedding, nullptr, &generate_fn);
+    napi_create_function(env, nullptr, 0, GenerateOnnxEmbedding, nullptr, &generate_onnx_fn);
+    napi_create_function(env, nullptr, 0, UnloadOnnxModel, nullptr, &unload_onnx_fn);
     napi_create_function(env, nullptr, 0, CosineSimilarity, nullptr, &cosine_fn);
     napi_create_function(env, nullptr, 0, DotProduct, nullptr, &dot_fn);
     napi_create_function(env, nullptr, 0, VectorNorm, nullptr, &norm_fn);
@@ -394,6 +476,8 @@ static napi_value Init(napi_env env, napi_value exports)
     napi_create_function(env, nullptr, 0, AddVectors, nullptr, &add_fn);
 
     napi_set_named_property(env, exports, "generateEmbedding", generate_fn);
+    napi_set_named_property(env, exports, "generateOnnxEmbedding", generate_onnx_fn);
+    napi_set_named_property(env, exports, "unloadOnnxModel", unload_onnx_fn);
     napi_set_named_property(env, exports, "cosineSimilarity", cosine_fn);
     napi_set_named_property(env, exports, "dotProduct", dot_fn);
     napi_set_named_property(env, exports, "vectorNorm", norm_fn);

@@ -7,16 +7,18 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
 /**
- * High-performance hash-based text embedding library with native SIMD acceleration
+ * High-performance hash-based text embedding library with native SIMD
+ * acceleration
  * 
  * This class provides a Java interface to the FastEmbed native library,
- * which generates embeddings using hash-based methods and optimized assembly code.
+ * which generates embeddings using hash-based methods and optimized assembly
+ * code.
  * 
  * @author FastEmbed Team
  * @version 1.0.0
  */
 public class FastEmbed {
-    
+
     private static boolean nativeLoaded = false;
     private final int dimension;
 
@@ -37,19 +39,19 @@ public class FastEmbed {
     private static void loadNativeLibrary() throws IOException {
         String os = System.getProperty("os.name").toLowerCase();
         String arch = System.getProperty("os.arch").toLowerCase();
-        
+
         String libraryName;
         if (os.contains("win")) {
-            libraryName = "fastembed.dll";
+            libraryName = "fastembed_jni.dll";
         } else if (os.contains("mac")) {
-            libraryName = "libfastembed.dylib";
+            libraryName = "libfastembed_jni.dylib";
         } else {
-            libraryName = "libfastembed.so";
+            libraryName = "libfastembed_jni.so";
         }
 
         // Try to load from java.library.path first
         try {
-            System.loadLibrary("fastembed");
+            System.loadLibrary("fastembed_jni");
             return;
         } catch (UnsatisfiedLinkError e) {
             // Library not in java.library.path, try to extract from resources
@@ -82,7 +84,7 @@ public class FastEmbed {
      * Create a new FastEmbed client
      * 
      * @param dimension Embedding dimension (default: 768)
-     * @throws IllegalStateException if native library not loaded
+     * @throws IllegalStateException    if native library not loaded
      * @throws IllegalArgumentException if dimension is invalid
      */
     public FastEmbed(int dimension) {
@@ -119,7 +121,7 @@ public class FastEmbed {
      * @param text Input text
      * @return Embedding vector as float array
      * @throws IllegalArgumentException if text is null
-     * @throws FastEmbedException if generation fails
+     * @throws FastEmbedException       if generation fails
      */
     public float[] generateEmbedding(String text) {
         if (text == null) {
@@ -234,14 +236,49 @@ public class FastEmbed {
         return embeddings;
     }
 
+    /**
+     * Generate ONNX-based embedding for text using ML model
+     * 
+     * @param modelPath Path to ONNX model file
+     * @param text      Input text
+     * @return Embedding vector as float array
+     * @throws FastEmbedException       if generation fails
+     * @throws IllegalArgumentException if modelPath or text is null
+     */
+    public float[] generateOnnxEmbedding(String modelPath, String text) {
+        if (modelPath == null) {
+            throw new IllegalArgumentException("Model path cannot be null");
+        }
+        if (text == null) {
+            throw new IllegalArgumentException("Text cannot be null");
+        }
+
+        float[] output = new float[dimension];
+        int result = nativeGenerateOnnxEmbedding(modelPath, text, output, dimension);
+
+        if (result != 0) {
+            throw new FastEmbedException("Failed to generate ONNX embedding (error code: " + result + ")");
+        }
+
+        return output;
+    }
+
+    /**
+     * Unload cached ONNX model session
+     * 
+     * @return 0 on success, -1 on error
+     */
+    public int unloadOnnxModel() {
+        return nativeUnloadOnnxModel();
+    }
+
     private void validateVector(float[] vector) {
         if (vector == null) {
             throw new IllegalArgumentException("Vector cannot be null");
         }
         if (vector.length != dimension) {
             throw new IllegalArgumentException(
-                String.format("Vector dimension mismatch: expected %d, got %d", dimension, vector.length)
-            );
+                    String.format("Vector dimension mismatch: expected %d, got %d", dimension, vector.length));
         }
     }
 
@@ -252,11 +289,20 @@ public class FastEmbed {
 
     // Native method declarations
     private native int nativeGenerateEmbedding(String text, float[] output, int dimension);
+
     private native float nativeCosineSimilarity(float[] vectorA, float[] vectorB, int dimension);
+
     private native float nativeDotProduct(float[] vectorA, float[] vectorB, int dimension);
+
     private native float nativeVectorNorm(float[] vector, int dimension);
+
     private native void nativeNormalizeVector(float[] vector, int dimension);
+
     private native void nativeAddVectors(float[] vectorA, float[] vectorB, float[] result, int dimension);
+
+    private native int nativeGenerateOnnxEmbedding(String modelPath, String text, float[] output, int dimension);
+
+    private native int nativeUnloadOnnxModel();
 
     /**
      * Exception thrown when FastEmbed native operation fails
@@ -271,4 +317,3 @@ public class FastEmbed {
         }
     }
 }
-

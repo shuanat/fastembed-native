@@ -52,9 +52,13 @@ LD_LIBRARY_PATH=../shared/build dotnet run --project test_csharp_native.csproj
 
 ## Performance
 
-**Measured Performance** (Nov 2025):
+**ONNX Runtime Performance** (Nov 2025):
 
-- Embedding generation: **0.014-0.051 ms** (19K-71K ops/sec)
-- Vector operations: **Sub-microsecond** (up to **5.72M ops/sec** - fastest!)
+- ONNX embeddings: **28.5-129.6 ms** (8-35 emb/s depending on text length)
+  - Short text (108 chars): **28.5 ms** (35 emb/s)
+  - Medium text (460 chars): **54.4 ms** (18 emb/s)
+  - Long text (1574 chars): **129.6 ms** (8 emb/s)
+- Hash-based embeddings: **~0.01-0.1 ms** (~27,000 emb/s average)
+- Vector operations: **Sub-microsecond** latency
 
 See [BENCHMARK_RESULTS.md](../../BENCHMARK_RESULTS.md) for complete benchmark data.
