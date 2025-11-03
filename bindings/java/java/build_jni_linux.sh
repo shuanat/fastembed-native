@@ -72,11 +72,15 @@ echo "Compiling JNI and C files..."
 echo "========================================"
 
 # Compile JNI C source
+# Note: fastembed_jni.c uses relative paths, so we need to compile from the correct directory
+cd "$SCRIPT_DIR"
 gcc -fPIC -O2 -Wall -c \
     -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" \
     -I"$SHARED_DIR/include" -I"$ONNX_RUNTIME_DIR/include" \
+    -I"$PROJECT_ROOT/bindings/shared/include" \
     -DUSE_ONNX_RUNTIME -DFASTEMBED_BUILDING_LIB \
-    "$SCRIPT_DIR/native/fastembed_jni.c" -o "$BUILD_DIR/fastembed_jni.o"
+    "native/fastembed_jni.c" -o "$BUILD_DIR/fastembed_jni.o"
+cd - > /dev/null
 if [ $? -ne 0 ]; then
     echo "❌ ERROR: Failed to compile fastembed_jni.c"
     exit 1
