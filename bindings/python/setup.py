@@ -40,7 +40,7 @@ class CMakeBuild(build_ext):
         include_dirs = [
             pybind11_include,
             "../shared/include",
-            "../../onnxruntime/include"
+            "../onnxruntime/include"
         ]
         
         # Platform-specific settings
@@ -74,13 +74,13 @@ class CMakeBuild(build_ext):
             ]
             
             # ONNX Runtime library
-            onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "..", "onnxruntime", "lib", "onnxruntime.lib"))
+            onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib", "onnxruntime.lib"))
             if os.path.exists(onnx_lib_path):
                 extra_objects.append(onnx_lib_path)
             
             # Copy ONNX Runtime DLL to build output after compilation
             self.post_build_onnx_dll = True
-            self.onnx_dll_src = os.path.normpath(os.path.join(os.getcwd(), "..", "..", "onnxruntime", "lib", "onnxruntime.dll"))
+            self.onnx_dll_src = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib", "onnxruntime.dll"))
             self.onnx_dll_dst = None  # Will be set after build
         
         elif IS_LINUX or IS_MACOS:
@@ -125,7 +125,7 @@ class CMakeBuild(build_ext):
             # Note: C files will show warning about -std=c++17, but compile correctly
             
             # ONNX Runtime library
-            onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "..", "onnxruntime", "lib"))
+            onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib"))
             if os.path.exists(onnx_lib_path):
                 extra_link_args = [
                     "-lm",

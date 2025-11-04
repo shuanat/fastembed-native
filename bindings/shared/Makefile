@@ -16,6 +16,13 @@ ifeq ($(UNAME_S),Linux)
     OBJ_EXT = .o
     BUILD_SHARED = yes
 endif
+ifeq ($(UNAME_S),Darwin)
+    NASM_FLAGS = -f macho64
+    TARGET_LIB = fastembed.a
+    TARGET_DLL = fastembed.dylib
+    OBJ_EXT = .o
+    BUILD_SHARED = yes
+endif
 ifeq ($(OS),Windows_NT)
     NASM_FLAGS = -f win64
     TARGET_LIB = fastembed.lib
