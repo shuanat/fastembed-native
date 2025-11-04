@@ -87,6 +87,7 @@
                 <version>1.0-alpha-11</version>
                 <extensions>true</extensions>
                 <configuration>
+                    <skip>${maven.native.skip}</skip>
                     <javahOS>linux</javahOS>
                     <compilerProvider>generic</compilerProvider>
                     <compilerExecutable>gcc</compilerExecutable>
@@ -138,7 +139,6 @@
                             <goal>javah</goal>
                         </goals>
                         <configuration>
-                            <skip>${maven.javah.skip}</skip>
                             <javahClassNames>
                                 <javahClassName>com.fastembed.FastEmbed</javahClassName>
                             </javahClassNames>
@@ -151,9 +151,6 @@
                         <goals>
                             <goal>compile</goal>
                         </goals>
-                        <configuration>
-                            <skip>${maven.native.skip}</skip>
-                        </configuration>
                     </execution>
                     <execution>
                         <id>link</id>
@@ -161,9 +158,6 @@
                         <goals>
                             <goal>link</goal>
                         </goals>
-                        <configuration>
-                            <skip>${maven.native.skip}</skip>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
