@@ -131,7 +131,7 @@
                 <executions>
                     <execution>
                         <id>javah</id>
-                        <phase>generate-sources</phase>
+                        <phase>process-classes</phase>
                         <goals>
                             <goal>javah</goal>
                         </goals>
