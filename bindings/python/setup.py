@@ -132,11 +132,18 @@ class CMakeBuild(build_ext):
                     f"-L{onnx_lib_path}",
                     "-lonnxruntime"
                 ]
-                # Add rpath for runtime library loading
+                # Add rpath for runtime library loading (Linux only)
                 if IS_LINUX:
                     extra_link_args.append(f"-Wl,-rpath,{onnx_lib_path}")
-                self.post_build_onnx_so = IS_LINUX
-                self.onnx_so_src = os.path.join(onnx_lib_path, "libonnxruntime.so") if IS_LINUX else None
+                # Enable post-build copy for both Linux and macOS
+                self.post_build_onnx_so = IS_LINUX or IS_MACOS
+                # Set correct library path based on platform
+                if IS_LINUX:
+                    self.onnx_so_src = os.path.join(onnx_lib_path, "libonnxruntime.so")
+                elif IS_MACOS:
+                    self.onnx_so_src = os.path.join(onnx_lib_path, "libonnxruntime.dylib")
+                else:
+                    self.onnx_so_src = None
                 self.onnx_so_dst = None  # Will be set after build
             else:
                 extra_link_args = ["-lm"]
@@ -180,16 +187,24 @@ class CMakeBuild(build_ext):
                     ext_dir = os.path.dirname(ext_file)
                     
                     if os.path.exists(self.onnx_so_src):
-                        # Find the actual .so file (might have version suffix)
+                        # Find the actual library file (might have version suffix)
                         import glob
-                        so_pattern = os.path.join(os.path.dirname(self.onnx_so_src), "libonnxruntime.so*")
-                        so_files = glob.glob(so_pattern)
-                        if so_files:
-                            so_file = sorted(so_files)[-1]  # Take the latest version
-                            so_name = os.path.basename(so_file)
-                            so_dst = os.path.join(ext_dir, so_name)
-                            shutil.copy2(so_file, so_dst)
-                            print(f"Copied ONNX Runtime library to {so_dst}")
+                        lib_dir = os.path.dirname(self.onnx_so_src)
+                        if IS_LINUX:
+                            lib_pattern = os.path.join(lib_dir, "libonnxruntime.so*")
+                        elif IS_MACOS:
+                            lib_pattern = os.path.join(lib_dir, "libonnxruntime*.dylib")
+                        else:
+                            lib_pattern = None
+                        
+                        if lib_pattern:
+                            lib_files = glob.glob(lib_pattern)
+                            if lib_files:
+                                lib_file = sorted(lib_files)[-1]  # Take the latest version
+                                lib_name = os.path.basename(lib_file)
+                                lib_dst = os.path.join(ext_dir, lib_name)
+                                shutil.copy2(lib_file, lib_dst)
+                                print(f"Copied ONNX Runtime library to {lib_dst}")
 
 
 # Read README
