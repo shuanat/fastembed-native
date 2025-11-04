@@ -83,7 +83,7 @@ $(BUILD_DIR)/%$(OBJ_EXT): $(SRC_DIR)/%.asm
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-# ONNX Runtime support (optional)
+# ONNX Runtime support
 # Auto-detect ONNX Runtime: first check project root, then current dir, then /usr/local
 comma := ,
 # Get project root: go up from bindings/shared (two levels)

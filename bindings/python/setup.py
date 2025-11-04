@@ -15,6 +15,9 @@ IS_WINDOWS = platform.system() == "Windows"
 IS_LINUX = platform.system() == "Linux"
 IS_MACOS = platform.system() == "Darwin"
 
+# ONNX Runtime is always enabled
+ENABLE_ONNX = True
+
 class CMakeBuild(build_ext):
     """Custom build_ext command that compiles with proper settings"""
     
@@ -63,17 +66,17 @@ class CMakeBuild(build_ext):
             
             extra_objects = [emb_lib_obj, emb_gen_obj]
             
-            # ONNX Runtime library
-            onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "..", "onnxruntime", "lib", "onnxruntime.lib"))
-            if os.path.exists(onnx_lib_path):
-                extra_objects.append(onnx_lib_path)
-            
             extra_compile_args = [
                 "/std:c++17",
                 "/O2",
                 "/W3",
                 "/DUSE_ONNX_RUNTIME"
             ]
+            
+            # ONNX Runtime library
+            onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "..", "onnxruntime", "lib", "onnxruntime.lib"))
+            if os.path.exists(onnx_lib_path):
+                extra_objects.append(onnx_lib_path)
             
             # Copy ONNX Runtime DLL to build output after compilation
             self.post_build_onnx_dll = True
@@ -132,12 +135,12 @@ class CMakeBuild(build_ext):
                 # Add rpath for runtime library loading
                 if IS_LINUX:
                     extra_link_args.append(f"-Wl,-rpath,{onnx_lib_path}")
+                self.post_build_onnx_so = IS_LINUX
+                self.onnx_so_src = os.path.join(onnx_lib_path, "libonnxruntime.so") if IS_LINUX else None
+                self.onnx_so_dst = None  # Will be set after build
             else:
                 extra_link_args = ["-lm"]
-            
-            self.post_build_onnx_so = IS_LINUX
-            self.onnx_so_src = os.path.join(onnx_lib_path, "libonnxruntime.so") if IS_LINUX else None
-            self.onnx_so_dst = None  # Will be set after build
+                self.post_build_onnx_so = False
         
         # Update extension with all settings
         for ext in self.extensions:
