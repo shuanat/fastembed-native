@@ -37,6 +37,7 @@
         <maven.compiler.target>11</maven.compiler.target>
         <junit.version>5.9.3</junit.version>
         <maven.native.skip>false</maven.native.skip>
+        <maven.javah.skip>false</maven.javah.skip>
     </properties>
 
     <dependencies>
@@ -137,6 +138,7 @@
                             <goal>javah</goal>
                         </goals>
                         <configuration>
+                            <skip>${maven.javah.skip}</skip>
                             <javahClassNames>
                                 <javahClassName>com.fastembed.FastEmbed</javahClassName>
                             </javahClassNames>
