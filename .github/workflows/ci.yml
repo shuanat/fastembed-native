@@ -178,8 +178,17 @@ jobs:
           # Run hash-based tests only (ONNX model not needed in CI)
           # benchmark.csproj includes both benchmark.cs and benchmark_onnx.cs
           # It will skip ONNX tests if model is not found
+          # Set LD_LIBRARY_PATH to find native library
+          export LD_LIBRARY_PATH="../../shared/build:${LD_LIBRARY_PATH}"
           if [ -f "benchmark.csproj" ]; then
             dotnet build benchmark.csproj
+            # Verify native library is copied
+            if [ -f "bin/Debug/net8.0/fastembed.so" ] || [ -f "bin/Debug/net8.0/libfastembed.so" ]; then
+              echo "✅ Native library found in output directory"
+            else
+              echo "⚠️  Native library not found, copying manually..."
+              cp ../../shared/build/fastembed.so bin/Debug/net8.0/ 2>/dev/null || true
+            fi
             # Run benchmark - it will skip ONNX if model not found
             dotnet run --project benchmark.csproj --no-build || echo "⚠️  Benchmark completed (ONNX tests skipped if model not found)"
           else

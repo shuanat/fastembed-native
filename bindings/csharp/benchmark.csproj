@@ -18,8 +18,13 @@
 
   <!-- Copy native DLLs to output directory -->
   <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
-    <None Include="../../bindings/shared/build/fastembed.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../bindings/shared/build/fastembed.dll')" />
+    <None Include="../../shared/build/fastembed.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/build/fastembed.dll')" />
     <None Include="../../onnxruntime/lib/onnxruntime.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/onnxruntime.dll')" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+    <None Include="../../shared/build/fastembed.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/build/fastembed.so')" />
+    <None Include="../../onnxruntime/lib/libonnxruntime.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/libonnxruntime.so')" />
   </ItemGroup>
 
 </Project>
