@@ -244,7 +244,10 @@ jobs:
       - name: Build Java project
         run: |
           cd bindings/java/java
-          mvn clean install -DskipTests
+          # Skip javah generation since we compile JNI manually
+          # First compile Java classes, then build native library is already done
+          mvn clean compile -DskipTests
+          mvn package -DskipTests -Dmaven.native.skip=false || mvn package -DskipTests
 
       - name: Run tests
         run: |
