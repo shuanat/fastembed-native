@@ -36,6 +36,7 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <junit.version>5.9.3</junit.version>
+        <maven.native.skip>false</maven.native.skip>
     </properties>
 
     <dependencies>
@@ -148,6 +149,9 @@
                         <goals>
                             <goal>compile</goal>
                         </goals>
+                        <configuration>
+                            <skip>${maven.native.skip}</skip>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>link</id>
@@ -155,6 +159,9 @@
                         <goals>
                             <goal>link</goal>
                         </goals>
+                        <configuration>
+                            <skip>${maven.native.skip}</skip>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

@@ -244,7 +244,8 @@ jobs:
       - name: Build Java project
         run: |
           cd bindings/java/java
-          mvn clean install -DskipTests
+          # Skip native compilation since we build JNI manually in CI
+          mvn clean install -DskipTests -Dmaven.native.skip=true
 
       - name: Run tests
         run: |
