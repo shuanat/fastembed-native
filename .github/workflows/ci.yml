@@ -260,7 +260,7 @@ jobs:
           cd bindings/java/java
           # Skip native compilation and javah since we build JNI manually in CI
           # Set phase to 'none' to completely disable executions
-          mvn clean install -DskipTests -Dmaven.native.skip.phase=none -Dmaven.native.compile.phase=none -Dmaven.native.link.phase=none
+          mvn clean install -DskipTests -Dmaven.native.javah.phase=none -Dmaven.native.compile.phase=none -Dmaven.native.link.phase=none
 
       - name: Run tests
         run: |
