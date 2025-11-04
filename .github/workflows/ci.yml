@@ -100,7 +100,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y nasm gcc make wget
           python -m pip install --upgrade pip
-          pip install pybind11 numpy
+          pip install setuptools wheel pybind11 numpy
 
       - name: Setup ONNX Runtime
         run: |
@@ -222,6 +222,7 @@ jobs:
           mkdir -p build
           # Link JNI library using already compiled objects from shared/build
           # Note: embedding_lib_c.o and onnx_embedding_loader.o are already in shared/build
+          # Exclude embedding_gen_cli.o as it's not PIC and not needed for JNI
           gcc -shared -fPIC -O3 \
             -I"${JAVA_HOME}/include" -I"${JAVA_HOME}/include/linux" \
             -I"../../shared/include" \
@@ -230,7 +231,10 @@ jobs:
             -I"../../onnxruntime/include" \
             -o build/libfastembed_jni.so \
             native/fastembed_jni.c \
-            ../../shared/build/*.o \
+            ../../shared/build/embedding_lib.o \
+            ../../shared/build/embedding_generator.o \
+            ../../shared/build/embedding_lib_c.o \
+            ../../shared/build/onnx_embedding_loader.o \
             -L"../../onnxruntime/lib" -lonnxruntime -lm
 
       - name: Build Java project
