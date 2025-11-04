@@ -36,6 +36,11 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <junit.version>5.9.3</junit.version>
+        <maven.native.skip>false</maven.native.skip>
+        <maven.javah.skip>false</maven.javah.skip>
+        <maven.native.javah.phase>generate-sources</maven.native.javah.phase>
+        <maven.native.compile.phase>compile</maven.native.compile.phase>
+        <maven.native.link.phase>compile</maven.native.link.phase>
     </properties>
 
     <dependencies>
@@ -98,7 +103,7 @@
                             </includes>
                         </source>
                         <source>
-                            <directory>../shared/src</directory>
+                            <directory>../../shared/src</directory>
                             <includes>
                                 <include>embedding_lib_c.c</include>
                                 <include>onnx_embedding_loader.c</include>
@@ -112,7 +117,7 @@
                         <compilerStartOption>-march=native</compilerStartOption>
                         <compilerStartOption>-I${JAVA_HOME}/include</compilerStartOption>
                         <compilerStartOption>-I${JAVA_HOME}/include/linux</compilerStartOption>
-                        <compilerStartOption>-I../shared/include</compilerStartOption>
+                        <compilerStartOption>-I../../shared/include</compilerStartOption>
                         <compilerStartOption>-I../../onnxruntime/include</compilerStartOption>
                         <compilerStartOption>-DUSE_ONNX_RUNTIME</compilerStartOption>
                     </compilerStartOptions>
@@ -131,7 +136,7 @@
                 <executions>
                     <execution>
                         <id>javah</id>
-                        <phase>generate-sources</phase>
+                        <phase>${maven.native.javah.phase}</phase>
                         <goals>
                             <goal>javah</goal>
                         </goals>
@@ -144,14 +149,14 @@
                     </execution>
                     <execution>
                         <id>compile</id>
-                        <phase>compile</phase>
+                        <phase>${maven.native.compile.phase}</phase>
                         <goals>
                             <goal>compile</goal>
                         </goals>
                     </execution>
                     <execution>
                         <id>link</id>
-                        <phase>compile</phase>
+                        <phase>${maven.native.link.phase}</phase>
                         <goals>
                             <goal>link</goal>
                         </goals>
@@ -174,6 +179,13 @@
                         <configuration>
                             <outputDirectory>${project.build.outputDirectory}/native/linux/x86_64</outputDirectory>
                             <resources>
+                                <resource>
+                                    <!-- Try build/ first (manual compilation), then target/lib (Maven native plugin) -->
+                                    <directory>build</directory>
+                                    <includes>
+                                        <include>libfastembed_jni.so</include>
+                                    </includes>
+                                </resource>
                                 <resource>
                                     <directory>target/lib</directory>
                                     <includes>

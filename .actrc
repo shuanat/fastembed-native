@@ -1,2 +1,4 @@
 -P ubuntu-latest=catthehacker/ubuntu:act-latest
+-P windows-latest=catthehacker/windows:act-latest
+-P macos-latest=catthehacker/macos:act-latest
 

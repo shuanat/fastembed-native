@@ -15,6 +15,9 @@ IS_WINDOWS = platform.system() == "Windows"
 IS_LINUX = platform.system() == "Linux"
 IS_MACOS = platform.system() == "Darwin"
 
+# ONNX Runtime is always enabled
+ENABLE_ONNX = True
+
 class CMakeBuild(build_ext):
     """Custom build_ext command that compiles with proper settings"""
     
@@ -37,7 +40,7 @@ class CMakeBuild(build_ext):
         include_dirs = [
             pybind11_include,
             "../shared/include",
-            "../../onnxruntime/include"
+            "../onnxruntime/include"
         ]
         
         # Platform-specific settings
@@ -63,11 +66,6 @@ class CMakeBuild(build_ext):
             
             extra_objects = [emb_lib_obj, emb_gen_obj]
             
-            # ONNX Runtime library
-            onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "..", "onnxruntime", "lib", "onnxruntime.lib"))
-            if os.path.exists(onnx_lib_path):
-                extra_objects.append(onnx_lib_path)
-            
             extra_compile_args = [
                 "/std:c++17",
                 "/O2",
@@ -75,9 +73,14 @@ class CMakeBuild(build_ext):
                 "/DUSE_ONNX_RUNTIME"
             ]
             
+            # ONNX Runtime library
+            onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib", "onnxruntime.lib"))
+            if os.path.exists(onnx_lib_path):
+                extra_objects.append(onnx_lib_path)
+            
             # Copy ONNX Runtime DLL to build output after compilation
             self.post_build_onnx_dll = True
-            self.onnx_dll_src = os.path.normpath(os.path.join(os.getcwd(), "..", "..", "onnxruntime", "lib", "onnxruntime.dll"))
+            self.onnx_dll_src = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib", "onnxruntime.dll"))
             self.onnx_dll_dst = None  # Will be set after build
         
         elif IS_LINUX or IS_MACOS:
@@ -122,22 +125,29 @@ class CMakeBuild(build_ext):
             # Note: C files will show warning about -std=c++17, but compile correctly
             
             # ONNX Runtime library
-            onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "..", "onnxruntime", "lib"))
+            onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib"))
             if os.path.exists(onnx_lib_path):
                 extra_link_args = [
                     "-lm",
                     f"-L{onnx_lib_path}",
                     "-lonnxruntime"
                 ]
-                # Add rpath for runtime library loading
+                # Add rpath for runtime library loading (Linux only)
                 if IS_LINUX:
                     extra_link_args.append(f"-Wl,-rpath,{onnx_lib_path}")
+                # Enable post-build copy for both Linux and macOS
+                self.post_build_onnx_so = IS_LINUX or IS_MACOS
+                # Set correct library path based on platform
+                if IS_LINUX:
+                    self.onnx_so_src = os.path.join(onnx_lib_path, "libonnxruntime.so")
+                elif IS_MACOS:
+                    self.onnx_so_src = os.path.join(onnx_lib_path, "libonnxruntime.dylib")
+                else:
+                    self.onnx_so_src = None
+                self.onnx_so_dst = None  # Will be set after build
             else:
                 extra_link_args = ["-lm"]
-            
-            self.post_build_onnx_so = IS_LINUX
-            self.onnx_so_src = os.path.join(onnx_lib_path, "libonnxruntime.so") if IS_LINUX else None
-            self.onnx_so_dst = None  # Will be set after build
+                self.post_build_onnx_so = False
         
         # Update extension with all settings
         for ext in self.extensions:
@@ -177,16 +187,24 @@ class CMakeBuild(build_ext):
                     ext_dir = os.path.dirname(ext_file)
                     
                     if os.path.exists(self.onnx_so_src):
-                        # Find the actual .so file (might have version suffix)
+                        # Find the actual library file (might have version suffix)
                         import glob
-                        so_pattern = os.path.join(os.path.dirname(self.onnx_so_src), "libonnxruntime.so*")
-                        so_files = glob.glob(so_pattern)
-                        if so_files:
-                            so_file = sorted(so_files)[-1]  # Take the latest version
-                            so_name = os.path.basename(so_file)
-                            so_dst = os.path.join(ext_dir, so_name)
-                            shutil.copy2(so_file, so_dst)
-                            print(f"Copied ONNX Runtime library to {so_dst}")
+                        lib_dir = os.path.dirname(self.onnx_so_src)
+                        if IS_LINUX:
+                            lib_pattern = os.path.join(lib_dir, "libonnxruntime.so*")
+                        elif IS_MACOS:
+                            lib_pattern = os.path.join(lib_dir, "libonnxruntime*.dylib")
+                        else:
+                            lib_pattern = None
+                        
+                        if lib_pattern:
+                            lib_files = glob.glob(lib_pattern)
+                            if lib_files:
+                                lib_file = sorted(lib_files)[-1]  # Take the latest version
+                                lib_name = os.path.basename(lib_file)
+                                lib_dst = os.path.join(ext_dir, lib_name)
+                                shutil.copy2(lib_file, lib_dst)
+                                print(f"Copied ONNX Runtime library to {lib_dst}")
 
 
 # Read README
