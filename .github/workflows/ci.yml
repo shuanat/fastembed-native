@@ -223,6 +223,13 @@ jobs:
           # Link JNI library using already compiled objects from shared/build
           # Note: embedding_lib_c.o and onnx_embedding_loader.o are already in shared/build
           # Exclude embedding_gen_cli.o as it's not PIC and not needed for JNI
+          # Build list of object files (onnx_embedding_loader.o may not exist if ONNX not found)
+          OBJ_FILES="../../shared/build/embedding_lib.o"
+          OBJ_FILES="$OBJ_FILES ../../shared/build/embedding_generator.o"
+          OBJ_FILES="$OBJ_FILES ../../shared/build/embedding_lib_c.o"
+          if [ -f "../../shared/build/onnx_embedding_loader.o" ]; then
+            OBJ_FILES="$OBJ_FILES ../../shared/build/onnx_embedding_loader.o"
+          fi
           gcc -shared -fPIC -O3 \
             -I"${JAVA_HOME}/include" -I"${JAVA_HOME}/include/linux" \
             -I"../../shared/include" \
@@ -231,10 +238,7 @@ jobs:
             -I"../../onnxruntime/include" \
             -o build/libfastembed_jni.so \
             native/fastembed_jni.c \
-            ../../shared/build/embedding_lib.o \
-            ../../shared/build/embedding_generator.o \
-            ../../shared/build/embedding_lib_c.o \
-            ../../shared/build/onnx_embedding_loader.o \
+            $OBJ_FILES \
             -L"../../onnxruntime/lib" -lonnxruntime -lm
 
       - name: Build Java project
