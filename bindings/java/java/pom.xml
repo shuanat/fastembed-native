@@ -38,6 +38,7 @@
         <junit.version>5.9.3</junit.version>
         <maven.native.skip>false</maven.native.skip>
         <maven.javah.skip>false</maven.javah.skip>
+        <maven.native.skip.phase>process-classes</maven.native.skip.phase>
     </properties>
 
     <dependencies>
@@ -87,7 +88,6 @@
                 <version>1.0-alpha-11</version>
                 <extensions>true</extensions>
                 <configuration>
-                    <skip>${maven.native.skip}</skip>
                     <javahOS>linux</javahOS>
                     <compilerProvider>generic</compilerProvider>
                     <compilerExecutable>gcc</compilerExecutable>
@@ -134,7 +134,7 @@
                 <executions>
                     <execution>
                         <id>javah</id>
-                        <phase>process-classes</phase>
+                        <phase>${maven.native.skip.phase}</phase>
                         <goals>
                             <goal>javah</goal>
                         </goals>
@@ -147,14 +147,14 @@
                     </execution>
                     <execution>
                         <id>compile</id>
-                        <phase>compile</phase>
+                        <phase>${maven.native.skip.phase}</phase>
                         <goals>
                             <goal>compile</goal>
                         </goals>
                     </execution>
                     <execution>
                         <id>link</id>
-                        <phase>compile</phase>
+                        <phase>${maven.native.skip.phase}</phase>
                         <goals>
                             <goal>link</goal>
                         </goals>
