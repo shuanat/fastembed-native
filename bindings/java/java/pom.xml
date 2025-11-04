@@ -182,6 +182,13 @@
                             <outputDirectory>${project.build.outputDirectory}/native/linux/x86_64</outputDirectory>
                             <resources>
                                 <resource>
+                                    <!-- Try build/ first (manual compilation), then target/lib (Maven native plugin) -->
+                                    <directory>build</directory>
+                                    <includes>
+                                        <include>libfastembed_jni.so</include>
+                                    </includes>
+                                </resource>
+                                <resource>
                                     <directory>target/lib</directory>
                                     <includes>
                                         <include>libfastembed_jni.so</include>
