@@ -23,10 +23,12 @@ public class benchmark_onnx {
         }
 
         File modelFile = new File(modelPath);
-        if (!modelFile.exists()) {
-            System.err.println("ERROR: ONNX model not found at: " + modelPath);
-            System.err.println("Please download the model first or provide the correct path.");
-            System.exit(1);
+        boolean onnxAvailable = modelFile.exists();
+
+        if (!onnxAvailable) {
+            System.out.println("Note: ONNX model not found at: " + modelPath);
+            System.out.println("Running hash-based tests only.");
+            System.out.println();
         }
 
         System.out.println("========================================");
@@ -45,15 +47,17 @@ public class benchmark_onnx {
             benchmarkHash(embedder, "Medium text", MEDIUM_TEXT);
             benchmarkHash(embedder, "Long text", LONG_TEXT);
 
-            // Test ONNX embeddings
-            System.out.println("\n--- ONNX-Based Embeddings ---");
-            benchmarkOnnx(embedder, modelPath, "Short text", SHORT_TEXT);
-            benchmarkOnnx(embedder, modelPath, "Medium text", MEDIUM_TEXT);
-            benchmarkOnnx(embedder, modelPath, "Long text", LONG_TEXT);
+            // Test ONNX embeddings (only if model is available)
+            if (onnxAvailable) {
+                System.out.println("\n--- ONNX-Based Embeddings ---");
+                benchmarkOnnx(embedder, modelPath, "Short text", SHORT_TEXT);
+                benchmarkOnnx(embedder, modelPath, "Medium text", MEDIUM_TEXT);
+                benchmarkOnnx(embedder, modelPath, "Long text", LONG_TEXT);
 
-            // Quality comparison
-            System.out.println("\n--- Quality Comparison ---");
-            compareQuality(embedder, modelPath);
+                // Quality comparison
+                System.out.println("\n--- Quality Comparison ---");
+                compareQuality(embedder, modelPath);
+            }
 
             // Batch processing benchmarks
             System.out.println("\n\n--- Batch Processing ---\n");
@@ -66,13 +70,17 @@ public class benchmark_onnx {
                 System.out.println("Hash-based batch:");
                 benchmarkBatchHash(embedder, batchSize, textList);
 
-                // ONNX batch
-                System.out.println("\nONNX-based batch:");
-                benchmarkBatchOnnx(embedder, modelPath, batchSize, textList);
+                // ONNX batch (only if model is available)
+                if (onnxAvailable) {
+                    System.out.println("\nONNX-based batch:");
+                    benchmarkBatchOnnx(embedder, modelPath, batchSize, textList);
+                }
             }
 
             // Cleanup
-            embedder.unloadOnnxModel();
+            if (onnxAvailable) {
+                embedder.unloadOnnxModel();
+            }
 
         } catch (Exception e) {
             System.err.println("ERROR: " + e.getMessage());

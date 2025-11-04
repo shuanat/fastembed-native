@@ -121,14 +121,14 @@ The applications of machine learning are vast and continue to expand. In healthc
             Console.WriteLine($"Dimension: {DIMENSION} (ONNX model limitation)");
 
             string modelPath = GetModelPath();
+            bool onnxAvailable = modelPath != null && File.Exists(modelPath);
             Console.WriteLine($"Model path: {(modelPath != null ? modelPath : "NOT FOUND")}");
-            Console.WriteLine($"Model exists: {(modelPath != null && File.Exists(modelPath))}\n");
+            Console.WriteLine($"Model exists: {onnxAvailable}\n");
 
-            if (modelPath == null || !File.Exists(modelPath))
+            if (!onnxAvailable)
             {
-                Console.Error.WriteLine("ERROR: ONNX model not found");
-                Console.Error.WriteLine("Please ensure the model is available.");
-                Environment.Exit(1);
+                Console.WriteLine("Note: ONNX model not found. Running hash-based tests only.");
+                Console.WriteLine();
             }
 
             var client = new FastEmbedClient(DIMENSION);
@@ -162,38 +162,41 @@ The applications of machine learning are vast and continue to expand. In healthc
                 Console.WriteLine($"  Memory delta: {hashResult.MemDeltaMb} MB");
                 results.HashBased[textType] = hashResult;
 
-                // ONNX embedding
-                Console.WriteLine("\nONNX-based:");
-                var onnxResult = BenchmarkFunction(
-                    $"onnx_{textType}",
-                    () => client.GenerateOnnxEmbedding(modelPath, text),
-                    ITERATIONS_SINGLE
-                );
-                float[] onnxEmb = client.GenerateOnnxEmbedding(modelPath, text);
-                Console.WriteLine($"  Avg time: {onnxResult.AvgMs:F3} ms");
-                Console.WriteLine($"  Throughput: {onnxResult.Throughput:N0} ops/sec");
-                Console.WriteLine($"  Memory delta: {onnxResult.MemDeltaMb} MB");
-                results.OnnxBased[textType] = onnxResult;
+                // ONNX embedding (only if model is available)
+                if (onnxAvailable)
+                {
+                    Console.WriteLine("\nONNX-based:");
+                    var onnxResult = BenchmarkFunction(
+                        $"onnx_{textType}",
+                        () => client.GenerateOnnxEmbedding(modelPath, text),
+                        ITERATIONS_SINGLE
+                    );
+                    float[] onnxEmb = client.GenerateOnnxEmbedding(modelPath, text);
+                    Console.WriteLine($"  Avg time: {onnxResult.AvgMs:F3} ms");
+                    Console.WriteLine($"  Throughput: {onnxResult.Throughput:N0} ops/sec");
+                    Console.WriteLine($"  Memory delta: {onnxResult.MemDeltaMb} MB");
+                    results.OnnxBased[textType] = onnxResult;
 
-                // Quality comparison
-                double quality = CompareQuality(hashEmb, onnxEmb, client);
-                Console.WriteLine($"\nQuality (hash vs ONNX cosine similarity): {quality:F4}");
-                results.QualityComparison[textType] = new QualityResult
-                {
-                    CosineSimilarity = quality,
-                    TextLength = text.Length
-                };
+                    // Quality comparison
+                    double quality = CompareQuality(hashEmb, onnxEmb, client);
+                    Console.WriteLine($"\nQuality (hash vs ONNX cosine similarity): {quality:F4}");
+                    results.QualityComparison[textType] = new QualityResult
+                    {
+                        CosineSimilarity = quality,
+                        TextLength = text.Length
+                    };
 
-                // Speedup ratio
-                double speedup = hashResult.AvgMs / onnxResult.AvgMs;
-                Console.WriteLine($"\nSpeed ratio (hash/onnx): {speedup:F2}x");
-                if (speedup > 1)
-                {
-                    Console.WriteLine($"  Hash-based is {speedup:F2}x faster");
-                }
-                else
-                {
-                    Console.WriteLine($"  ONNX is {1.0 / speedup:F2}x faster");
+                    // Speedup ratio
+                    double speedup = hashResult.AvgMs / onnxResult.AvgMs;
+                    Console.WriteLine($"\nSpeed ratio (hash/onnx): {speedup:F2}x");
+                    if (speedup > 1)
+                    {
+                        Console.WriteLine($"  Hash-based is {speedup:F2}x faster");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"  ONNX is {1.0 / speedup:F2}x faster");
+                    }
                 }
             }
 
@@ -225,29 +228,40 @@ The applications of machine learning are vast and continue to expand. In healthc
                 double hashThroughput = 1000.0 / (hashBatchResult.AvgMs / batchSize);
                 Console.WriteLine($"  Throughput: {hashThroughput:N0} embeddings/sec");
 
-                // ONNX batch
-                Console.WriteLine("\nONNX-based batch:");
-                var onnxBatchResult = BenchmarkFunction(
-                    $"onnx_batch_{batchSize}",
-                    () =>
-                    {
-                        for (int i = 0; i < batchSize; i++)
-                        {
-                            client.GenerateOnnxEmbedding(modelPath, textList[i % textList.Length]);
-                        }
-                    },
-                    ITERATIONS_BATCH
-                );
-                Console.WriteLine($"  Avg time per batch: {onnxBatchResult.AvgMs:F3} ms");
-                Console.WriteLine($"  Time per embedding: {onnxBatchResult.AvgMs / batchSize:F3} ms");
-                double onnxThroughput = 1000.0 / (onnxBatchResult.AvgMs / batchSize);
-                Console.WriteLine($"  Throughput: {onnxThroughput:N0} embeddings/sec");
-
-                results.BatchPerformance[$"batch_{batchSize}"] = new BatchResult
+                // ONNX batch (only if model is available)
+                if (onnxAvailable)
                 {
-                    HashBased = hashBatchResult,
-                    OnnxBased = onnxBatchResult
-                };
+                    Console.WriteLine("\nONNX-based batch:");
+                    var onnxBatchResult = BenchmarkFunction(
+                        $"onnx_batch_{batchSize}",
+                        () =>
+                        {
+                            for (int i = 0; i < batchSize; i++)
+                            {
+                                client.GenerateOnnxEmbedding(modelPath, textList[i % textList.Length]);
+                            }
+                        },
+                        ITERATIONS_BATCH
+                    );
+                    Console.WriteLine($"  Avg time per batch: {onnxBatchResult.AvgMs:F3} ms");
+                    Console.WriteLine($"  Time per embedding: {onnxBatchResult.AvgMs / batchSize:F3} ms");
+                    double onnxThroughput = 1000.0 / (onnxBatchResult.AvgMs / batchSize);
+                    Console.WriteLine($"  Throughput: {onnxThroughput:N0} embeddings/sec");
+
+                    results.BatchPerformance[$"batch_{batchSize}"] = new BatchResult
+                    {
+                        HashBased = hashBatchResult,
+                        OnnxBased = onnxBatchResult
+                    };
+                }
+                else
+                {
+                    results.BatchPerformance[$"batch_{batchSize}"] = new BatchResult
+                    {
+                        HashBased = hashBatchResult,
+                        OnnxBased = null
+                    };
+                }
             }
 
             // Save results to JSON
