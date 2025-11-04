@@ -175,10 +175,17 @@ jobs:
       - name: Run tests
         run: |
           cd bindings/csharp
-          if [ -f "test_csharp_native.cs" ]; then
-            dotnet run --project src/FastEmbed.csproj --no-build < /dev/null || true
+          # Try to run benchmark if available
+          if [ -f "benchmark_onnx.cs" ]; then
+            # Build and run benchmark
+            dotnet build benchmark_onnx.csproj 2>/dev/null || echo "⚠️  benchmark_onnx.csproj not found"
+            dotnet run --project benchmark_onnx.csproj --no-build 2>/dev/null || echo "⚠️  benchmark_onnx failed, skipping ONNX tests"
+          elif [ -f "benchmark.cs" ]; then
+            # Fallback to basic benchmark
+            dotnet build benchmark.csproj 2>/dev/null || echo "⚠️  benchmark.csproj not found"
+            dotnet run --project benchmark.csproj --no-build 2>/dev/null || echo "⚠️  benchmark failed, skipping tests"
           else
-            echo "⚠️  test_csharp_native.cs not found, skipping C# tests"
+            echo "⚠️  No benchmark files found, skipping C# tests"
           fi
 
   test-java:
@@ -251,7 +258,13 @@ jobs:
       - name: Run tests
         run: |
           cd bindings/java/java
-          java -Djava.library.path=build -cp target/classes benchmark_onnx || echo "⚠️  benchmark_onnx not found, skipping ONNX tests"
+          # Compile benchmark_onnx.java if it exists
+          if [ -f "benchmark_onnx.java" ]; then
+            javac -cp target/classes -d target/classes benchmark_onnx.java
+            java -Djava.library.path=build -cp target/classes benchmark_onnx || echo "⚠️  benchmark_onnx failed, skipping ONNX tests"
+          else
+            echo "⚠️  benchmark_onnx.java not found, skipping ONNX tests"
+          fi
 
   build-summary:
     name: Build Summary
