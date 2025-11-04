@@ -220,26 +220,8 @@ jobs:
         run: |
           cd bindings/java/java
           mkdir -p build
-          # Compile ONNX embedding loader if needed
-          if [ -f "../../shared/src/onnx_embedding_loader.c" ]; then
-            gcc -fPIC -O3 -c \
-              -I"../../shared/include" \
-              -I"../../onnxruntime/include" \
-              -DUSE_ONNX_RUNTIME \
-              ../../shared/src/onnx_embedding_loader.c \
-              -o build/onnx_embedding_loader.o
-          fi
-          # Compile embedding_lib_c if needed
-          if [ -f "../../shared/src/embedding_lib_c.c" ]; then
-            gcc -fPIC -O3 -c \
-              -I"../../shared/include" \
-              -I"../../onnxruntime/include" \
-              -DUSE_ONNX_RUNTIME \
-              -DFASTEMBED_BUILDING_LIB \
-              ../../shared/src/embedding_lib_c.c \
-              -o build/embedding_lib_c.o
-          fi
-          # Link JNI library
+          # Link JNI library using already compiled objects from shared/build
+          # Note: embedding_lib_c.o and onnx_embedding_loader.o are already in shared/build
           gcc -shared -fPIC -O3 \
             -I"${JAVA_HOME}/include" -I"${JAVA_HOME}/include/linux" \
             -I"../../shared/include" \
@@ -248,7 +230,6 @@ jobs:
             -I"../../onnxruntime/include" \
             -o build/libfastembed_jni.so \
             native/fastembed_jni.c \
-            build/*.o \
             ../../shared/build/*.o \
             -L"../../onnxruntime/lib" -lonnxruntime -lm
 
