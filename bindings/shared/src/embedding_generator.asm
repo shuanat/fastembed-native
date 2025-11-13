@@ -33,6 +33,7 @@ section .data
     embedding_dim: dd 768
     float_scale: dd 0.001    ; Small scale factor for normalization
     float_one: dd 1.0        ; Constant 1.0
+    float_two: dd 2.0        ; Constant 2.0
 
 section .bss
     align 16
@@ -205,10 +206,10 @@ generate_simple_embedding:
     divss xmm0, xmm1      ; Normalize to [0, 1]
     
     ; Map [0, 1] to [-1, 1]: value = value * 2 - 1
+    movss xmm1, [rel float_two]   ; Load 2.0
+    mulss xmm0, xmm1              ; Multiply by 2.0
     movss xmm1, [rel float_one]   ; Load 1.0
-    mulss xmm0, xmm1
-    mulss xmm0, xmm1      ; Multiply by 2 (xmm1 = 1.0)
-    subss xmm0, xmm1      ; Subtract 1 -> range [-1, 1]
+    subss xmm0, xmm1              ; Subtract 1 -> range [-1, 1]
     
     ; Store float in output array
     movss [r13 + rax*4], xmm0
