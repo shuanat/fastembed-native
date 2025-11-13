@@ -23,24 +23,28 @@
  * @note ONNX model support is available through onnx_embedding_loader.c
  */
 
+#include "embedding_lib_c.h"
+#include "../include/fastembed.h"
+#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <math.h>
-#include "../include/fastembed.h"
-#include "embedding_lib_c.h"
+
 
 /** External assembly function: dot product of two vectors (SIMD-optimized) */
 extern float dot_product_asm(float *vector_a, float *vector_b, int dimension);
-/** External assembly function: cosine similarity between two vectors (SIMD-optimized) */
-extern float cosine_similarity_asm(float *vector_a, float *vector_b, int dimension);
+/** External assembly function: cosine similarity between two vectors
+ * (SIMD-optimized) */
+extern float cosine_similarity_asm(float *vector_a, float *vector_b,
+                                   int dimension);
 /** External assembly function: L2 norm of a vector (SIMD-optimized) */
 extern float vector_norm_asm(float *vector, int dimension);
 /** External assembly function: normalize vector in-place (SIMD-optimized) */
 extern void normalize_vector_asm(float *vector, int dimension);
 /** External assembly function: add two vectors element-wise (SIMD-optimized) */
-extern void add_vectors_asm(float *vector_a, float *vector_b, float *result, int dimension);
+extern void add_vectors_asm(float *vector_a, float *vector_b, float *result,
+                            int dimension);
 /** External assembly function: generate embedding from text (hash-based) */
 extern int generate_simple_embedding(const char *text, float *output);
 /** External assembly function: hash text to 64-bit value */
@@ -51,14 +55,16 @@ extern uint64_t simple_text_hash(const char *text, int text_length, int seed);
  *
  * Converts input text into a fixed-size embedding vector using a hash-based
  * algorithm optimized with SIMD instructions. The embedding is deterministic
- * (same text always produces same embedding) and suitable for similarity search.
+ * (same text always produces same embedding) and suitable for similarity
+ * search.
  *
  * Current implementation generates 768-dimensional vectors (BERT-base size).
  * The algorithm splits text into words, hashes each word, and constructs
  * a dense vector representation.
  *
  * @param text Input text to embed (null-terminated string)
- * @param output Output array for embedding vector (must be pre-allocated, size >= dimension)
+ * @param output Output array for embedding vector (must be pre-allocated, size
+ * >= dimension)
  * @param dimension Requested embedding dimension (currently must be 768)
  * @return 0 on success, -1 on error (invalid parameters or generation failure)
  *
@@ -66,29 +72,25 @@ extern uint64_t simple_text_hash(const char *text, int text_length, int seed);
  *       For ML model embeddings, use fastembed_onnx_generate() instead.
  * @note Current limitation: only supports dimension=768
  */
-int fastembed_generate(const char *text, float *output, int dimension)
-{
-    /* Validate input parameters */
-    if (!text || !output || dimension <= 0)
-    {
-        return -1;
-    }
+int fastembed_generate(const char *text, float *output, int dimension) {
+  /* Validate input parameters */
+  if (!text || !output || dimension <= 0) {
+    return -1;
+  }
 
-    /* Generate embedding using assembly-optimized function */
-    int result = generate_simple_embedding(text, output);
+  /* Generate embedding using assembly-optimized function */
+  int result = generate_simple_embedding(text, output);
 
-    if (result != 0)
-    {
-        return -1;
-    }
+  if (result != 0) {
+    return -1;
+  }
 
-    /* Verify dimension matches expected value (current limitation) */
-    if (dimension != 768)
-    {
-        return -1;
-    }
+  /* Verify dimension matches expected value (current limitation) */
+  if (dimension != 768) {
+    return -1;
+  }
 
-    return 0;
+  return 0;
 }
 
 /**
@@ -107,15 +109,14 @@ int fastembed_generate(const char *text, float *output, int dimension)
  * @note Vectors must have the same dimension
  * @note Performance: O(dimension), optimized with SIMD
  */
-float fastembed_dot_product(const float *vec1, const float *vec2, int dimension)
-{
-    if (!vec1 || !vec2 || dimension <= 0)
-    {
-        return 0.0f;
-    }
+float fastembed_dot_product(const float *vec1, const float *vec2,
+                            int dimension) {
+  if (!vec1 || !vec2 || dimension <= 0) {
+    return 0.0f;
+  }
 
-    /* Try assembly version first (now fixed with proper ABI compliance) */
-    return dot_product_asm((float *)vec1, (float *)vec2, dimension);
+  /* Try assembly version first (now fixed with proper ABI compliance) */
+  return dot_product_asm((float *)vec1, (float *)vec2, dimension);
 }
 
 /**
@@ -132,20 +133,21 @@ float fastembed_dot_product(const float *vec1, const float *vec2, int dimension)
  * @param vec1 First vector (read-only)
  * @param vec2 Second vector (read-only)
  * @param dimension Number of elements in vectors (must match for both)
- * @return Cosine similarity (-1.0 to 1.0), or 0.0f on error (invalid parameters)
+ * @return Cosine similarity (-1.0 to 1.0), or 0.0f on error (invalid
+ * parameters)
  *
  * @note Returns 0.0f if either vector has zero norm (division by zero)
  * @note Performance: O(dimension), optimized with SIMD
  */
-float fastembed_cosine_similarity(const float *vec1, const float *vec2, int dimension)
-{
-    if (!vec1 || !vec2 || dimension <= 0)
-    {
-        return 0.0f;
-    }
+float fastembed_cosine_similarity(const float *vec1, const float *vec2,
+                                  int dimension) {
+  if (!vec1 || !vec2 || dimension <= 0) {
+    return 0.0f;
+  }
 
-    /* Use assembly version (now fixed with proper ABI compliance and stack alignment) */
-    return cosine_similarity_asm((float *)vec1, (float *)vec2, dimension);
+  /* Use assembly version (now fixed with proper ABI compliance and stack
+   * alignment) */
+  return cosine_similarity_asm((float *)vec1, (float *)vec2, dimension);
 }
 
 /**
@@ -163,15 +165,13 @@ float fastembed_cosine_similarity(const float *vec1, const float *vec2, int dime
  * @note Zero vector returns 0.0 norm
  * @note Performance: O(dimension), optimized with SIMD
  */
-float fastembed_vector_norm(const float *vec, int dimension)
-{
-    if (!vec || dimension <= 0)
-    {
-        return 0.0f;
-    }
+float fastembed_vector_norm(const float *vec, int dimension) {
+  if (!vec || dimension <= 0) {
+    return 0.0f;
+  }
 
-    /* Try assembly version first (now fixed with proper ABI compliance) */
-    return vector_norm_asm((float *)vec, dimension);
+  /* Try assembly version first (now fixed with proper ABI compliance) */
+  return vector_norm_asm((float *)vec, dimension);
 }
 
 /**
@@ -191,14 +191,12 @@ float fastembed_vector_norm(const float *vec, int dimension)
  * @note Zero vectors remain unchanged (no division by zero)
  * @note Performance: O(dimension), optimized with SIMD
  */
-void fastembed_normalize(float *vec, int dimension)
-{
-    if (!vec || dimension <= 0)
-    {
-        return;
-    }
+void fastembed_normalize(float *vec, int dimension) {
+  if (!vec || dimension <= 0) {
+    return;
+  }
 
-    normalize_vector_asm(vec, dimension);
+  normalize_vector_asm(vec, dimension);
 }
 
 /**
@@ -211,21 +209,21 @@ void fastembed_normalize(float *vec, int dimension)
  *
  * @param vec1 First vector (read-only)
  * @param vec2 Second vector (read-only)
- * @param result Output vector for result (must be pre-allocated, size >= dimension)
+ * @param result Output vector for result (must be pre-allocated, size >=
+ * dimension)
  * @param dimension Number of elements in vectors (must match for all three)
  *
  * @note All vectors must have the same dimension
  * @note Result vector must be pre-allocated (not computed in-place)
  * @note Performance: O(dimension), optimized with SIMD
  */
-void fastembed_add_vectors(const float *vec1, const float *vec2, float *result, int dimension)
-{
-    if (!vec1 || !vec2 || !result || dimension <= 0)
-    {
-        return;
-    }
+void fastembed_add_vectors(const float *vec1, const float *vec2, float *result,
+                           int dimension) {
+  if (!vec1 || !vec2 || !result || dimension <= 0) {
+    return;
+  }
 
-    add_vectors_asm((float *)vec1, (float *)vec2, result, dimension);
+  add_vectors_asm((float *)vec1, (float *)vec2, result, dimension);
 }
 
 /**
@@ -241,38 +239,53 @@ void fastembed_add_vectors(const float *vec1, const float *vec2, float *result, 
  *
  * @param model_path Path to .onnx model file (must be readable)
  * @param text Input text to embed (null-terminated string)
- * @param output Output array for embedding vector (must be pre-allocated, size >= dimension)
+ * @param output Output array for embedding vector (must be pre-allocated, size
+ * >= dimension)
  * @param dimension Requested embedding dimension
  * @return 0 on success, -1 on error
  *
- * @note Currently falls back to hash-based embedding if ONNX Runtime unavailable
+ * @note Currently falls back to hash-based embedding if ONNX Runtime
+ * unavailable
  * @note For proper ONNX support, compile with -DUSE_ONNX_RUNTIME
  */
-int fastembed_onnx_generate(const char *model_path, const char *text, float *output, int dimension)
-{
-    if (!model_path || !text || !output || dimension <= 0)
-    {
-        return -1;
-    }
+int fastembed_onnx_generate(const char *model_path, const char *text,
+                            float *output, int dimension) {
+  if (!model_path || !text || !output || dimension <= 0) {
+    return -1;
+  }
 
 #ifdef USE_ONNX_RUNTIME
-    /* Use ONNX Runtime for model-based embeddings */
-    extern int onnx_generate_embedding(const char *model_path, const char *text, float *output, int output_dim);
-    return onnx_generate_embedding(model_path, text, output, dimension);
+  /* Use ONNX Runtime for model-based embeddings */
+  extern int onnx_generate_embedding(const char *model_path, const char *text,
+                                     float *output, int output_dim);
+  return onnx_generate_embedding(model_path, text, output, dimension);
 #else
-    /* Fallback to hash-based embedding if ONNX Runtime unavailable */
-    return fastembed_generate(text, output, dimension);
+  /* Fallback to hash-based embedding if ONNX Runtime unavailable */
+  return fastembed_generate(text, output, dimension);
 #endif
 }
 
-int fastembed_onnx_unload(void)
-{
+int fastembed_onnx_unload(void) {
 #ifdef USE_ONNX_RUNTIME
-    extern int onnx_unload_model(void);
-    return onnx_unload_model();
+  extern int onnx_unload_model(void);
+  return onnx_unload_model();
 #else
-    /* Nothing to unload if ONNX Runtime not available */
-    return 0;
+  /* Nothing to unload if ONNX Runtime not available */
+  return 0;
+#endif
+}
+
+int fastembed_onnx_get_last_error(char *error_buffer, size_t buffer_size) {
+#ifdef USE_ONNX_RUNTIME
+  extern int onnx_get_last_error(char *error_buffer, size_t buffer_size);
+  return onnx_get_last_error(error_buffer, buffer_size);
+#else
+  /* No error message available if ONNX Runtime not compiled */
+  if (error_buffer && buffer_size > 0) {
+    snprintf(error_buffer, buffer_size,
+             "ONNX Runtime not available (not compiled with USE_ONNX_RUNTIME)");
+  }
+  return -1;
 #endif
 }
 
@@ -288,39 +301,37 @@ int fastembed_onnx_unload(void)
  *
  * @param texts Array of text strings (null-terminated) to embed
  * @param num_texts Number of texts in the array (must match outputs array size)
- * @param outputs Array of output arrays for embeddings (each must be pre-allocated, size >= dimension)
+ * @param outputs Array of output arrays for embeddings (each must be
+ * pre-allocated, size >= dimension)
  * @param dimension Embedding dimension (same for all texts)
- * @return 0 on success (all embeddings generated), -1 on error (validation or generation failure)
+ * @return 0 on success (all embeddings generated), -1 on error (validation or
+ * generation failure)
  *
  * @note Arrays texts and outputs must have num_texts elements
  * @note Each output array must be pre-allocated with size >= dimension
  * @note On error, some embeddings may have been generated (partial results)
  */
-int fastembed_batch_generate(const char **texts, int num_texts, float **outputs, int dimension)
-{
-    if (!texts || !outputs || num_texts <= 0 || dimension <= 0)
-    {
-        return -1;
+int fastembed_batch_generate(const char **texts, int num_texts, float **outputs,
+                             int dimension) {
+  if (!texts || !outputs || num_texts <= 0 || dimension <= 0) {
+    return -1;
+  }
+
+  /* Process each text sequentially */
+  for (int i = 0; i < num_texts; i++) {
+    /* Validate current text and output pointers */
+    if (!texts[i] || !outputs[i]) {
+      return -1;
     }
 
-    /* Process each text sequentially */
-    for (int i = 0; i < num_texts; i++)
-    {
-        /* Validate current text and output pointers */
-        if (!texts[i] || !outputs[i])
-        {
-            return -1;
-        }
-
-        /* Generate embedding for current text */
-        int result = fastembed_generate(texts[i], outputs[i], dimension);
-        if (result != 0)
-        {
-            return -1;
-        }
+    /* Generate embedding for current text */
+    int result = fastembed_generate(texts[i], outputs[i], dimension);
+    if (result != 0) {
+      return -1;
     }
+  }
 
-    return 0;
+  return 0;
 }
 
 /**
@@ -331,52 +342,47 @@ int fastembed_batch_generate(const char **texts, int num_texts, float **outputs,
  *
  * @deprecated Use fastembed_generate() instead
  */
-int generate_embedding(const char *text, float *output, int dimension)
-{
-    return fastembed_generate(text, output, dimension);
+int generate_embedding(const char *text, float *output, int dimension) {
+  return fastembed_generate(text, output, dimension);
 }
 
 /**
  * @brief Legacy API: Calculate dot product
  * @deprecated Use fastembed_dot_product() instead
  */
-float dot_product(float *vector_a, float *vector_b, int dimension)
-{
-    return fastembed_dot_product(vector_a, vector_b, dimension);
+float dot_product(float *vector_a, float *vector_b, int dimension) {
+  return fastembed_dot_product(vector_a, vector_b, dimension);
 }
 
 /**
  * @brief Legacy API: Calculate cosine similarity
  * @deprecated Use fastembed_cosine_similarity() instead
  */
-float cosine_similarity(float *vector_a, float *vector_b, int dimension)
-{
-    return fastembed_cosine_similarity(vector_a, vector_b, dimension);
+float cosine_similarity(float *vector_a, float *vector_b, int dimension) {
+  return fastembed_cosine_similarity(vector_a, vector_b, dimension);
 }
 
 /**
  * @brief Legacy API: Calculate vector norm
  * @deprecated Use fastembed_vector_norm() instead
  */
-float vector_norm(float *vector, int dimension)
-{
-    return fastembed_vector_norm(vector, dimension);
+float vector_norm(float *vector, int dimension) {
+  return fastembed_vector_norm(vector, dimension);
 }
 
 /**
  * @brief Legacy API: Normalize vector
  * @deprecated Use fastembed_normalize() instead
  */
-void normalize_vector(float *vector, int dimension)
-{
-    fastembed_normalize(vector, dimension);
+void normalize_vector(float *vector, int dimension) {
+  fastembed_normalize(vector, dimension);
 }
 
 /**
  * @brief Legacy API: Add two vectors
  * @deprecated Use fastembed_add_vectors() instead
  */
-void add_vectors(float *vector_a, float *vector_b, float *result, int dimension)
-{
-    fastembed_add_vectors(vector_a, vector_b, result, dimension);
+void add_vectors(float *vector_a, float *vector_b, float *result,
+                 int dimension) {
+  fastembed_add_vectors(vector_a, vector_b, result, dimension);
 }

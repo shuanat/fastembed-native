@@ -1,34 +1,40 @@
 /**
  * @file onnx_embedding_loader.c
- * @brief ONNX Runtime integration for embedding models (REFACTORED - Standard C API with Caching)
+ * @brief ONNX Runtime integration for embedding models (REFACTORED - Standard C
+ * API with Caching)
  *
- * This module provides functionality to load ONNX embedding models (e.g., BERT-based,
- * nomic-embed-text) and generate text embeddings directly using ONNX Runtime.
+ * This module provides functionality to load ONNX embedding models (e.g.,
+ * BERT-based, nomic-embed-text) and generate text embeddings directly using
+ * ONNX Runtime.
  *
  * Features:
  * - Direct ONNX model loading and inference using standard C API
- * - **Model session caching**: Models are loaded once and reused across multiple calls
+ * - **Model session caching**: Models are loaded once and reused across
+ * multiple calls
  * - Simplified tokenization for BERT-like models
  * - Automatic tensor creation and management
  * - L2 normalization of output embeddings
  *
  * Performance:
- * - First call with a model: loads model into memory (~100-500ms depending on model size)
+ * - First call with a model: loads model into memory (~100-500ms depending on
+ * model size)
  * - Subsequent calls: reuse cached session (no reload overhead)
- * - Automatic model switching: if different model_path is provided, previous model is unloaded
+ * - Automatic model switching: if different model_path is provided, previous
+ * model is unloaded
  *
  * Requires: ONNX Runtime C API (libonnxruntime.so / onnxruntime.dll)
  */
 
 #ifdef USE_ONNX_RUNTIME
 
+#include <ctype.h>
+#include <limits.h>
+#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <math.h>
-#include <ctype.h>
-#include <limits.h>
+
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -43,8 +49,8 @@
 #endif
 #endif
 
-#include <onnxruntime_c_api.h>
 #include "../include/fastembed_config.h"
+#include <onnxruntime_c_api.h>
 
 #define MAX_TEXT_LENGTH FASTEMBED_MAX_TEXT_LENGTH
 #define MAX_OUTPUT_DIM FASTEMBED_MAX_OUTPUT_DIM
@@ -64,16 +70,15 @@ static const OrtApi *g_ort = NULL;
  *
  * Stores loaded ONNX model session and related resources for reuse.
  */
-typedef struct
-{
-    char model_path[MAX_MODEL_PATH];    /* Resolved path to model file */
-    OrtEnv *env;                        /* ONNX environment (singleton) */
-    OrtMemoryInfo *memory_info;         /* CPU memory info */
-    OrtSessionOptions *session_options; /* Session options */
-    OrtSession *session;                /* Loaded session */
-    OrtAllocator *allocator;            /* Allocator for names */
-    char *output_name;                  /* Cached output name */
-    int is_loaded;                      /* Flag: is session loaded */
+typedef struct {
+  char model_path[MAX_MODEL_PATH];    /* Resolved path to model file */
+  OrtEnv *env;                        /* ONNX environment (singleton) */
+  OrtMemoryInfo *memory_info;         /* CPU memory info */
+  OrtSessionOptions *session_options; /* Session options */
+  OrtSession *session;                /* Loaded session */
+  OrtAllocator *allocator;            /* Allocator for names */
+  char *output_name;                  /* Cached output name */
+  int is_loaded;                      /* Flag: is session loaded */
 } CachedModelSession;
 
 /**
@@ -84,6 +89,21 @@ typedef struct
 static CachedModelSession g_cached_session = {0};
 
 /**
+ * @brief Last error message buffer (for detailed error reporting)
+ */
+#define MAX_ERROR_MESSAGE 512
+static char g_last_error[MAX_ERROR_MESSAGE] = {0};
+
+/**
+ * @brief Helper macro to save error message
+ */
+#define SAVE_ERROR(fmt, ...)                                                   \
+  do {                                                                         \
+    snprintf(g_last_error, MAX_ERROR_MESSAGE, fmt, ##__VA_ARGS__);             \
+    fprintf(stderr, "ONNX Error: %s\n", g_last_error);                         \
+  } while (0)
+
+/**
  * @brief Initialize ONNX Runtime API (standard approach)
  *
  * Gets the API base and retrieves the API structure.
@@ -91,111 +111,103 @@ static CachedModelSession g_cached_session = {0};
  *
  * @return 0 on success, -1 on error
  */
-static int init_onnx_api(void)
-{
-    if (g_ort != NULL)
-    {
-        return 0; // Already initialized
-    }
+static int init_onnx_api(void) {
+  if (g_ort != NULL) {
+    return 0; // Already initialized
+  }
 
 #ifdef _WIN32
-    // On Windows, set DLL directory to prefer loading from current directory
-    // This ensures we use the correct onnxruntime.dll, not the system one
-    HMODULE hModule = GetModuleHandleA("fastembed_jni.dll");
-    if (hModule == NULL)
-    {
-        hModule = GetModuleHandleA("fastembed.dll");
-    }
-    if (hModule != NULL)
-    {
-        char module_path[MAX_PATH];
-        if (GetModuleFileNameA(hModule, module_path, MAX_PATH) > 0)
-        {
-            // Extract directory
-            char *last_slash = strrchr(module_path, '\\');
-            if (last_slash != NULL)
-            {
-                *last_slash = '\0';
-                char dll_path[MAX_PATH];
-                snprintf(dll_path, sizeof(dll_path), "%s\\onnxruntime.dll", module_path);
+  // On Windows, set DLL directory to prefer loading from current directory
+  // This ensures we use the correct onnxruntime.dll, not the system one
+  HMODULE hModule = GetModuleHandleA("fastembed_jni.dll");
+  if (hModule == NULL) {
+    hModule = GetModuleHandleA("fastembed.dll");
+  }
+  if (hModule != NULL) {
+    char module_path[MAX_PATH];
+    if (GetModuleFileNameA(hModule, module_path, MAX_PATH) > 0) {
+      // Extract directory
+      char *last_slash = strrchr(module_path, '\\');
+      if (last_slash != NULL) {
+        *last_slash = '\0';
+        char dll_path[MAX_PATH];
+        snprintf(dll_path, sizeof(dll_path), "%s\\onnxruntime.dll",
+                 module_path);
 
-                // Use LoadLibraryEx with LOAD_WITH_ALTERED_SEARCH_PATH to bypass system32
-                // This flag forces Windows to search in the specified directory FIRST,
-                // ignoring the standard DLL search order (which includes system32)
-                HMODULE hOnnxDll = LoadLibraryExA(dll_path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+        // Use LoadLibraryEx with LOAD_WITH_ALTERED_SEARCH_PATH to bypass
+        // system32 This flag forces Windows to search in the specified
+        // directory FIRST, ignoring the standard DLL search order (which
+        // includes system32)
+        HMODULE hOnnxDll =
+            LoadLibraryExA(dll_path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
 
-                if (hOnnxDll == NULL)
-                {
-                    // Fallback: try normal LoadLibrary if LoadLibraryEx fails
-                    hOnnxDll = LoadLibraryA(dll_path);
-                }
-
-                if (hOnnxDll == NULL)
-                {
-                    // Last resort: change DLL search directory
-                    SetDllDirectoryA(module_path);
-                }
-                else
-                {
-                    // Success - DLL loaded from our directory
-                    // Get OrtGetApiBase function pointer directly from our DLL
-                    typedef const OrtApiBase *(*OrtGetApiBaseFunc)(void);
-                    OrtGetApiBaseFunc getApiBase = (OrtGetApiBaseFunc)GetProcAddress(hOnnxDll, "OrtGetApiBase");
-                    if (getApiBase != NULL)
-                    {
-                        // Call OrtGetApiBase from our DLL, not the system one
-                        const OrtApiBase *api_base = getApiBase();
-                        if (api_base != NULL)
-                        {
-                            // Use this API base instead of the global one
-                            g_ort = api_base->GetApi(ORT_API_VERSION);
-                            if (g_ort != NULL)
-                            {
-                                // Success - we're using the correct ONNX Runtime version
-                                // Skip the standard initialization below
-                                goto skip_standard_init;
-                            }
-                        }
-                    }
-                }
-            }
+        if (hOnnxDll == NULL) {
+          // Fallback: try normal LoadLibrary if LoadLibraryEx fails
+          hOnnxDll = LoadLibraryA(dll_path);
         }
+
+        if (hOnnxDll == NULL) {
+          // Last resort: change DLL search directory
+          SetDllDirectoryA(module_path);
+        } else {
+          // Success - DLL loaded from our directory
+          // Get OrtGetApiBase function pointer directly from our DLL
+          typedef const OrtApiBase *(*OrtGetApiBaseFunc)(void);
+          OrtGetApiBaseFunc getApiBase =
+              (OrtGetApiBaseFunc)GetProcAddress(hOnnxDll, "OrtGetApiBase");
+          if (getApiBase != NULL) {
+            // Call OrtGetApiBase from our DLL, not the system one
+            const OrtApiBase *api_base = getApiBase();
+            if (api_base != NULL) {
+              // Use this API base instead of the global one
+              g_ort = api_base->GetApi(ORT_API_VERSION);
+              if (g_ort != NULL) {
+                // Success - we're using the correct ONNX Runtime version
+                // Skip the standard initialization below
+                goto skip_standard_init;
+              }
+            }
+          }
+        }
+      }
     }
+  }
 #endif
 
-    const OrtApiBase *api_base = OrtGetApiBase();
-    if (api_base == NULL)
-    {
-        fprintf(stderr, "ERROR: OrtGetApiBase() returned NULL\n");
-        return -1;
-    }
+  const OrtApiBase *api_base = OrtGetApiBase();
+  if (api_base == NULL) {
+    SAVE_ERROR(
+        "OrtGetApiBase() returned NULL - ONNX Runtime DLL may not be loaded");
+    fprintf(stderr, "ERROR: OrtGetApiBase() returned NULL\n");
+    return -1;
+  }
 
-    g_ort = api_base->GetApi(ORT_API_VERSION);
-    if (g_ort == NULL)
-    {
-        fprintf(stderr, "ERROR: GetApi() returned NULL\n");
-        return -1;
-    }
+  g_ort = api_base->GetApi(ORT_API_VERSION);
+  if (g_ort == NULL) {
+    SAVE_ERROR("GetApi(ORT_API_VERSION) returned NULL - ONNX Runtime version "
+               "mismatch");
+    fprintf(stderr, "ERROR: GetApi() returned NULL\n");
+    return -1;
+  }
 
 skip_standard_init:
-    return 0;
+  return 0;
 }
 
 /**
  * @brief Helper macro to check ORT status and handle errors
  */
-#define CHECK_ORT_STATUS(expr)                                \
-    do                                                        \
-    {                                                         \
-        OrtStatus *status = (expr);                           \
-        if (status != NULL)                                   \
-        {                                                     \
-            const char *msg = g_ort->GetErrorMessage(status); \
-            fprintf(stderr, "ONNX Runtime Error: %s\n", msg); \
-            g_ort->ReleaseStatus(status);                     \
-            goto cleanup;                                     \
-        }                                                     \
-    } while (0)
+#define CHECK_ORT_STATUS(expr)                                                 \
+  do {                                                                         \
+    OrtStatus *status = (expr);                                                \
+    if (status != NULL) {                                                      \
+      const char *msg = g_ort->GetErrorMessage(status);                        \
+      SAVE_ERROR("ORT Error: %s", msg);                                        \
+      fprintf(stderr, "ONNX Runtime Error: %s\n", msg);                        \
+      g_ort->ReleaseStatus(status);                                            \
+      goto cleanup;                                                            \
+    }                                                                          \
+  } while (0)
 
 /**
  * @brief Load or retrieve cached ONNX model session
@@ -207,111 +219,109 @@ skip_standard_init:
  * @param cached Pointer to cached session structure
  * @return 0 on success, -1 on error
  */
-static int load_or_get_cached_session(const char *model_path, CachedModelSession *cached)
-{
-    char resolved_path[PATH_MAX];
+static int load_or_get_cached_session(const char *model_path,
+                                      CachedModelSession *cached) {
+  char resolved_path[PATH_MAX];
 
-    /* Resolve model path */
+  /* Resolve model path */
 #ifdef _WIN32
-    if (_fullpath(resolved_path, model_path, PATH_MAX) == NULL)
+  if (_fullpath(resolved_path, model_path, PATH_MAX) == NULL)
 #else
-    if (realpath(model_path, resolved_path) == NULL)
+  if (realpath(model_path, resolved_path) == NULL)
 #endif
-    {
-        fprintf(stderr, "Model file not found: %s\n", model_path);
-        return -1;
+  {
+    SAVE_ERROR("Model file not found or cannot resolve path: %s", model_path);
+    fprintf(stderr, "Model file not found: %s\n", model_path);
+    return -1;
+  }
+
+  /* Check if same model is already loaded */
+  if (cached->is_loaded && strcmp(cached->model_path, resolved_path) == 0) {
+    return 0; /* Already loaded, reuse */
+  }
+
+  /* Unload previous model if different */
+  if (cached->is_loaded) {
+    if (cached->output_name && cached->allocator) {
+      cached->allocator->Free(cached->allocator, cached->output_name);
+      cached->output_name = NULL;
     }
+    if (cached->session)
+      g_ort->ReleaseSession(cached->session);
+    if (cached->session_options)
+      g_ort->ReleaseSessionOptions(cached->session_options);
+    if (cached->memory_info)
+      g_ort->ReleaseMemoryInfo(cached->memory_info);
+    /* Note: env is singleton, don't release it */
 
-    /* Check if same model is already loaded */
-    if (cached->is_loaded && strcmp(cached->model_path, resolved_path) == 0)
-    {
-        return 0; /* Already loaded, reuse */
-    }
+    memset(cached, 0, sizeof(CachedModelSession));
+  }
 
-    /* Unload previous model if different */
-    if (cached->is_loaded)
-    {
-        if (cached->output_name && cached->allocator)
-        {
-            cached->allocator->Free(cached->allocator, cached->output_name);
-            cached->output_name = NULL;
-        }
-        if (cached->session)
-            g_ort->ReleaseSession(cached->session);
-        if (cached->session_options)
-            g_ort->ReleaseSessionOptions(cached->session_options);
-        if (cached->memory_info)
-            g_ort->ReleaseMemoryInfo(cached->memory_info);
-        /* Note: env is singleton, don't release it */
+  /* Create or get environment (singleton) */
+  if (cached->env == NULL) {
+    CHECK_ORT_STATUS(
+        g_ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "FastEmbed", &cached->env));
+  }
 
-        memset(cached, 0, sizeof(CachedModelSession));
-    }
+  /* Create CPU memory info */
+  CHECK_ORT_STATUS(g_ort->CreateCpuMemoryInfo(
+      OrtArenaAllocator, OrtMemTypeDefault, &cached->memory_info));
 
-    /* Create or get environment (singleton) */
-    if (cached->env == NULL)
-    {
-        CHECK_ORT_STATUS(g_ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "FastEmbed", &cached->env));
-    }
+  /* Create session options */
+  CHECK_ORT_STATUS(g_ort->CreateSessionOptions(&cached->session_options));
 
-    /* Create CPU memory info */
-    CHECK_ORT_STATUS(g_ort->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &cached->memory_info));
-
-    /* Create session options */
-    CHECK_ORT_STATUS(g_ort->CreateSessionOptions(&cached->session_options));
-
-    /* Create session from file */
+  /* Create session from file */
 #ifdef _WIN32
-    /* Convert path to wide string for Windows */
-    wchar_t wide_path[PATH_MAX];
-    MultiByteToWideChar(CP_UTF8, 0, resolved_path, -1, wide_path, PATH_MAX);
-    CHECK_ORT_STATUS(g_ort->CreateSession(cached->env, wide_path, cached->session_options, &cached->session));
+  /* Convert path to wide string for Windows */
+  wchar_t wide_path[PATH_MAX];
+  MultiByteToWideChar(CP_UTF8, 0, resolved_path, -1, wide_path, PATH_MAX);
+  CHECK_ORT_STATUS(g_ort->CreateSession(
+      cached->env, wide_path, cached->session_options, &cached->session));
 #else
-    CHECK_ORT_STATUS(g_ort->CreateSession(cached->env, resolved_path, cached->session_options, &cached->session));
+  CHECK_ORT_STATUS(g_ort->CreateSession(
+      cached->env, resolved_path, cached->session_options, &cached->session));
 #endif
 
-    /* Get allocator */
-    CHECK_ORT_STATUS(g_ort->GetAllocatorWithDefaultOptions(&cached->allocator));
+  /* Get allocator */
+  CHECK_ORT_STATUS(g_ort->GetAllocatorWithDefaultOptions(&cached->allocator));
 
-    /* Get output name (cache it) */
-    size_t num_output_nodes = 0;
-    CHECK_ORT_STATUS(g_ort->SessionGetOutputCount(cached->session, &num_output_nodes));
+  /* Get output name (cache it) */
+  size_t num_output_nodes = 0;
+  CHECK_ORT_STATUS(
+      g_ort->SessionGetOutputCount(cached->session, &num_output_nodes));
 
-    if (num_output_nodes > 0)
-    {
-        CHECK_ORT_STATUS(g_ort->SessionGetOutputName(cached->session, 0, cached->allocator, &cached->output_name));
-    }
+  if (num_output_nodes > 0) {
+    CHECK_ORT_STATUS(g_ort->SessionGetOutputName(
+        cached->session, 0, cached->allocator, &cached->output_name));
+  }
 
-    if (cached->output_name == NULL)
-    {
-        fprintf(stderr, "Failed to get output name from model\n");
-        return -1;
-    }
+  if (cached->output_name == NULL) {
+    fprintf(stderr, "Failed to get output name from model\n");
+    return -1;
+  }
 
-    /* Save resolved path and mark as loaded */
-    strncpy(cached->model_path, resolved_path, MAX_MODEL_PATH - 1);
-    cached->model_path[MAX_MODEL_PATH - 1] = '\0';
-    cached->is_loaded = 1;
+  /* Save resolved path and mark as loaded */
+  strncpy(cached->model_path, resolved_path, MAX_MODEL_PATH - 1);
+  cached->model_path[MAX_MODEL_PATH - 1] = '\0';
+  cached->is_loaded = 1;
 
-    return 0;
+  return 0;
 
 cleanup:
-    /* Cleanup on error */
-    if (cached->session)
-    {
-        g_ort->ReleaseSession(cached->session);
-        cached->session = NULL;
-    }
-    if (cached->session_options)
-    {
-        g_ort->ReleaseSessionOptions(cached->session_options);
-        cached->session_options = NULL;
-    }
-    if (cached->memory_info)
-    {
-        g_ort->ReleaseMemoryInfo(cached->memory_info);
-        cached->memory_info = NULL;
-    }
-    return -1;
+  /* Cleanup on error */
+  if (cached->session) {
+    g_ort->ReleaseSession(cached->session);
+    cached->session = NULL;
+  }
+  if (cached->session_options) {
+    g_ort->ReleaseSessionOptions(cached->session_options);
+    cached->session_options = NULL;
+  }
+  if (cached->memory_info) {
+    g_ort->ReleaseMemoryInfo(cached->memory_info);
+    cached->memory_info = NULL;
+  }
+  return -1;
 }
 
 /**
@@ -325,55 +335,49 @@ cleanup:
  * @param max_length Maximum sequence length
  * @return Number of tokens generated, or -1 on error
  */
-static int simple_tokenize(const char *text, int64_t *token_ids, int max_length)
-{
-    if (text == NULL || token_ids == NULL || max_length <= 0)
-        return -1;
+static int simple_tokenize(const char *text, int64_t *token_ids,
+                           int max_length) {
+  if (text == NULL || token_ids == NULL || max_length <= 0)
+    return -1;
 
-    int token_count = 0;
-    token_ids[token_count++] = 101; /* [CLS] token ID */
+  int token_count = 0;
+  token_ids[token_count++] = 101; /* [CLS] token ID */
 
-    /* Simple word-based tokenization */
-    const char *p = text;
-    int word_start = 1;
-    uint32_t hash = 0;
+  /* Simple word-based tokenization */
+  const char *p = text;
+  int word_start = 1;
+  uint32_t hash = 0;
 
-    for (int i = 0; p[i] != '\0' && token_count < max_length - 1; i++)
-    {
-        if (isspace((unsigned char)p[i]) || ispunct((unsigned char)p[i]))
-        {
-            if (!word_start && token_count < max_length - 1)
-            {
-                /* Map hash to vocabulary ID (simple modulo) */
-                int64_t token_id = (hash % VOCAB_SIZE);
-                if (token_id < 100) /* Skip special tokens */
-                    token_id += 100;
-                token_ids[token_count++] = token_id;
-                hash = 0;
-            }
-            word_start = 1;
-        }
-        else
-        {
-            hash = hash * 31 + (unsigned char)tolower((unsigned char)p[i]);
-            word_start = 0;
-        }
-    }
-
-    /* Add final token if we have a word in progress */
-    if (!word_start && token_count < max_length - 1)
-    {
+  for (int i = 0; p[i] != '\0' && token_count < max_length - 1; i++) {
+    if (isspace((unsigned char)p[i]) || ispunct((unsigned char)p[i])) {
+      if (!word_start && token_count < max_length - 1) {
+        /* Map hash to vocabulary ID (simple modulo) */
         int64_t token_id = (hash % VOCAB_SIZE);
-        if (token_id < 100)
-            token_id += 100;
+        if (token_id < 100) /* Skip special tokens */
+          token_id += 100;
         token_ids[token_count++] = token_id;
+        hash = 0;
+      }
+      word_start = 1;
+    } else {
+      hash = hash * 31 + (unsigned char)tolower((unsigned char)p[i]);
+      word_start = 0;
     }
+  }
 
-    /* Add [SEP] token at end */
-    if (token_count < max_length)
-        token_ids[token_count++] = 102; /* [SEP] token ID */
+  /* Add final token if we have a word in progress */
+  if (!word_start && token_count < max_length - 1) {
+    int64_t token_id = (hash % VOCAB_SIZE);
+    if (token_id < 100)
+      token_id += 100;
+    token_ids[token_count++] = token_id;
+  }
 
-    return token_count;
+  /* Add [SEP] token at end */
+  if (token_count < max_length)
+    token_ids[token_count++] = 102; /* [SEP] token ID */
+
+  return token_count;
 }
 
 /**
@@ -384,24 +388,22 @@ static int simple_tokenize(const char *text, int64_t *token_ids, int max_length)
  * @param vec Vector to normalize (modified in-place)
  * @param dim Dimension of vector
  */
-static void normalize_l2(float *vec, int dim)
-{
-    if (vec == NULL || dim <= 0)
-        return;
+static void normalize_l2(float *vec, int dim) {
+  if (vec == NULL || dim <= 0)
+    return;
 
-    /* Calculate L2 norm */
-    double norm = 0.0;
+  /* Calculate L2 norm */
+  double norm = 0.0;
+  for (int i = 0; i < dim; i++)
+    norm += (double)vec[i] * (double)vec[i];
+  norm = sqrt(norm);
+
+  /* Normalize if norm > 0 */
+  if (norm > 1e-8) {
+    float inv_norm = 1.0f / (float)norm;
     for (int i = 0; i < dim; i++)
-        norm += (double)vec[i] * (double)vec[i];
-    norm = sqrt(norm);
-
-    /* Normalize if norm > 0 */
-    if (norm > 1e-8)
-    {
-        float inv_norm = 1.0f / (float)norm;
-        for (int i = 0; i < dim; i++)
-            vec[i] *= inv_norm;
-    }
+      vec[i] *= inv_norm;
+  }
 }
 
 /**
@@ -417,177 +419,206 @@ static void normalize_l2(float *vec, int dim)
  * @param output_dim Requested output dimension (must match model output)
  * @return 0 on success, -1 on error
  */
-int onnx_generate_embedding(
-    const char *model_path,
-    const char *text,
-    float *output,
-    int output_dim)
-{
-    /* Validate inputs */
-    if (!model_path || !text || !output || output_dim <= 0 || output_dim > MAX_OUTPUT_DIM)
-    {
-        fprintf(stderr, "Invalid input parameters\n");
-        return -1;
-    }
+int onnx_generate_embedding(const char *model_path, const char *text,
+                            float *output, int output_dim) {
+  /* Clear previous error */
+  g_last_error[0] = '\0';
 
-    /* Initialize ONNX Runtime API */
-    if (init_onnx_api() != 0)
-    {
-        fprintf(stderr, "Failed to initialize ONNX Runtime API\n");
-        return -1;
-    }
+  /* Validate inputs */
+  if (!model_path || !text || !output || output_dim <= 0 ||
+      output_dim > MAX_OUTPUT_DIM) {
+    SAVE_ERROR("Invalid input parameters: model_path=%p, text=%p, output=%p, "
+               "output_dim=%d",
+               model_path, text, output, output_dim);
+    fprintf(stderr, "Invalid input parameters\n");
+    return -1;
+  }
 
-    /* Load or get cached session */
-    if (load_or_get_cached_session(model_path, &g_cached_session) != 0)
-    {
-        fprintf(stderr, "Failed to load model session\n");
-        return -1;
-    }
+  /* Initialize ONNX Runtime API */
+  if (init_onnx_api() != 0) {
+    SAVE_ERROR("Failed to initialize ONNX Runtime API - check if "
+               "onnxruntime.dll is available");
+    fprintf(stderr, "Failed to initialize ONNX Runtime API\n");
+    return -1;
+  }
 
-    /* Use cached session resources */
-    OrtSession *session = g_cached_session.session;
-    OrtMemoryInfo *memory_info = g_cached_session.memory_info;
-    const char *output_name = g_cached_session.output_name;
+  /* Load or get cached session */
+  if (load_or_get_cached_session(model_path, &g_cached_session) != 0) {
+    SAVE_ERROR("Failed to load model session for: %s", model_path);
+    fprintf(stderr, "Failed to load model session\n");
+    return -1;
+  }
 
-    OrtValue *input_tensor = NULL;
-    OrtValue *token_type_tensor = NULL;
-    OrtValue *attention_mask_tensor = NULL;
-    OrtValue *output_tensor = NULL;
+  /* Use cached session resources */
+  OrtSession *session = g_cached_session.session;
+  OrtMemoryInfo *memory_info = g_cached_session.memory_info;
+  const char *output_name = g_cached_session.output_name;
 
-    int result = -1;
+  OrtValue *input_tensor = NULL;
+  OrtValue *token_type_tensor = NULL;
+  OrtValue *attention_mask_tensor = NULL;
+  OrtValue *output_tensor = NULL;
 
-    /* Tokenize input text */
-    int64_t input_ids[MAX_SEQUENCE_LENGTH];
-    int sequence_length = simple_tokenize(text, input_ids, MAX_SEQUENCE_LENGTH);
-    if (sequence_length < 0)
-    {
-        fprintf(stderr, "Failed to tokenize text\n");
-        goto cleanup;
-    }
+  int result = -1;
 
-    /* Create token_type_ids (all zeros for single sequence) */
-    int64_t token_type_ids[MAX_SEQUENCE_LENGTH];
-    memset(token_type_ids, 0, sequence_length * sizeof(int64_t));
+  /* Tokenize input text */
+  int64_t input_ids[MAX_SEQUENCE_LENGTH];
+  int sequence_length = simple_tokenize(text, input_ids, MAX_SEQUENCE_LENGTH);
+  if (sequence_length < 0) {
+    SAVE_ERROR("Failed to tokenize text (length: %zu)", strlen(text));
+    fprintf(stderr, "Failed to tokenize text\n");
+    goto cleanup;
+  }
 
-    /* Create attention_mask (all ones) */
-    int64_t attention_mask_arr[MAX_SEQUENCE_LENGTH];
-    for (int i = 0; i < sequence_length; i++)
-        attention_mask_arr[i] = 1;
+  /* Create token_type_ids (all zeros for single sequence) */
+  int64_t token_type_ids[MAX_SEQUENCE_LENGTH];
+  memset(token_type_ids, 0, sequence_length * sizeof(int64_t));
 
-    /* Prepare input arrays */
-    const char *input_names[3] = {"input_ids", "token_type_ids", "attention_mask"};
-    const OrtValue *inputs[3];
-    size_t actual_input_count = 3;
+  /* Create attention_mask (all ones) */
+  int64_t attention_mask_arr[MAX_SEQUENCE_LENGTH];
+  for (int i = 0; i < sequence_length; i++)
+    attention_mask_arr[i] = 1;
 
-    /* Create input tensors */
-    int64_t input_shape[2] = {1, sequence_length};
+  /* Prepare input arrays */
+  const char *input_names[3] = {"input_ids", "token_type_ids",
+                                "attention_mask"};
+  const OrtValue *inputs[3];
+  size_t actual_input_count = 3;
 
-    CHECK_ORT_STATUS(g_ort->CreateTensorWithDataAsOrtValue(
-        memory_info, input_ids, sequence_length * sizeof(int64_t),
-        input_shape, 2, ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64, &input_tensor));
+  /* Create input tensors */
+  int64_t input_shape[2] = {1, sequence_length};
 
-    CHECK_ORT_STATUS(g_ort->CreateTensorWithDataAsOrtValue(
-        memory_info, token_type_ids, sequence_length * sizeof(int64_t),
-        input_shape, 2, ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64, &token_type_tensor));
+  CHECK_ORT_STATUS(g_ort->CreateTensorWithDataAsOrtValue(
+      memory_info, input_ids, sequence_length * sizeof(int64_t), input_shape, 2,
+      ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64, &input_tensor));
 
-    CHECK_ORT_STATUS(g_ort->CreateTensorWithDataAsOrtValue(
-        memory_info, attention_mask_arr, sequence_length * sizeof(int64_t),
-        input_shape, 2, ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64, &attention_mask_tensor));
+  CHECK_ORT_STATUS(g_ort->CreateTensorWithDataAsOrtValue(
+      memory_info, token_type_ids, sequence_length * sizeof(int64_t),
+      input_shape, 2, ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64, &token_type_tensor));
 
-    /* Populate input arrays */
-    inputs[0] = input_tensor;
-    inputs[1] = token_type_tensor;
-    inputs[2] = attention_mask_tensor;
+  CHECK_ORT_STATUS(g_ort->CreateTensorWithDataAsOrtValue(
+      memory_info, attention_mask_arr, sequence_length * sizeof(int64_t),
+      input_shape, 2, ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64,
+      &attention_mask_tensor));
 
-    /* Run inference using standard API */
-    const char *output_names_arr[1] = {output_name};
-    CHECK_ORT_STATUS(g_ort->Run(session, NULL, input_names, inputs, actual_input_count,
-                                output_names_arr, 1, &output_tensor));
+  /* Populate input arrays */
+  inputs[0] = input_tensor;
+  inputs[1] = token_type_tensor;
+  inputs[2] = attention_mask_tensor;
 
-    if (output_tensor == NULL)
-    {
-        fprintf(stderr, "Inference failed: output tensor is NULL\n");
-        goto cleanup;
-    }
+  /* Run inference using standard API */
+  const char *output_names_arr[1] = {output_name};
+  CHECK_ORT_STATUS(g_ort->Run(session, NULL, input_names, inputs,
+                              actual_input_count, output_names_arr, 1,
+                              &output_tensor));
 
-    /* Extract embeddings from output tensor */
-    float *output_data = NULL;
-    CHECK_ORT_STATUS(g_ort->GetTensorMutableData(output_tensor, (void **)&output_data));
+  if (output_tensor == NULL) {
+    SAVE_ERROR("Inference failed: output tensor is NULL after Run()");
+    fprintf(stderr, "Inference failed: output tensor is NULL\n");
+    goto cleanup;
+  }
 
-    /* Extract [CLS] token embedding (first token) */
-    if (output_dim <= MAX_OUTPUT_DIM)
-    {
-        memcpy(output, output_data, output_dim * sizeof(float));
-        normalize_l2(output, output_dim);
-    }
+  /* Extract embeddings from output tensor */
+  float *output_data = NULL;
+  CHECK_ORT_STATUS(
+      g_ort->GetTensorMutableData(output_tensor, (void **)&output_data));
 
-    result = 0;
+  /* Extract [CLS] token embedding (first token) */
+  if (output_dim <= MAX_OUTPUT_DIM) {
+    memcpy(output, output_data, output_dim * sizeof(float));
+    normalize_l2(output, output_dim);
+  }
+
+  result = 0;
 
 cleanup:
-    /* Cleanup only tensor values (session resources are cached) */
-    if (input_tensor)
-        g_ort->ReleaseValue(input_tensor);
-    if (token_type_tensor)
-        g_ort->ReleaseValue(token_type_tensor);
-    if (attention_mask_tensor)
-        g_ort->ReleaseValue(attention_mask_tensor);
-    if (output_tensor)
-        g_ort->ReleaseValue(output_tensor);
+  /* Cleanup only tensor values (session resources are cached) */
+  if (input_tensor)
+    g_ort->ReleaseValue(input_tensor);
+  if (token_type_tensor)
+    g_ort->ReleaseValue(token_type_tensor);
+  if (attention_mask_tensor)
+    g_ort->ReleaseValue(attention_mask_tensor);
+  if (output_tensor)
+    g_ort->ReleaseValue(output_tensor);
 
-    return result;
+  return result;
 }
 
 /**
  * @brief Unload cached model session
  *
- * Frees all cached resources. Can be called to free memory when done with model.
- * Subsequent calls will reload the model automatically.
+ * Frees all cached resources. Can be called to free memory when done with
+ * model. Subsequent calls will reload the model automatically.
  *
  * @return 0 on success, -1 if not initialized
  */
-int onnx_unload_model(void)
-{
-    if (g_ort == NULL)
-    {
-        return -1;
-    }
+int onnx_unload_model(void) {
+  if (g_ort == NULL) {
+    return -1;
+  }
 
-    if (!g_cached_session.is_loaded)
-    {
-        return 0; /* Nothing to unload */
-    }
+  if (!g_cached_session.is_loaded) {
+    return 0; /* Nothing to unload */
+  }
 
-    /* Free cached resources */
-    if (g_cached_session.output_name && g_cached_session.allocator)
-    {
-        g_cached_session.allocator->Free(g_cached_session.allocator, g_cached_session.output_name);
-        g_cached_session.output_name = NULL;
-    }
+  /* Free cached resources */
+  if (g_cached_session.output_name && g_cached_session.allocator) {
+    g_cached_session.allocator->Free(g_cached_session.allocator,
+                                     g_cached_session.output_name);
+    g_cached_session.output_name = NULL;
+  }
 
-    if (g_cached_session.session)
-    {
-        g_ort->ReleaseSession(g_cached_session.session);
-        g_cached_session.session = NULL;
-    }
+  if (g_cached_session.session) {
+    g_ort->ReleaseSession(g_cached_session.session);
+    g_cached_session.session = NULL;
+  }
 
-    if (g_cached_session.session_options)
-    {
-        g_ort->ReleaseSessionOptions(g_cached_session.session_options);
-        g_cached_session.session_options = NULL;
-    }
+  if (g_cached_session.session_options) {
+    g_ort->ReleaseSessionOptions(g_cached_session.session_options);
+    g_cached_session.session_options = NULL;
+  }
 
-    if (g_cached_session.memory_info)
-    {
-        g_ort->ReleaseMemoryInfo(g_cached_session.memory_info);
-        g_cached_session.memory_info = NULL;
-    }
+  if (g_cached_session.memory_info) {
+    g_ort->ReleaseMemoryInfo(g_cached_session.memory_info);
+    g_cached_session.memory_info = NULL;
+  }
 
-    /* Note: env is singleton, don't release it */
+  /* Note: env is singleton, don't release it */
 
-    /* Clear cache */
-    memset(&g_cached_session, 0, sizeof(CachedModelSession));
+  /* Clear cache */
+  memset(&g_cached_session, 0, sizeof(CachedModelSession));
 
-    return 0;
+  return 0;
+}
+
+/**
+ * @brief Get last error message from ONNX operations
+ *
+ * Returns the last error message that occurred during ONNX operations.
+ * This provides detailed diagnostic information for debugging.
+ *
+ * @param error_buffer Output buffer for error message (must be at least
+ * MAX_ERROR_MESSAGE bytes)
+ * @param buffer_size Size of error buffer
+ * @return 0 on success, -1 if no error message available
+ */
+int onnx_get_last_error(char *error_buffer, size_t buffer_size) {
+  if (error_buffer == NULL || buffer_size == 0) {
+    return -1;
+  }
+
+  if (g_last_error[0] == '\0') {
+    return -1; // No error message available
+  }
+
+  size_t copy_size = (buffer_size - 1 < MAX_ERROR_MESSAGE - 1)
+                         ? buffer_size - 1
+                         : MAX_ERROR_MESSAGE - 1;
+  strncpy(error_buffer, g_last_error, copy_size);
+  error_buffer[copy_size] = '\0';
+
+  return 0;
 }
 
 #endif /* USE_ONNX_RUNTIME */
