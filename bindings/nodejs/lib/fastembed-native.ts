@@ -4,11 +4,15 @@
  * Provides type-safe interface to the native N-API module
  */
 
+import { createRequire } from 'module';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 // Native module interface
 interface FastEmbedNativeModule {
   generateEmbedding(text: string, dimension?: number): Float32Array;
+  generateOnnxEmbedding(modelPath: string, text: string, dimension?: number): Float32Array;
+  unloadOnnxModel(): number;
   cosineSimilarity(vectorA: Float32Array | number[], vectorB: Float32Array | number[]): number;
   dotProduct(vectorA: Float32Array | number[], vectorB: Float32Array | number[]): number;
   vectorNorm(vector: Float32Array | number[]): number;
@@ -28,6 +32,13 @@ export function loadNativeModule(): boolean {
   }
 
   try {
+    // Get __dirname equivalent for ES modules
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+
+    // Use createRequire for ES module compatibility
+    const require = createRequire(import.meta.url);
+
     // Try to load the native module
     const modulePath = path.resolve(__dirname, '../build/Release/fastembed_native.node');
     nativeModule = require(modulePath) as FastEmbedNativeModule;
