@@ -62,6 +62,21 @@ if !LIB_FOUND! equ 0 (
     )
 )
 
+REM Check if tests are built, if not, try to build them
+if not exist "%BUILD_DIR%\test_hash_functions.exe" (
+    echo Tests not found. Attempting to build tests...
+    cd "%SHARED_DIR%"
+    make test-build
+    if !errorlevel! neq 0 (
+        echo ERROR: Failed to build tests
+        echo Please build manually:
+        echo   cd %SHARED_DIR%
+        echo   make test-build
+        exit /b 1
+    )
+    cd "%PROJECT_ROOT%"
+)
+
 set "FAILED=0"
 set "PASSED=0"
 
