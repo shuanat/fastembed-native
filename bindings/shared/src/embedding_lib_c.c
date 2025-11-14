@@ -44,10 +44,9 @@ extern void normalize_vector_asm(float *vector, int dimension);
 /** External assembly function: add two vectors element-wise (SIMD-optimized) */
 extern void add_vectors_asm(float *vector_a, float *vector_b, float *result,
                             int dimension);
-/** External assembly function: generate improved embedding with dimension
- * support */
-extern int generate_embedding_improved_asm(const char *text, float *output,
-                                           int dimension);
+/** External assembly function: generate embedding with dimension support */
+extern int generate_embedding_asm(const char *text, float *output,
+                                  int dimension);
 /** External assembly function: hash text to 64-bit value */
 extern uint64_t simple_text_hash(const char *text, int text_length, int seed);
 
@@ -78,7 +77,7 @@ static int is_valid_dimension(int dimension) {
  *
  * Supported dimensions: 128, 256, 512, 768, 1024, 2048
  *
- * The improved algorithm uses:
+ * The algorithm uses:
  * - Positional hashing: Character position affects hash value
  * - Sin/Cos normalization: Better distribution in [-1, 1] range
  * - Combined hashing: Reduces collision probability
@@ -112,8 +111,8 @@ int fastembed_generate(const char *text, float *output, int dimension) {
     return -1;
   }
 
-  /* Generate embedding using improved assembly-optimized function */
-  int result = generate_embedding_improved_asm(text, output, dimension);
+  /* Generate embedding using assembly-optimized function */
+  int result = generate_embedding_asm(text, output, dimension);
 
   if (result != 0) {
     return -1;

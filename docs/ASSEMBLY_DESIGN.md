@@ -17,7 +17,7 @@ This document specifies the x86-64 assembly implementation design for the improv
 ### C Interface
 
 ```c
-int generate_embedding_improved_asm(
+int generate_embedding_asm(
     const char *text,      // Input text (UTF-8, null-terminated)
     float *output,         // Output array (pre-allocated, size >= dimension)
     int dimension          // Embedding dimension (128, 256, 512, 768, 1024, 2048)
@@ -27,8 +27,8 @@ int generate_embedding_improved_asm(
 ### Assembly Entry Point
 
 ```assembly
-global generate_embedding_improved_asm
-generate_embedding_improved_asm:
+global generate_embedding_asm
+generate_embedding_asm:
     ; Function implementation
 ```
 
@@ -39,15 +39,18 @@ generate_embedding_improved_asm:
 ### System V ABI (Linux/macOS)
 
 **Calling Convention**:
+
 - **Parameter 1** (text): `RDI`
 - **Parameter 2** (output): `RSI`
 - **Parameter 3** (dimension): `EDX`
 - **Return value**: `RAX` (0 = success, -1 = error)
 
 **Callee-Saved Registers** (must preserve):
+
 - `RBX`, `RBP`, `R12`, `R13`, `R14`, `R15`
 
 **Caller-Saved Registers** (can use freely):
+
 - `RAX`, `RCX`, `RDX`, `RDI`, `RSI`, `R8`, `R9`, `R10`, `R11`
 
 **Stack Alignment**: 16-byte aligned (required for SIMD)
@@ -55,6 +58,7 @@ generate_embedding_improved_asm:
 ### Microsoft x64 ABI (Windows)
 
 **Calling Convention**:
+
 - **Parameter 1** (text): `RCX`
 - **Parameter 2** (output): `RDX`
 - **Parameter 3** (dimension): `R8D`
@@ -63,6 +67,7 @@ generate_embedding_improved_asm:
 **Shadow Space**: 32 bytes (must allocate)
 
 **Callee-Saved Registers** (must preserve):
+
 - `RBX`, `RBP`, `RDI`, `RSI`, `R12`, `R13`, `R14`, `R15`, `XMM6-XMM15`
 
 **Stack Alignment**: 16-byte aligned (required for SIMD)
@@ -345,17 +350,20 @@ xor rax, rax           ; dimension index (i)
 ### Sin Approximation
 
 **Option 1: SSE4 `sinps`** (if available):
+
 ```assembly
 sinps xmm0, xmm0  ; Direct SSE4 sin instruction
 ```
 
 **Option 2: Polynomial Approximation** (fallback):
+
 ```assembly
 ; Taylor series: sin(x) ≈ x - x³/6 + x⁵/120 - x⁷/5040
 ; Optimized for [-π, π] range
 ```
 
 **Option 3: Lookup Table** (fastest, less accurate):
+
 ```assembly
 ; Pre-computed sin table for common values
 ; Interpolate for intermediate values
@@ -364,6 +372,7 @@ sinps xmm0, xmm0  ; Direct SSE4 sin instruction
 ### Parallel Processing
 
 For multiple dimensions, process 4 dimensions in parallel:
+
 ```assembly
 ; Process 4 dimensions simultaneously using XMM registers
 ; XMM0, XMM1, XMM2, XMM3 for 4 different hash calculations
@@ -425,6 +434,7 @@ section .rodata
 ### Loop Unrolling
 
 For small dimensions (128, 256), unroll loop:
+
 ```assembly
 ; Process 4 dimensions per iteration
 ; Reduces loop overhead
@@ -433,6 +443,7 @@ For small dimensions (128, 256), unroll loop:
 ### Branch Prediction
 
 Use likely/unlikely hints:
+
 ```assembly
 ; Mark common path as likely
 ; Optimize for dimension = 128 (default)
@@ -475,4 +486,3 @@ Use likely/unlikely hints:
 ---
 
 **End of Design Document**
-
