@@ -19,7 +19,6 @@
 #include <string.h>
 #include <time.h>
 
-
 /* Supported dimensions */
 static const int supported_dimensions[] = {128, 256, 512, 768, 1024, 2048};
 static const int num_dimensions =

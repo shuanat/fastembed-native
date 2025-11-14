@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 /* External assembly functions for testing */
 extern uint64_t positional_hash_asm(const char *text, int text_length,
                                     int seed);

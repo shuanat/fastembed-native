@@ -168,25 +168,25 @@ TEST_ONNX_TARGET = $(BUILD_DIR)/test_onnx_dimension$(if $(filter Windows_NT,$(OS
 
 test-build: $(TEST_TARGET) $(TEST_HASH_TARGET) $(TEST_EMBEDDING_TARGET) $(TEST_QUALITY_TARGET) $(TEST_ONNX_TARGET)
 
-$(TEST_TARGET): tests/test_basic.c $(BUILD_DIR)/$(TARGET_LIB)
-	$(CC) $(CFLAGS) $(INCLUDES) tests/test_basic.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_TARGET) -lm -L$(BUILD_DIR)
+$(TEST_TARGET): ../../tests/test_basic.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) ../../tests/test_basic.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_TARGET) -lm -L$(BUILD_DIR)
 	@echo "Built: $(TEST_TARGET)"
 
-$(TEST_HASH_TARGET): tests/test_hash_functions.c $(BUILD_DIR)/$(TARGET_LIB)
-	$(CC) $(CFLAGS) $(INCLUDES) tests/test_hash_functions.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_HASH_TARGET) -lm -L$(BUILD_DIR)
+$(TEST_HASH_TARGET): ../../tests/test_hash_functions.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) ../../tests/test_hash_functions.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_HASH_TARGET) -lm -L$(BUILD_DIR)
 	@echo "Built: $(TEST_HASH_TARGET)"
 
-$(TEST_EMBEDDING_TARGET): tests/test_embedding_generation.c $(BUILD_DIR)/$(TARGET_LIB)
-	$(CC) $(CFLAGS) $(INCLUDES) tests/test_embedding_generation.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_EMBEDDING_TARGET) -lm -L$(BUILD_DIR)
+$(TEST_EMBEDDING_TARGET): ../../tests/test_embedding_generation.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) ../../tests/test_embedding_generation.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_EMBEDDING_TARGET) -lm -L$(BUILD_DIR)
 	@echo "Built: $(TEST_EMBEDDING_TARGET)"
 
-$(TEST_QUALITY_TARGET): tests/test_quality_improvement.c $(BUILD_DIR)/$(TARGET_LIB)
-	$(CC) $(CFLAGS) $(INCLUDES) tests/test_quality_improvement.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_QUALITY_TARGET) -lm -L$(BUILD_DIR)
+$(TEST_QUALITY_TARGET): ../../tests/test_quality_improvement.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) ../../tests/test_quality_improvement.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_QUALITY_TARGET) -lm -L$(BUILD_DIR)
 	@echo "Built: $(TEST_QUALITY_TARGET)"
 
-$(TEST_ONNX_TARGET): tests/test_onnx_dimension.c $(BUILD_DIR)/$(TARGET_LIB)
+$(TEST_ONNX_TARGET): ../../tests/test_onnx_dimension.c $(BUILD_DIR)/$(TARGET_LIB)
 	@if [ "$(USE_ONNX)" = "1" ]; then \
-		$(CC) $(CFLAGS) $(ONNX_FLAGS) $(INCLUDES) tests/test_onnx_dimension.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_ONNX_TARGET) -lm -L$(BUILD_DIR) $(ONNX_LIBS); \
+		$(CC) $(CFLAGS) $(ONNX_FLAGS) $(INCLUDES) ../../tests/test_onnx_dimension.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_ONNX_TARGET) -lm -L$(BUILD_DIR) $(ONNX_LIBS); \
 		echo "Built: $(TEST_ONNX_TARGET) (with ONNX support)"; \
 	else \
 		echo "Skipping $(TEST_ONNX_TARGET) (ONNX Runtime not available)"; \
@@ -231,12 +231,12 @@ $(BENCHMARK_TARGET): $(BENCHMARK_SOURCES) $(BUILD_DIR)/$(TARGET_LIB)
 	fi
 	@echo "Built: $(BENCHMARK_TARGET)"
 
-$(BENCHMARK_IMPROVED_TARGET): tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB)
+$(BENCHMARK_IMPROVED_TARGET): ../../tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB)
 	@echo "Building improved benchmark..."
 	@if [ "$(USE_ONNX)" = "1" ]; then \
-		$(CC) $(CFLAGS) -O2 $(ONNX_FLAGS) $(INCLUDES) tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB) -o $(BENCHMARK_IMPROVED_TARGET) -lm -L$(BUILD_DIR) $(ONNX_LIBS); \
+		$(CC) $(CFLAGS) -O2 $(ONNX_FLAGS) $(INCLUDES) ../../tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB) -o $(BENCHMARK_IMPROVED_TARGET) -lm -L$(BUILD_DIR) $(ONNX_LIBS); \
 	else \
-		$(CC) $(CFLAGS) -O2 $(INCLUDES) tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB) -o $(BENCHMARK_IMPROVED_TARGET) -lm -L$(BUILD_DIR); \
+		$(CC) $(CFLAGS) -O2 $(INCLUDES) ../../tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB) -o $(BENCHMARK_IMPROVED_TARGET) -lm -L$(BUILD_DIR); \
 	fi
 	@echo "Built: $(BENCHMARK_IMPROVED_TARGET)"
 

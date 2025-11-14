@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #define EPSILON 0.0001f
 #define MAX_DIMENSION 2048
 
