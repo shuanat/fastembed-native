@@ -549,7 +549,16 @@ generate_embedding_asm:
     ; Save callee-saved registers
     push rbp
     mov rbp, rsp
-    sub rsp, SHADOW_SPACE + 32  ; Local variables
+    ; Stack alignment calculation:
+    ; After push rbp: rsp = original_rsp - 8 (not aligned)
+    ; We need to align to 16 bytes
+    ; After pushes: rsp - 5*8 = rsp - 40 (for 5 registers)
+    ; Total: SHADOW_SPACE + local_space + 40 must be multiple of 16
+    ; For System V: SHADOW_SPACE=0, need 40 + local_space = multiple of 16
+    ; 40 mod 16 = 8, so we need local_space mod 16 = 8, so local_space = 8
+    ; For Windows: SHADOW_SPACE=32, need 32 + 40 + local_space = multiple of 16
+    ; 72 mod 16 = 8, so we need local_space mod 16 = 8, so local_space = 8
+    sub rsp, SHADOW_SPACE + 8  ; Local variables (8 bytes for hash storage)
     
     push r12
     push r13
@@ -611,6 +620,9 @@ generate_embedding_asm:
     
     ; Step 3.1-3.3: Generate Combined Hash
     ; Prepare parameters for generate_combined_hash_asm
+    ; Stack alignment: rsp is aligned (we aligned it in prologue)
+    ; Before call: rsp % 16 == 0 (aligned)
+    ; After call: call pushes 8 bytes, so rsp % 16 == 8 (misaligned)
     mov r15, rax       ; seed = i
 %ifidn __OUTPUT_FORMAT__,elf64
     mov rdi, r12       ; text
@@ -622,16 +634,24 @@ generate_embedding_asm:
     mov r8, r15        ; seed
 %endif
     call generate_combined_hash_asm
-    mov r10, rax       ; combined hash
+    ; Save combined hash to stack (r10 is caller-saved and may be clobbered)
+    ; Stack layout: rsp points to saved rbx, rsp+8 is saved r15, etc.
+    ; We allocated 8 bytes at rsp - SHADOW_SPACE - 8, so use that
+    mov [rbp - SHADOW_SPACE - 8], rax  ; Save combined hash to local variable
     
     ; Step 3.4: Normalize with Sin
     ; Prepare parameter for hash_to_float_sin_asm
+    ; Stack alignment: after previous call, rsp % 16 == 8 (misaligned)
+    ; Before next call, we need rsp % 16 == 0
+    ; So we need to subtract 8 to align
+    sub rsp, 8         ; Align stack to 16 bytes (rsp % 16 == 0)
 %ifidn __OUTPUT_FORMAT__,elf64
-    mov rdi, r10       ; combined hash
+    mov rdi, [rbp - SHADOW_SPACE - 8]  ; Load combined hash from local variable
 %else
-    mov rcx, r10       ; combined hash
+    mov rcx, [rbp - SHADOW_SPACE - 8]  ; Load combined hash from local variable
 %endif
     call hash_to_float_sin_asm
+    add rsp, 8         ; Restore stack (rsp % 16 == 8 again, but that's OK for loop)
     ; XMM0 now contains sin-normalized value in [-1, 1]
     
     ; Step 3.5: Store in output array
@@ -657,7 +677,7 @@ generate_embedding_asm:
     pop r13
     pop r12
     
-    add rsp, SHADOW_SPACE + 32
+    add rsp, SHADOW_SPACE + 8
     pop rbp
     ret
 

@@ -56,9 +56,10 @@
 #ifndef FASTEMBED_H
 #define FASTEMBED_H
 
+#include "fastembed_config.h"
 #include <stddef.h>
 #include <stdint.h>
-#include "fastembed_config.h"
+
 
 // Export macros for Windows DLL
 #ifdef _WIN32
@@ -340,7 +341,7 @@ FASTEMBED_EXPORT int fastembed_onnx_get_model_dimension(const char *model_path);
  * @note Uses hash-based embeddings (fastembed_generate) for all texts
  */
 FASTEMBED_EXPORT int fastembed_batch_generate(const char **texts, int num_texts,
-                                               float **outputs, int dimension);
+                                              float **outputs, int dimension);
 
 #ifdef __cplusplus
 }
