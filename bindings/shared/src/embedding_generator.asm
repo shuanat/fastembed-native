@@ -34,6 +34,9 @@ section .data
     float_scale: dd 0.001    ; Small scale factor for normalization
     float_one: dd 1.0        ; Constant 1.0
     float_two: dd 2.0        ; Constant 2.0
+    two_pi: dd 6.283185307179586  ; 2π for Sin normalization
+    scale_2_31: dd 2147483648.0   ; 2^31 for normalization
+    scale_2_31_int: dq 2147483648 ; 2^31 as integer
 
 section .bss
     align 16
@@ -46,6 +49,9 @@ default rel    ; Use RIP-relative addressing for PIC
 ; External functions from embedding_lib.asm
 extern normalize_vector_asm
 extern vector_norm_asm
+
+; External math functions (if needed for Sin approximation)
+extern sinf
 
 ; ============================================
 ; Function: simple_text_hash
@@ -391,13 +397,410 @@ zero_vector_asm:
 .zero_single:
     ; Zero remaining floats one by one
     cmp rax, r12
-    jge .done
+    jge .zero_done
     movss [r10 + rax*4], xmm0
     inc rax
     jmp .zero_single
     
-.done:
+.zero_done:
     add rsp, SHADOW_SPACE
+    pop rbp
+    ret
+
+
+; ============================================
+; Function: positional_hash_asm
+; Generate positional hash from text string
+; Algorithm: hash = hash * 31 + char * (position + 1)
+; Parameters:
+;   PARAM1 = char* text (null-terminated)
+;   PARAM2 = int text_length
+;   PARAM3 = int seed (for variation)
+; Returns:
+;   RAX = hash value (uint64_t)
+; ============================================
+global positional_hash_asm
+positional_hash_asm:
+    ; Save callee-saved registers
+    push rbp
+    mov rbp, rsp
+    sub rsp, SHADOW_SPACE
+    
+    push r12
+    push r13
+    push r14
+    push r15
+    
+    ; Save parameters to callee-saved registers
+    mov r12, PARAM1    ; text
+    mov r13, PARAM2    ; text_length
+    mov r14, PARAM3    ; seed
+    
+    ; Initialize hash with seed
+    mov rax, r14       ; hash = seed
+    mov r15, r12       ; text pointer
+    xor r11, r11       ; position index (j)
+    
+.positional_hash_loop:
+    cmp r11, r13       ; Check if j < text_length
+    jge .positional_hash_done
+    
+    ; Load character
+    movzx rcx, byte [r15 + r11]
+    test rcx, rcx      ; Check for null terminator
+    jz .positional_hash_done
+    
+    ; Calculate position weight: (j + 1)
+    mov rdx, r11
+    inc rdx            ; position_weight = j + 1
+    
+    ; Hash: hash = hash * 31 + char * position_weight
+    mov r10, rax       ; Save current hash
+    shl r10, 5         ; hash * 32
+    sub r10, rax       ; hash * 31 = hash * 32 - hash
+    mov rax, r10       ; hash = hash * 31
+    
+    ; char * position_weight
+    mov r10, rcx       ; char
+    imul r10, rdx      ; char * position_weight
+    add rax, r10       ; hash += char * position_weight
+    
+    inc r11
+    jmp .positional_hash_loop
+    
+.positional_hash_done:
+    ; Restore callee-saved registers
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    
+    add rsp, SHADOW_SPACE
+    pop rbp
+    ret
+
+
+; ============================================
+; Function: sin_approx_asm
+; Fast Sin approximation using polynomial
+; Taylor series: sin(x) ≈ x - x³/6 + x⁵/120 - x⁷/5040
+; Optimized for [-π, π] range
+; Parameters:
+;   XMM0 = input value (in radians)
+; Returns:
+;   XMM0 = sin(value)
+; ============================================
+sin_approx_asm:
+    ; Internal function - uses caller-saved registers only
+    ; XMM0-XMM5 are caller-saved (can use freely)
+    ; r10, r11 are caller-saved (can use freely)
+    
+    ; Normalize to [-π, π] range
+    ; x = x - floor((x + π) / (2π)) * 2π
+    movss xmm1, [rel two_pi]   ; Load 2π
+    movss xmm2, xmm0           ; Save original x
+    
+    ; For simplicity, use modulo-like operation
+    ; x = x - floor(x / (2π)) * 2π
+    divss xmm0, xmm1           ; x / (2π)
+    cvttss2si r10, xmm0        ; floor(x / (2π)) - r10 is caller-saved, OK
+    cvtsi2ss xmm0, r10         ; Convert back to float
+    mulss xmm0, xmm1           ; floor(x / (2π)) * 2π
+    movss xmm3, xmm2           ; Restore original x
+    subss xmm3, xmm0           ; x = x - floor(x / (2π)) * 2π
+    
+    ; Now xmm3 is in [0, 2π], normalize to [-π, π]
+    movss xmm0, xmm3
+    movss xmm4, [rel two_pi]
+    movss xmm5, xmm4
+    mulss xmm5, [rel float_one]  ; π = 2π / 2
+    divss xmm5, [rel float_two]  ; π
+    subss xmm0, xmm5           ; x - π (now in [-π, π])
+    
+    ; Taylor series: sin(x) ≈ x - x³/6 + x⁵/120 - x⁷/5040
+    movss xmm1, xmm0           ; x
+    movss xmm2, xmm0           ; x (for x³)
+    mulss xmm2, xmm0           ; x²
+    movss xmm3, xmm2           ; x²
+    mulss xmm3, xmm0           ; x³
+    
+    ; x³/6
+    movss xmm4, xmm3
+    mov r10, 6                 ; r10 is caller-saved, OK
+    cvtsi2ss xmm5, r10
+    divss xmm4, xmm5           ; x³/6
+    
+    ; x⁵ = x³ * x²
+    movss xmm5, xmm3
+    mulss xmm5, xmm2           ; x⁵
+    
+    ; x⁵/120
+    movss xmm6, xmm5
+    mov r10, 120               ; r10 is caller-saved, OK
+    cvtsi2ss xmm7, r10
+    divss xmm6, xmm7           ; x⁵/120
+    
+    ; x⁷ = x⁵ * x²
+    movss xmm7, xmm5
+    mulss xmm7, xmm2           ; x⁷
+    
+    ; x⁷/5040
+    mov r10, 5040              ; r10 is caller-saved, OK
+    cvtsi2ss xmm2, r10
+    divss xmm7, xmm2           ; x⁷/5040
+    
+    ; sin(x) = x - x³/6 + x⁵/120 - x⁷/5040
+    movss xmm0, xmm1           ; x
+    subss xmm0, xmm4           ; x - x³/6
+    addss xmm0, xmm6           ; + x⁵/120
+    subss xmm0, xmm7           ; - x⁷/5040
+    
+    ret
+
+
+; ============================================
+; Function: hash_to_float_sin_asm
+; Convert hash to float using Sin normalization
+; Algorithm: value = sin((hash % scale) / scale * 2π)
+; Parameters:
+;   PARAM1 = uint64_t hash
+; Returns:
+;   XMM0 = normalized float in range [-1, 1]
+; ============================================
+global hash_to_float_sin_asm
+hash_to_float_sin_asm:
+    push rbp
+    mov rbp, rsp
+    sub rsp, SHADOW_SPACE
+    
+    ; Save parameter
+    mov r10, PARAM1    ; hash
+    
+    ; Use low 32 bits for modulo (hash % 2^32)
+    mov rdx, r10
+    and rdx, 0xFFFFFFFF  ; hash % (2^32)
+    
+    ; Convert to float
+    cvtsi2ss xmm0, rdx    ; xmm0 = hash (as float)
+    
+    ; Divide by SCALE (2^31)
+    movss xmm1, [rel scale_2_31]  ; Load 2^31
+    divss xmm0, xmm1              ; xmm0 = (hash % SCALE) / SCALE
+    
+    ; Multiply by 2π
+    movss xmm1, [rel two_pi]      ; Load 2π
+    mulss xmm0, xmm1              ; xmm0 = (hash % SCALE) / SCALE * 2π
+    
+    ; Calculate sin(xmm0)
+    call sin_approx_asm           ; xmm0 = sin(xmm0)
+    
+    ; Result is already in [-1, 1] range (sin function)
+    
+    add rsp, SHADOW_SPACE
+    pop rbp
+    ret
+
+
+; ============================================
+; Function: generate_combined_hash_asm
+; Generate combined hash from text
+; Algorithm:
+;   hash1 = positional_hash(text, seed)
+;   hash2 = positional_hash(text, seed*37)
+;   combined = hash1 ^ (hash2 << 16)
+; Parameters:
+;   PARAM1 = char* text (null-terminated)
+;   PARAM2 = int text_length
+;   PARAM3 = int seed
+; Returns:
+;   RAX = combined hash value (uint64_t)
+; ============================================
+global generate_combined_hash_asm
+generate_combined_hash_asm:
+    push rbp
+    mov rbp, rsp
+    sub rsp, SHADOW_SPACE + 16  ; Extra space for local vars
+    
+    push r12
+    push r13
+    push r14
+    push r15
+    
+    ; Save parameters
+    mov r12, PARAM1    ; text
+    mov r13, PARAM2    ; text_length
+    mov r14, PARAM3    ; seed
+    
+    ; Generate hash1 = positional_hash(text, seed)
+    mov r15, r14      ; seed for hash1
+%ifidn __OUTPUT_FORMAT__,elf64
+    mov rdi, r12      ; text
+    mov rsi, r13      ; text_length
+    mov rdx, r15      ; seed
+%else
+    mov rcx, r12      ; text
+    mov rdx, r13      ; text_length
+    mov r8, r15       ; seed
+%endif
+    call positional_hash_asm
+    mov r8, rax        ; hash1
+    
+    ; Generate hash2 = positional_hash(text, seed*37)
+    mov r15, r14      ; seed
+    imul r15, 37      ; seed * 37
+%ifidn __OUTPUT_FORMAT__,elf64
+    mov rdi, r12      ; text
+    mov rsi, r13      ; text_length
+    mov rdx, r15      ; seed * 37
+%else
+    mov rcx, r12      ; text
+    mov rdx, r13      ; text_length
+    mov r8, r15       ; seed * 37
+%endif
+    call positional_hash_asm
+    mov r9, rax        ; hash2
+    
+    ; Combine: combined = hash1 ^ (hash2 << 16)
+    mov r10, r9        ; hash2
+    shl r10, 16        ; hash2 << 16
+    xor r10, r8        ; combined = hash1 ^ (hash2 << 16)
+    mov rax, r10       ; Return combined hash
+    
+    ; Restore registers
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    
+    add rsp, SHADOW_SPACE + 16
+    pop rbp
+    ret
+
+
+; ============================================
+; Function: generate_embedding_improved_asm
+; Generate improved embedding with Sin/Cos normalization and positional hashing
+; Parameters:
+;   PARAM1 = char* text (UTF-8, null-terminated)
+;   PARAM2 = float* output (pre-allocated, size >= dimension)
+;   PARAM3 = int dimension (128, 256, 512, 768, 1024, 2048)
+; Returns:
+;   RAX = 0 on success, -1 on error
+; ============================================
+global generate_embedding_improved_asm
+generate_embedding_improved_asm:
+    ; Save callee-saved registers
+    push rbp
+    mov rbp, rsp
+    sub rsp, SHADOW_SPACE + 32  ; Local variables
+    
+    push r12
+    push r13
+    push r14
+    push r15
+    push rbx
+    
+    ; Save parameters to callee-saved registers
+    mov r12, PARAM1    ; text pointer
+    mov r13, PARAM2    ; output pointer
+    mov r14d, PARAM3   ; dimension (32-bit)
+    
+    ; Step 1: Input Validation
+    test r12, r12      ; Check text pointer
+    jz .error
+    
+    test r13, r13      ; Check output pointer
+    jz .error
+    
+    ; Check dimension (must be in {128, 256, 512, 768, 1024, 2048})
+    cmp r14d, 128
+    je .dimension_ok
+    cmp r14d, 256
+    je .dimension_ok
+    cmp r14d, 512
+    je .dimension_ok
+    cmp r14d, 768
+    je .dimension_ok
+    cmp r14d, 1024
+    je .dimension_ok
+    cmp r14d, 2048
+    je .dimension_ok
+    jmp .error         ; Invalid dimension
+    
+.dimension_ok:
+    ; Step 2: Calculate text length
+    mov r15, r12       ; text pointer for length calculation
+    xor rbx, rbx       ; text_length counter
+    
+.text_length_loop:
+    cmp byte [r15], 0
+    je .text_length_done
+    inc rbx
+    inc r15
+    jmp .text_length_loop
+    
+.text_length_done:
+    test rbx, rbx      ; Check if empty
+    jz .error
+    cmp rbx, 8192      ; MAX_TEXT_LENGTH
+    jg .error
+    
+    ; Step 3: Embedding Generation Loop
+    xor rax, rax       ; dimension index (i)
+    
+.embedding_loop:
+    cmp rax, r14       ; Check if i < dimension
+    jge .embedding_done
+    
+    ; Step 3.1-3.3: Generate Combined Hash
+    ; Prepare parameters for generate_combined_hash_asm
+    mov r15, rax       ; seed = i
+%ifidn __OUTPUT_FORMAT__,elf64
+    mov rdi, r12       ; text
+    mov rsi, rbx       ; text_length
+    mov rdx, r15       ; seed
+%else
+    mov rcx, r12       ; text
+    mov rdx, rbx       ; text_length
+    mov r8, r15        ; seed
+%endif
+    call generate_combined_hash_asm
+    mov r10, rax       ; combined hash
+    
+    ; Step 3.4: Normalize with Sin
+    ; Prepare parameter for hash_to_float_sin_asm
+%ifidn __OUTPUT_FORMAT__,elf64
+    mov rdi, r10       ; combined hash
+%else
+    mov rcx, r10       ; combined hash
+%endif
+    call hash_to_float_sin_asm
+    ; XMM0 now contains sin-normalized value in [-1, 1]
+    
+    ; Step 3.5: Store in output array
+    movss [r13 + rax*4], xmm0  ; output[i] = sin_value
+    
+    ; Next iteration
+    inc rax
+    jmp .embedding_loop
+    
+.embedding_done:
+    ; Success
+    xor rax, rax
+    jmp .done
+    
+.error:
+    mov rax, -1
+    
+.done:
+    ; Restore callee-saved registers
+    pop rbx
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    
+    add rsp, SHADOW_SPACE + 32
     pop rbp
     ret
 
