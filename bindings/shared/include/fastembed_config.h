@@ -18,7 +18,20 @@
 /** Maximum text input length in characters (unified across all CLI tools) */
 #define FASTEMBED_MAX_TEXT_LENGTH 8192
 
-/** Default embedding dimension (BERT-base hidden size) */
+/** Default embedding dimension (changed from 768 to 128 in v1.0.1)
+ * 
+ * **BREAKING CHANGE (v1.0.1)**: Default dimension changed from 768 to 128.
+ * This improves performance while maintaining good quality for most use cases.
+ * 
+ * For BERT compatibility, use FASTEMBED_EMBEDDING_DIM (768) explicitly.
+ */
+#define FASTEMBED_DEFAULT_DIMENSION 128
+
+/** BERT-base embedding dimension (for compatibility with BERT models)
+ * 
+ * This constant is kept for backward compatibility and BERT model compatibility.
+ * Use FASTEMBED_DEFAULT_DIMENSION (128) for new code unless BERT compatibility is required.
+ */
 #define FASTEMBED_EMBEDDING_DIM 768
 
 /** Maximum ONNX model output dimension */

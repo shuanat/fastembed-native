@@ -31,11 +31,17 @@
  * **Usage Example:**
  * @code
  * #include "fastembed.h"
+ * #include "fastembed_config.h"
  *
- * float embedding[768];
- * int result = fastembed_generate("Hello world", embedding, 768);
+ * // Default dimension (128) - recommended for most use cases
+ * float embedding[FASTEMBED_DEFAULT_DIMENSION];
+ * int result = fastembed_generate("Hello world", embedding, 0); // 0 = use default (128)
  *
- * float similarity = fastembed_cosine_similarity(embedding1, embedding2, 768);
+ * // BERT compatibility (768 dimensions)
+ * float embedding_bert[FASTEMBED_EMBEDDING_DIM];
+ * int result_bert = fastembed_generate("Hello world", embedding_bert, 768);
+ *
+ * float similarity = fastembed_cosine_similarity(embedding1, embedding2, 128);
  * @endcode
  *
  * @note For backwards compatibility, see embedding_lib_c.h (deprecated)
@@ -67,26 +73,35 @@ extern "C" {
 #endif
 
 /**
- * @brief Generate text embedding using hash-based algorithm
+ * @brief Generate text embedding using improved hash-based algorithm
  *
- * Converts input text into a fixed-size embedding vector using a hash-based
- * algorithm optimized with SIMD instructions. The embedding is deterministic:
- * the same text always produces the same embedding.
+ * Converts input text into a fixed-size embedding vector using an improved
+ * hash-based algorithm with Sin/Cos normalization and positional hashing.
+ * The embedding is deterministic: the same text always produces the same embedding.
  *
- * Current implementation generates 768-dimensional vectors (BERT-base size).
- * The algorithm splits text into words, hashes each word, and constructs
- * a dense vector representation.
+ * **BREAKING CHANGE (v1.0.1)**: Default dimension changed from 768 to 128.
+ * If dimension is 0, the function uses 128 as default. This improves performance
+ * while maintaining good quality for most use cases.
+ *
+ * Supported dimensions: 128, 256, 512, 768, 1024, 2048
+ *
+ * The improved algorithm uses:
+ * - Positional hashing: Character position affects hash value
+ * - Sin/Cos normalization: Better distribution in [-1, 1] range
+ * - Combined hashing: Reduces collision probability
  *
  * @param text Input text to embed (null-terminated string, max 8192 chars)
  * @param output Output array for embedding vector (must be pre-allocated, size
  * >= dimension)
- * @param dimension Requested embedding dimension (currently must be 768)
+ * @param dimension Requested embedding dimension (128, 256, 512, 768, 1024, 2048).
+ *                  If 0, uses default dimension 128.
  * @return 0 on success, -1 on error (invalid parameters or generation failure)
  *
  * @note This function uses hash-based embedding, not learned model embeddings
  * @note For ML model embeddings, use fastembed_onnx_generate() instead
- * @note Current limitation: only supports dimension=768
- * @note Performance: O(text_length), optimized with SIMD
+ * @note Default dimension is 128 (changed from 768 in v1.0.1)
+ * @note Performance: ~0.01-0.05ms for 128D, ~0.05-0.15ms for 768D
+ * @note For BERT compatibility, use dimension=768 explicitly
  */
 FASTEMBED_EXPORT int fastembed_generate(const char *text, float *output,
                                         int dimension);
@@ -273,8 +288,8 @@ FASTEMBED_EXPORT int fastembed_onnx_get_last_error(char *error_buffer,
  * @param num_texts Number of texts in the array (must match outputs array size)
  * @param outputs Array of output arrays for embeddings (each must be
  * pre-allocated, size >= dimension)
- * @param dimension Embedding dimension (same for all texts, currently must be
- * 768)
+ * @param dimension Embedding dimension (same for all texts, supported: 128, 256, 512, 768, 1024, 2048).
+ *                  If 0, uses default dimension 128.
  * @return 0 on success (all embeddings generated), -1 on error (validation or
  * generation failure)
  *
