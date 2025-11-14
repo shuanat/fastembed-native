@@ -19,11 +19,11 @@ option(USE_ONNX_RUNTIME "Enable ONNX Runtime support" ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# Optimization flags
+# Optimization flags (only for C, not for ASM)
 if(MSVC)
-    add_compile_options(/W4 /O2)
+    add_compile_options($<$<COMPILE_LANGUAGE:C>:/W4> $<$<COMPILE_LANGUAGE:C>:/O2>)
 else()
-    add_compile_options(-Wall -O2)
+    add_compile_options($<$<COMPILE_LANGUAGE:C>:-Wall> $<$<COMPILE_LANGUAGE:C>:-O2>)
 endif()
 
 # ==============================================================================
@@ -132,7 +132,10 @@ target_include_directories(fastembed_static
         $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(fastembed_static PUBLIC m)
+# Link math library (only needed on Unix systems, not Windows)
+if(UNIX)
+    target_link_libraries(fastembed_static PUBLIC m)
+endif()
 
 # Set output name based on platform
 if(WIN32)
@@ -164,7 +167,10 @@ if(BUILD_SHARED_LIBS)
             $<INSTALL_INTERFACE:include>
     )
     
-    target_link_libraries(fastembed_shared PUBLIC m)
+    # Link math library (only needed on Unix systems, not Windows)
+    if(UNIX)
+        target_link_libraries(fastembed_shared PUBLIC m)
+    endif()
     
     # Set output name
     set_target_properties(fastembed_shared PROPERTIES OUTPUT_NAME "fastembed")

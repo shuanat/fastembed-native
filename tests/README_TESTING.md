@@ -47,6 +47,7 @@ bash scripts/build_cmake_linux.sh
 ```
 
 **Advantages:**
+
 - ✅ Native Windows support (no WSL required)
 - ✅ Works with Visual Studio, CLion, VS Code
 - ✅ Integrated test runner (CTest)
@@ -109,6 +110,7 @@ gcc -O2 -Wall -DUSE_ONNX_RUNTIME -I../../bindings/shared/include \
 After building with CMake:
 
 **Windows:**
+
 ```batch
 cd bindings\shared\build_cmake
 ctest -C Release --verbose
@@ -121,6 +123,7 @@ Release\test_onnx_dimension.exe
 ```
 
 **Linux/WSL/macOS:**
+
 ```bash
 cd bindings/shared/build_cmake
 ctest --verbose
