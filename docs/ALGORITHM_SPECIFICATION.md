@@ -228,8 +228,8 @@ function generate_embedding_asm(text, output, dimension):
 **Verification**:
 
 ```
-generate_embedding_improved("Hello", output1, 128)
-generate_embedding_improved("Hello", output2, 128)
+generate_embedding_asm("Hello", output1, 128)
+generate_embedding_asm("Hello", output2, 128)
 assert output1 == output2  // Always true
 ```
 
