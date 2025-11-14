@@ -106,7 +106,9 @@ ctest --verbose
 ./test_hash_functions
 ./test_embedding_generation
 ./test_quality_improvement
+./test_sqrt_quality
 ./test_onnx_dimension  # If ONNX Runtime available
+./benchmark_improved
 ```
 
 ### 4. Install (Optional)
@@ -137,7 +139,9 @@ cmake --install . --prefix /custom/path
 - **test_hash_functions** - Hash function unit tests
 - **test_embedding_generation** - Embedding generation tests
 - **test_quality_improvement** - Quality improvement tests
+- **test_sqrt_quality** - Square Root normalization quality metrics
 - **test_onnx_dimension** - ONNX dimension auto-detection tests
+- **benchmark_improved** - Performance benchmarks
 
 ### Benchmarks
 

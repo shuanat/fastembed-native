@@ -453,6 +453,42 @@ See [bindings/shared/README.md](bindings/shared/README.md) for detailed build in
 
 ## 🧪 Testing
 
+### Core Library Tests (C/Assembly)
+
+**Windows**:
+
+```batch
+# Build and run all tests
+scripts\build_cmake_windows.bat
+cd bindings\shared\build_cmake
+ctest -C Release
+
+# Or run individual tests
+Release\test_hash_functions.exe
+Release\test_embedding_generation.exe
+Release\test_sqrt_quality.exe
+Release\benchmark_improved.exe
+```
+
+**Linux/WSL**:
+
+```bash
+# Build and run all tests
+bash scripts/build_cmake_linux.sh
+cd bindings/shared/build_cmake
+ctest
+
+# Or run individual tests
+./test_hash_functions
+./test_embedding_generation
+./test_sqrt_quality
+./benchmark_improved
+```
+
+**See:** [tests/README_TESTING.md](tests/README_TESTING.md) for detailed testing guide.
+
+### Language Bindings Tests
+
 **Windows**:
 
 ```batch

@@ -3,7 +3,7 @@
  *
  * Tests for improved hash-based embedding algorithm functions:
  * - positional_hash_asm: Positional hashing with character position weighting
- * - hash_to_float_sin_asm: Sin normalization to [-1, 1] range
+ * - hash_to_float_sqrt_asm: Square Root normalization to [-1, 1] range
  * - generate_combined_hash_asm: Combined hashing for better distribution
  *
  * Compile: gcc -o test_hash_functions test_hash_functions.c -L../build
@@ -18,12 +18,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* External assembly functions for testing */
-extern uint64_t positional_hash_asm(const char *text, int text_length,
-                                    int seed);
-extern float hash_to_float_sin_asm(uint64_t hash);
-extern uint64_t generate_combined_hash_asm(const char *text, int text_length,
-                                           int seed);
+/* Internal functions for testing */
+#include "../bindings/shared/include/fastembed_internal.h"
 
 #define EPSILON 0.0001f
 #define FLOAT_EPSILON 0.001f
@@ -138,10 +134,10 @@ void test_positional_hash_seed_sensitive() {
 }
 
 /**
- * Test: hash_to_float_sin_asm - Range [-1, 1]
+ * Test: hash_to_float_sqrt_asm - Range [-1, 1]
  */
 void test_hash_to_float_sin_range() {
-  printf("\n=== Test: hash_to_float_sin_asm - Range [-1, 1] ===\n");
+  printf("\n=== Test: hash_to_float_sqrt_asm - Range [-1, 1] ===\n");
 
   /* Test multiple hash values to ensure range */
   uint64_t test_hashes[] = {
@@ -149,26 +145,42 @@ void test_hash_to_float_sin_range() {
   int num_hashes = sizeof(test_hashes) / sizeof(test_hashes[0]);
 
   for (int i = 0; i < num_hashes; i++) {
-    float result = hash_to_float_sin_asm(test_hashes[i]);
-    ASSERT_IN_RANGE(result, -1.0f, 1.0f);
-    printf("  Hash %llu -> %.6f\n", (unsigned long long)test_hashes[i], result);
+    float result = hash_to_float_sqrt_asm(test_hashes[i]);
+    float result2 = hash_to_float_sqrt_asm(test_hashes[i]); // Test determinism
+
+    tests_run++;
+    if (result >= -1.0f && result <= 1.0f) {
+      // Check determinism - same hash should give same value
+      if (fabsf(result - result2) < 0.001f) {
+        tests_passed++;
+        printf(
+            "  ✓ PASS: Hash %llu -> %.6f (in range [-1, 1], deterministic)\n",
+            (unsigned long long)test_hashes[i], result);
+      } else {
+        printf("  ✗ FAIL: Hash %llu -> %.6f vs %.6f (NON-DETERMINISTIC!)\n",
+               (unsigned long long)test_hashes[i], result, result2);
+      }
+    } else {
+      printf("  ✗ FAIL: Hash %llu -> %.6f (out of range [-1, 1])\n",
+             (unsigned long long)test_hashes[i], result);
+    }
   }
 }
 
 /**
- * Test: hash_to_float_sin_asm - Distribution
+ * Test: hash_to_float_sqrt_asm - Distribution
  */
 void test_hash_to_float_sin_distribution() {
-  printf("\n=== Test: hash_to_float_sin_asm - Distribution ===\n");
+  printf("\n=== Test: hash_to_float_sqrt_asm - Distribution ===\n");
 
   /* Test that different hashes produce different values */
   uint64_t hash1 = 12345;
   uint64_t hash2 = 54321;
   uint64_t hash3 = 99999;
 
-  float result1 = hash_to_float_sin_asm(hash1);
-  float result2 = hash_to_float_sin_asm(hash2);
-  float result3 = hash_to_float_sin_asm(hash3);
+  float result1 = hash_to_float_sqrt_asm(hash1);
+  float result2 = hash_to_float_sqrt_asm(hash2);
+  float result3 = hash_to_float_sqrt_asm(hash3);
 
   /* At least two should be different */
   int different = 0;
@@ -193,23 +205,31 @@ void test_hash_to_float_sin_distribution() {
 }
 
 /**
- * Test: hash_to_float_sin_asm - Deterministic
+ * Test: hash_to_float_sqrt_asm - Deterministic
  */
 void test_hash_to_float_sin_deterministic() {
-  printf("\n=== Test: hash_to_float_sin_asm - Deterministic ===\n");
+  printf("\n=== Test: hash_to_float_sqrt_asm - Deterministic ===\n");
 
   uint64_t hash = 12345;
 
-  float result1 = hash_to_float_sin_asm(hash);
-  float result2 = hash_to_float_sin_asm(hash);
+  float result1 = hash_to_float_sqrt_asm(hash);
+  float result2 = hash_to_float_sqrt_asm(hash);
+
+  float diff = fabsf(result1 - result2);
 
   tests_run++;
-  if (fabsf(result1 - result2) < FLOAT_EPSILON) {
+  if (diff == 0.0f) {
+    // Exact match - perfect determinism
     tests_passed++;
-    printf("  ✓ PASS: Same hash produces same value\n");
+    printf("  ✓ PASS: Same hash produces identical value (%.6f)\n", result1);
+  } else if (diff < FLOAT_EPSILON) {
+    // Very close but not identical - still acceptable
+    tests_passed++;
+    printf("  ✓ PASS: Same hash produces same value (diff: %.10f)\n", diff);
   } else {
-    printf("  ✗ FAIL: Same hash produces different values (%.6f vs %.6f)\n",
-           result1, result2);
+    printf("  ✗ FAIL: Same hash produces different values (%.10f vs %.10f, "
+           "diff: %.10f)\n",
+           result1, result2, diff);
   }
 }
 
@@ -294,7 +314,7 @@ int main() {
   test_positional_hash_position_sensitive();
   test_positional_hash_seed_sensitive();
 
-  /* Test hash_to_float_sin_asm */
+  /* Test hash_to_float_sqrt_asm */
   test_hash_to_float_sin_range();
   test_hash_to_float_sin_distribution();
   test_hash_to_float_sin_deterministic();

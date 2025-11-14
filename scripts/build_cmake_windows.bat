@@ -21,12 +21,41 @@ if !errorlevel! neq 0 (
     exit /b 1
 )
 
-REM Check if NASM is installed
+REM Check if NASM is installed or find it in common locations
 where nasm >nul 2>&1
 if !errorlevel! neq 0 (
-    echo ERROR: NASM not found. Please install NASM and add it to PATH.
-    echo Download from: https://www.nasm.us/
-    exit /b 1
+    echo NASM not in PATH, searching in common locations...
+    
+    REM Check common installation locations
+    set "NASM_FOUND=0"
+    set "NASM_PATH1=!LOCALAPPDATA!\bin\NASM"
+    set "NASM_PATH2=!ProgramFiles!\NASM"
+    set "NASM_PATH3=!ProgramFiles(x86)!\NASM"
+    
+    if exist "!NASM_PATH1!\nasm.exe" (
+        set "PATH=!PATH!;!NASM_PATH1!"
+        set "NASM_FOUND=1"
+        echo Found NASM: !NASM_PATH1!\nasm.exe
+    )
+    
+    if !NASM_FOUND!==0 if exist "!NASM_PATH2!\nasm.exe" (
+        set "PATH=!PATH!;!NASM_PATH2!"
+        set "NASM_FOUND=1"
+        echo Found NASM: !NASM_PATH2!\nasm.exe
+    )
+    
+    if !NASM_FOUND!==0 if exist "!NASM_PATH3!\nasm.exe" (
+        set "PATH=!PATH!;!NASM_PATH3!"
+        set "NASM_FOUND=1"
+        echo Found NASM: !NASM_PATH3!\nasm.exe
+    )
+    
+    if !NASM_FOUND!==0 (
+        echo ERROR: NASM not found. Please install NASM:
+        echo   winget install NASM.NASM
+        echo Or download from: https://www.nasm.us/
+        exit /b 1
+    )
 )
 
 REM Create build directory

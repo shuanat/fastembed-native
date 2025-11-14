@@ -4,6 +4,40 @@
 
 This document describes how to build and run the test suite for FastEmbed.
 
+## Quick Start
+
+**Windows:**
+
+```batch
+REM Build everything (library + tests)
+scripts\build_cmake_windows.bat
+
+REM Run all tests
+cd bindings\shared\build_cmake
+ctest -C Release
+
+REM Or run individual test
+Release\test_sqrt_quality.exe
+Release\benchmark_improved.exe
+```
+
+**Linux/WSL:**
+
+```bash
+# Build everything
+bash scripts/build_cmake_linux.sh
+
+# Run all tests
+cd bindings/shared/build_cmake
+ctest
+
+# Or run individual test
+./test_sqrt_quality
+./benchmark_improved
+```
+
+**See detailed instructions below.**
+
 ## Build Methods
 
 FastEmbed supports multiple build systems:
@@ -16,11 +50,12 @@ FastEmbed supports multiple build systems:
 
 The test suite includes the following test files:
 
-1. **test_hash_functions.c** - Unit tests for hash functions (positional_hash_asm, hash_to_float_sin_asm, generate_combined_hash_asm)
+1. **test_hash_functions.c** - Unit tests for hash functions (positional_hash_asm, hash_to_float_sqrt_asm, generate_combined_hash_asm)
 2. **test_embedding_generation.c** - Integration tests for embedding generation (all dimensions, consistency, edge cases)
 3. **test_quality_improvement.c** - Quality improvement tests (text discrimination)
-4. **test_onnx_dimension.c** - ONNX dimension detection and validation tests
-5. **benchmark_improved.c** - Performance benchmarks for all dimensions
+4. **test_sqrt_quality.c** - Square Root normalization quality metrics (typo tolerance, reorder sensitivity)
+5. **test_onnx_dimension.c** - ONNX dimension detection and validation tests
+6. **benchmark_improved.c** - Performance benchmarks for all dimensions
 
 ## Building Tests
 
@@ -119,7 +154,9 @@ REM Or run individual tests:
 Release\test_hash_functions.exe
 Release\test_embedding_generation.exe
 Release\test_quality_improvement.exe
+Release\test_sqrt_quality.exe
 Release\test_onnx_dimension.exe
+Release\benchmark_improved.exe
 ```
 
 **Linux/WSL/macOS:**
@@ -132,7 +169,9 @@ ctest --verbose
 ./test_hash_functions
 ./test_embedding_generation
 ./test_quality_improvement
+./test_sqrt_quality
 ./test_onnx_dimension
+./benchmark_improved
 ```
 
 ### Option 2: Cross-Platform Test Scripts
@@ -222,7 +261,7 @@ Tests failed: 0
 - ✅ Deterministic behavior
 - ✅ Position sensitivity
 - ✅ Seed sensitivity
-- ✅ Range validation ([-1, 1] for Sin normalization)
+- ✅ Range validation ([-1, 1] for Square Root normalization)
 - ✅ Distribution quality
 
 ### Embedding Generation Tests (test_embedding_generation.c)
@@ -244,6 +283,13 @@ Tests failed: 0
 - ✅ Completely different texts
 - ✅ Identical texts
 - ✅ Case variations (case-insensitive)
+
+### Square Root Quality Tests (test_sqrt_quality.c)
+
+- ✅ Typo tolerance (1-2 character differences): Target 0.30-0.90 similarity
+- ✅ Reordering sensitivity (character reordering): Target 0.20-0.90 similarity
+- ✅ Different texts discrimination: Target -0.5 to 0.5 similarity
+- ✅ Quality metrics validation (proven 3.9x improvement over linear)
 
 ### ONNX Dimension Tests (test_onnx_dimension.c)
 

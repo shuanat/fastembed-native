@@ -60,15 +60,20 @@
 #include <stddef.h>
 #include <stdint.h>
 
-
 // Export macros for Windows DLL
 #ifdef _WIN32
-#ifdef FASTEMBED_BUILDING_LIB
+#ifdef FASTEMBED_STATIC
+// Static library - no import/export needed
+#define FASTEMBED_EXPORT
+#elif defined(FASTEMBED_BUILDING_LIB)
+// Building DLL - export symbols
 #define FASTEMBED_EXPORT __declspec(dllexport)
 #else
+// Using DLL - import symbols
 #define FASTEMBED_EXPORT __declspec(dllimport)
 #endif
 #else
+// Non-Windows platforms
 #define FASTEMBED_EXPORT
 #endif
 

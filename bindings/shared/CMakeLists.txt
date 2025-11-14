@@ -111,12 +111,24 @@ if(USE_ONNX_RUNTIME)
 endif()
 
 # ==============================================================================
+# Assembly Object Library (for internal function access)
+# ==============================================================================
+# Create an object library from ASM sources that can be linked directly
+# This allows tests and CLI tools to access internal ASM functions on Windows
+add_library(fastembed_asm_objects OBJECT
+    ${ASM_SOURCES}
+)
+
+# ==============================================================================
 # FastEmbed Static Library
 # ==============================================================================
 add_library(fastembed_static STATIC
-    ${ASM_SOURCES}
+    $<TARGET_OBJECTS:fastembed_asm_objects>
     ${C_SOURCES}
 )
+
+# Define FASTEMBED_STATIC for static library builds (disables DLL import/export on Windows)
+target_compile_definitions(fastembed_static PUBLIC FASTEMBED_STATIC)
 
 # Add ONNX sources if available
 if(USE_ONNX_RUNTIME AND ONNX_FOUND)
@@ -180,18 +192,20 @@ endif()
 # CLI Tools
 # ==============================================================================
 if(BUILD_CLI_TOOLS)
-    # Vector operations CLI
+    # Vector operations CLI (needs direct ASM access)
     add_executable(vector_ops_cli src/vector_ops_cli.c)
-    target_link_libraries(vector_ops_cli PRIVATE fastembed_static)
+    target_link_libraries(vector_ops_cli PRIVATE fastembed_static $<TARGET_OBJECTS:fastembed_asm_objects>)
     
-    # Embedding generator CLI
+    # Embedding generator CLI (needs direct ASM access)
     add_executable(embedding_gen_cli src/embedding_gen_cli.c)
-    target_link_libraries(embedding_gen_cli PRIVATE fastembed_static)
+    target_link_libraries(embedding_gen_cli PRIVATE fastembed_static $<TARGET_OBJECTS:fastembed_asm_objects>)
     
-    # ONNX CLI (if ONNX Runtime available)
-    if(USE_ONNX_RUNTIME AND ONNX_FOUND)
+    # ONNX CLI (if ONNX Runtime available, needs direct ASM access)
+    # Note: Temporarily disabled on Windows due to linkage issues with onnx_generate_embedding
+    # Use fastembed_onnx_generate() from public API instead
+    if(USE_ONNX_RUNTIME AND ONNX_FOUND AND NOT WIN32)
         add_executable(onnx_cli src/onnx_embedding_cli.c)
-        target_link_libraries(onnx_cli PRIVATE fastembed_static)
+        target_link_libraries(onnx_cli PRIVATE fastembed_static $<TARGET_OBJECTS:fastembed_asm_objects>)
         target_compile_definitions(onnx_cli PRIVATE USE_ONNX_RUNTIME)
     endif()
 endif()
@@ -202,9 +216,9 @@ endif()
 if(BUILD_TESTS)
     enable_testing()
     
-    # Test: Hash Functions
+    # Test: Hash Functions (needs direct ASM access)
     add_executable(test_hash_functions ../../tests/test_hash_functions.c)
-    target_link_libraries(test_hash_functions PRIVATE fastembed_static)
+    target_link_libraries(test_hash_functions PRIVATE fastembed_static $<TARGET_OBJECTS:fastembed_asm_objects>)
     add_test(NAME test_hash_functions COMMAND test_hash_functions)
     
     # Test: Embedding Generation
@@ -216,6 +230,11 @@ if(BUILD_TESTS)
     add_executable(test_quality_improvement ../../tests/test_quality_improvement.c)
     target_link_libraries(test_quality_improvement PRIVATE fastembed_static)
     add_test(NAME test_quality_improvement COMMAND test_quality_improvement)
+    
+    # Test: Square Root Quality (verifies sqrt normalization quality metrics)
+    add_executable(test_sqrt_quality ../../tests/test_sqrt_quality.c)
+    target_link_libraries(test_sqrt_quality PRIVATE fastembed_static)
+    add_test(NAME test_sqrt_quality COMMAND test_sqrt_quality)
     
     # Test: ONNX Dimension (only if ONNX Runtime available)
     if(USE_ONNX_RUNTIME AND ONNX_FOUND)

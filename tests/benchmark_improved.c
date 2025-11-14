@@ -174,8 +174,8 @@ void performance_summary() {
   printf("- All dimensions: Scalable performance\n");
   printf("\nImprovements:\n");
   printf("- Default dimension changed from 768 to 128 (2-3x faster)\n");
-  printf(
-      "- Improved algorithm with positional hashing and Sin normalization\n");
+  printf("- Improved algorithm with positional hashing and Square Root "
+         "normalization\n");
   printf("- Case-insensitive normalization (no performance impact)\n");
   printf("\nNote: Performance may vary based on:\n");
   printf("- CPU architecture and SIMD support\n");

@@ -2,9 +2,9 @@
  * @file onnx_embedding_cli.c
  * @brief Command-line interface for ONNX embedding model inference
  *
- * This CLI tool provides a simple interface for generating text embeddings using
- * ONNX embedding models (e.g., BERT-based, nomic-embed-text) without requiring
- * external services like Ollama.
+ * This CLI tool provides a simple interface for generating text embeddings
+ * using ONNX embedding models (e.g., BERT-based, nomic-embed-text) without
+ * requiring external services like Ollama.
  *
  * Features:
  * - Direct ONNX model inference
@@ -34,17 +34,15 @@
  * - 1: Error (invalid arguments, failed inference, I/O error)
  */
 
+#include "../include/fastembed_config.h"
+#include "../include/fastembed_internal.h"
+#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <math.h>
-#include "../include/fastembed_config.h"
 
-#ifdef USE_ONNX_RUNTIME
-/** External function from onnx_embedding_loader.c for ONNX model inference */
-extern int onnx_generate_embedding(const char *model_path, const char *text, float *output, int output_dim);
-#else
+#ifndef USE_ONNX_RUNTIME
 /** Fallback to hash-based embedding if ONNX Runtime is not available */
 #include "embedding_lib_c.h"
 #endif
@@ -69,79 +67,72 @@ extern int onnx_generate_embedding(const char *model_path, const char *text, flo
  * @param argv Command-line arguments array
  *              - argv[0]: Program name
  *              - argv[1]: Path to .onnx model file (required)
- *              - argv[2]: Optional text input (if not provided, reads from stdin)
+ *              - argv[2]: Optional text input (if not provided, reads from
+ * stdin)
  * @return Exit code: 0 on success, 1 on error
  */
-int main(int argc, char *argv[])
-{
-    /* Validate minimum argument count */
-    if (argc < 2)
-    {
-        fprintf(stderr, "Usage: %s <model.onnx> [text]\n", argv[0]);
-        fprintf(stderr, "   or: echo \"text\" | %s <model.onnx>\n", argv[0]);
-        return 1;
+int main(int argc, char *argv[]) {
+  /* Validate minimum argument count */
+  if (argc < 2) {
+    fprintf(stderr, "Usage: %s <model.onnx> [text]\n", argv[0]);
+    fprintf(stderr, "   or: echo \"text\" | %s <model.onnx>\n", argv[0]);
+    return 1;
+  }
+
+  /* Extract model path from arguments */
+  const char *model_path = argv[1];
+  char text_buffer[MAX_TEXT_LENGTH];
+  float output[EMBEDDING_DIM];
+
+  /* Read input text: prefer command-line argument, fallback to stdin */
+  if (argc >= 3) {
+    /* Text provided as command-line argument */
+    strncpy(text_buffer, argv[2], sizeof(text_buffer) - 1);
+    text_buffer[sizeof(text_buffer) - 1] = '\0';
+  } else {
+    /* Read text from stdin (supports piping and redirection) */
+    if (fgets(text_buffer, sizeof(text_buffer), stdin) == NULL) {
+      fprintf(stderr, "{\"error\":\"Failed to read input\"}\n");
+      return 1;
     }
 
-    /* Extract model path from arguments */
-    const char *model_path = argv[1];
-    char text_buffer[MAX_TEXT_LENGTH];
-    float output[EMBEDDING_DIM];
-
-    /* Read input text: prefer command-line argument, fallback to stdin */
-    if (argc >= 3)
-    {
-        /* Text provided as command-line argument */
-        strncpy(text_buffer, argv[2], sizeof(text_buffer) - 1);
-        text_buffer[sizeof(text_buffer) - 1] = '\0';
+    /* Remove trailing newline character if present (from fgets) */
+    size_t len = strlen(text_buffer);
+    if (len > 0 && text_buffer[len - 1] == '\n') {
+      text_buffer[len - 1] = '\0';
     }
-    else
-    {
-        /* Read text from stdin (supports piping and redirection) */
-        if (fgets(text_buffer, sizeof(text_buffer), stdin) == NULL)
-        {
-            fprintf(stderr, "{\"error\":\"Failed to read input\"}\n");
-            return 1;
-        }
+  }
 
-        /* Remove trailing newline character if present (from fgets) */
-        size_t len = strlen(text_buffer);
-        if (len > 0 && text_buffer[len - 1] == '\n')
-        {
-            text_buffer[len - 1] = '\0';
-        }
-    }
-
-    /* Generate embedding using appropriate method */
-    int result;
+  /* Generate embedding using appropriate method */
+  int result;
 
 #ifdef USE_ONNX_RUNTIME
-    /* Use ONNX Runtime for model inference */
-    result = onnx_generate_embedding(model_path, text_buffer, output, EMBEDDING_DIM);
+  /* Use ONNX Runtime for model inference */
+  result =
+      onnx_generate_embedding(model_path, text_buffer, output, EMBEDDING_DIM);
 #else
-    /* Fallback to hash-based embedding if ONNX Runtime is not compiled in */
-    fprintf(stderr, "{\"warning\":\"ONNX Runtime not available, using hash-based embedding\"}\n");
-    result = generate_embedding(text_buffer, output, EMBEDDING_DIM);
+  /* Fallback to hash-based embedding if ONNX Runtime is not compiled in */
+  fprintf(stderr, "{\"warning\":\"ONNX Runtime not available, using hash-based "
+                  "embedding\"}\n");
+  result = generate_embedding(text_buffer, output, EMBEDDING_DIM);
 #endif
 
-    /* Check inference result */
-    if (result != 0)
-    {
-        fprintf(stderr, "{\"error\":\"Failed to generate embedding\"}\n");
-        return 1;
-    }
+  /* Check inference result */
+  if (result != 0) {
+    fprintf(stderr, "{\"error\":\"Failed to generate embedding\"}\n");
+    return 1;
+  }
 
-    /* Output embedding as JSON array for easy parsing */
-    /* Format: [0.123456, -0.789012, ...] */
-    printf("[");
-    for (int i = 0; i < EMBEDDING_DIM; i++)
-    {
-        printf("%.6f", output[i]);
-        if (i < EMBEDDING_DIM - 1)
-        {
-            printf(",");
-        }
+  /* Output embedding as JSON array for easy parsing */
+  /* Format: [0.123456, -0.789012, ...] */
+  printf("[");
+  for (int i = 0; i < EMBEDDING_DIM; i++) {
+    printf("%.6f", output[i]);
+    if (i < EMBEDDING_DIM - 1) {
+      printf(",");
     }
-    printf("]\n");
+  }
+  printf("]\n");
 
-    return 0;
+  return 0;
 }
