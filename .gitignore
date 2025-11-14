@@ -12,6 +12,7 @@
 *.ipdb
 *.pdb
 build/
+build_cmake/
 bin/
 obj/
 target/
