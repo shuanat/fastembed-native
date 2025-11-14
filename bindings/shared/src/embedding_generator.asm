@@ -546,30 +546,38 @@ generate_combined_hash_asm:
 ; ============================================
 global generate_embedding_asm
 generate_embedding_asm:
-    ; Save callee-saved registers
+    ; Prologue
     push rbp
     mov rbp, rsp
-    ; Stack alignment calculation:
-    ; After push rbp: rsp = original_rsp - 8 (not aligned)
-    ; We need to align to 16 bytes
-    ; After pushes: rsp - 5*8 = rsp - 40 (for 5 registers)
-    ; Total: SHADOW_SPACE + local_space + 40 must be multiple of 16
-    ; For System V: SHADOW_SPACE=0, need 40 + local_space = multiple of 16
-    ; 40 mod 16 = 8, so we need local_space mod 16 = 8, so local_space = 8
-    ; For Windows: SHADOW_SPACE=32, need 32 + 40 + local_space = multiple of 16
-    ; 72 mod 16 = 8, so we need local_space mod 16 = 8, so local_space = 8
-    sub rsp, SHADOW_SPACE + 8  ; Local variables (8 bytes for hash storage)
     
+    ; CRITICAL: Save parameters IMMEDIATELY before pushing registers
+    ; Parameters come in rdi, rsi, rdx (System V) or rcx, rdx, r8 (Windows)
+    ; We need to save them before push operations that might clobber them
+    mov r10, PARAM1    ; Save text pointer to temporary register
+    mov r11, PARAM2    ; Save output pointer to temporary register
+    mov r9, PARAM3     ; Save dimension to temporary register
+    
+    ; Save callee-saved registers (System V ABI: r12, r13, r14, r15, rbx)
     push r12
     push r13
     push r14
     push r15
     push rbx
     
-    ; Save parameters to callee-saved registers
-    mov r12, PARAM1    ; text pointer
-    mov r13, PARAM2    ; output pointer
-    mov r14, PARAM3    ; dimension
+    ; Stack layout after pushes:
+    ; rbp-0:  saved rbp (at rbp)
+    ; rbp-8:  saved r12
+    ; rbp-16: saved r13
+    ; rbp-24: saved r14
+    ; rbp-32: saved r15
+    ; rbp-40: saved rbx
+    ; After 6 pushes: 48 bytes (48 mod 16 = 0, already aligned!)
+    ; rsp now points to saved rbx (rbp-40)
+    
+    ; Now move parameters to callee-saved registers
+    mov r12, r10       ; text pointer (callee-saved, safe)
+    mov r13, r11       ; output pointer (callee-saved, safe)
+    mov r14, r9        ; dimension (callee-saved, safe)
     
     ; Step 1: Input Validation
     test r12, r12      ; Check text pointer
@@ -612,57 +620,62 @@ generate_embedding_asm:
     jg .error
     
     ; Step 3: Embedding Generation Loop
-    xor rax, rax       ; dimension index (i)
+    xor r15, r15       ; dimension index (i) - use r15 instead of rax!
     
 .embedding_loop:
-    cmp rax, r14       ; Check if i < dimension
+    cmp r15, r14       ; Check if i < dimension
     jge .embedding_done
     
     ; Step 3.1-3.3: Generate Combined Hash
     ; Prepare parameters for generate_combined_hash_asm
-    ; Stack alignment: rsp is aligned (we aligned it in prologue)
-    ; Before call: rsp % 16 == 0 (aligned)
-    ; After call: call pushes 8 bytes, so rsp % 16 == 8 (misaligned)
-    mov r15, rax       ; seed = i
+    ; Stack alignment: rsp points to saved rbx (rbp-40)
+    ; rsp = rbp - 40, so rsp % 16 = (rbp - 40) % 16
+    ; If rbp % 16 == 0, then (rbp - 40) % 16 = (0 - 40) % 16 = (-40) % 16 = 8
+    ; So rsp is misaligned by 8 bytes before first call
+    ; We need to align it: sub rsp, 8 to make it aligned
+    sub rsp, 8         ; Align stack to 16 bytes (rsp % 16 == 0)
+    ; Pass loop index as seed
 %ifidn __OUTPUT_FORMAT__,elf64
     mov rdi, r12       ; text
     mov rsi, rbx       ; text_length
-    mov rdx, r15       ; seed
+    mov rdx, r15       ; seed = i
 %else
     mov rcx, r12       ; text
     mov rdx, rbx       ; text_length
-    mov r8, r15        ; seed
+    mov r8, r15        ; seed = i
 %endif
     call generate_combined_hash_asm
-    ; Save combined hash to stack (r10 is caller-saved and may be clobbered)
-    ; Stack layout: rsp points to saved rbx, rsp+8 is saved r15, etc.
-    ; We allocated 8 bytes at rsp - SHADOW_SPACE - 8, so use that
-    mov [rbp - SHADOW_SPACE - 8], rax  ; Save combined hash to local variable
+    ; Combined hash is in rax
+    ; After call, rsp % 16 == 0 (call pushed 8 bytes, but we did sub rsp, 8 before, so aligned)
+    ; We need to pass it to hash_to_float_sin_asm
+    ; Save hash to a caller-saved register (we'll use it immediately)
+    mov r10, rax       ; Save hash in r10 (caller-saved, but we use it immediately)
     
     ; Step 3.4: Normalize with Sin
     ; Prepare parameter for hash_to_float_sin_asm
-    ; Stack alignment: after previous call, rsp % 16 == 8 (misaligned)
-    ; Before next call, we need rsp % 16 == 0
-    ; So we need to subtract 8 to align
-    sub rsp, 8         ; Align stack to 16 bytes (rsp % 16 == 0)
+    ; Stack alignment: after previous call, rsp % 16 == 0 (aligned)
+    ; Before next call, we need rsp % 16 == 0 (already aligned!)
 %ifidn __OUTPUT_FORMAT__,elf64
-    mov rdi, [rbp - SHADOW_SPACE - 8]  ; Load combined hash from local variable
+    mov rdi, r10       ; Pass hash as parameter
 %else
-    mov rcx, [rbp - SHADOW_SPACE - 8]  ; Load combined hash from local variable
+    mov rcx, r10       ; Pass hash as parameter
 %endif
     call hash_to_float_sin_asm
-    add rsp, 8         ; Restore stack (rsp % 16 == 8 again, but that's OK for loop)
+    ; After call, rsp % 16 == 8 (misaligned)
+    ; Restore stack alignment for next iteration
+    add rsp, 8         ; Restore stack (counteract the sub rsp, 8 from start of iteration)
     ; XMM0 now contains sin-normalized value in [-1, 1]
     
     ; Step 3.5: Store in output array
-    movss [r13 + rax*4], xmm0  ; output[i] = sin_value
+    ; CRITICAL: Use r15 (loop counter) instead of rax (which was overwritten)!
+    movss [r13 + r15*4], xmm0  ; output[i] = sin_value
     
     ; Next iteration
-    inc rax
+    inc r15
     jmp .embedding_loop
     
 .embedding_done:
-    ; Success
+    ; Success (stack is already aligned - we restored it at end of each iteration)
     xor rax, rax
     jmp .done
     
@@ -676,8 +689,6 @@ generate_embedding_asm:
     pop r14
     pop r13
     pop r12
-    
-    add rsp, SHADOW_SPACE + 8
     pop rbp
     ret
 
