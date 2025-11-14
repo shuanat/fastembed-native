@@ -35,7 +35,8 @@
  *
  * // Default dimension (128) - recommended for most use cases
  * float embedding[FASTEMBED_DEFAULT_DIMENSION];
- * int result = fastembed_generate("Hello world", embedding, 0); // 0 = use default (128)
+ * int result = fastembed_generate("Hello world", embedding, 0); // 0 = use
+ * default (128)
  *
  * // BERT compatibility (768 dimensions)
  * float embedding_bert[FASTEMBED_EMBEDDING_DIM];
@@ -77,11 +78,12 @@ extern "C" {
  *
  * Converts input text into a fixed-size embedding vector using an improved
  * hash-based algorithm with Sin/Cos normalization and positional hashing.
- * The embedding is deterministic: the same text always produces the same embedding.
+ * The embedding is deterministic: the same text always produces the same
+ * embedding.
  *
  * **BREAKING CHANGE (v1.0.1)**: Default dimension changed from 768 to 128.
- * If dimension is 0, the function uses 128 as default. This improves performance
- * while maintaining good quality for most use cases.
+ * If dimension is 0, the function uses 128 as default. This improves
+ * performance while maintaining good quality for most use cases.
  *
  * Supported dimensions: 128, 256, 512, 768, 1024, 2048
  *
@@ -89,12 +91,14 @@ extern "C" {
  * - Positional hashing: Character position affects hash value
  * - Sin/Cos normalization: Better distribution in [-1, 1] range
  * - Combined hashing: Reduces collision probability
+ * - Case-insensitive normalization: Text is converted to lowercase before
+ *   hashing (improves search quality and consistency with ONNX loader)
  *
  * @param text Input text to embed (null-terminated string, max 8192 chars)
  * @param output Output array for embedding vector (must be pre-allocated, size
  * >= dimension)
- * @param dimension Requested embedding dimension (128, 256, 512, 768, 1024, 2048).
- *                  If 0, uses default dimension 128.
+ * @param dimension Requested embedding dimension (128, 256, 512, 768, 1024,
+ * 2048). If 0, uses default dimension 128.
  * @return 0 on success, -1 on error (invalid parameters or generation failure)
  *
  * @note This function uses hash-based embedding, not learned model embeddings
@@ -288,8 +292,8 @@ FASTEMBED_EXPORT int fastembed_onnx_get_last_error(char *error_buffer,
  * @param num_texts Number of texts in the array (must match outputs array size)
  * @param outputs Array of output arrays for embeddings (each must be
  * pre-allocated, size >= dimension)
- * @param dimension Embedding dimension (same for all texts, supported: 128, 256, 512, 768, 1024, 2048).
- *                  If 0, uses default dimension 128.
+ * @param dimension Embedding dimension (same for all texts, supported: 128,
+ * 256, 512, 768, 1024, 2048). If 0, uses default dimension 128.
  * @return 0 on success (all embeddings generated), -1 on error (validation or
  * generation failure)
  *

@@ -25,6 +25,7 @@
 
 #include "embedding_lib_c.h"
 #include "../include/fastembed.h"
+#include <ctype.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -81,6 +82,8 @@ static int is_valid_dimension(int dimension) {
  * - Positional hashing: Character position affects hash value
  * - Sin/Cos normalization: Better distribution in [-1, 1] range
  * - Combined hashing: Reduces collision probability
+ * - Case-insensitive normalization: Text is converted to lowercase before
+ *   hashing (improves search quality and consistency with ONNX loader)
  *
  * @param text Input text to embed (null-terminated string, max 8192 chars)
  * @param output Output array for embedding vector (must be pre-allocated, size
@@ -111,8 +114,22 @@ int fastembed_generate(const char *text, float *output, int dimension) {
     return -1;
   }
 
+  /* Normalize text to lowercase for case-insensitive hashing */
+  /* This improves search quality and consistency with ONNX loader */
+  size_t text_len = strlen(text);
+  if (text_len == 0 || text_len > FASTEMBED_MAX_TEXT_LENGTH) {
+    return -1;
+  }
+
+  /* Use stack buffer for normalized text (max 8192 chars + null terminator) */
+  char normalized_text[FASTEMBED_MAX_TEXT_LENGTH + 1];
+  for (size_t i = 0; i < text_len; i++) {
+    normalized_text[i] = (char)tolower((unsigned char)text[i]);
+  }
+  normalized_text[text_len] = '\0';
+
   /* Generate embedding using assembly-optimized function */
-  int result = generate_embedding_asm(text, output, dimension);
+  int result = generate_embedding_asm(normalized_text, output, dimension);
 
   if (result != 0) {
     return -1;
