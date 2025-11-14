@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 /** External assembly function: dot product of two vectors (SIMD-optimized) */
 extern float dot_product_asm(float *vector_a, float *vector_b, int dimension);
 /** External assembly function: cosine similarity between two vectors
@@ -45,48 +44,78 @@ extern void normalize_vector_asm(float *vector, int dimension);
 /** External assembly function: add two vectors element-wise (SIMD-optimized) */
 extern void add_vectors_asm(float *vector_a, float *vector_b, float *result,
                             int dimension);
-/** External assembly function: generate embedding from text (hash-based) */
+/** External assembly function: generate embedding from text (hash-based, legacy, 768D only) */
 extern int generate_simple_embedding(const char *text, float *output);
+/** External assembly function: generate improved embedding with dimension support */
+extern int generate_embedding_improved_asm(const char *text, float *output, int dimension);
 /** External assembly function: hash text to 64-bit value */
 extern uint64_t simple_text_hash(const char *text, int text_length, int seed);
 
 /**
- * @brief Generate text embedding using hash-based algorithm
+ * @brief Check if dimension is valid (supported dimension)
  *
- * Converts input text into a fixed-size embedding vector using a hash-based
- * algorithm optimized with SIMD instructions. The embedding is deterministic
- * (same text always produces same embedding) and suitable for similarity
- * search.
+ * Valid dimensions: 128, 256, 512, 768, 1024, 2048
  *
- * Current implementation generates 768-dimensional vectors (BERT-base size).
- * The algorithm splits text into words, hashes each word, and constructs
- * a dense vector representation.
+ * @param dimension Dimension to validate
+ * @return 1 if valid, 0 if invalid
+ */
+static int is_valid_dimension(int dimension) {
+  return (dimension == 128 || dimension == 256 || dimension == 512 ||
+          dimension == 768 || dimension == 1024 || dimension == 2048);
+}
+
+/**
+ * @brief Generate text embedding using improved hash-based algorithm
  *
- * @param text Input text to embed (null-terminated string)
+ * Converts input text into a fixed-size embedding vector using an improved
+ * hash-based algorithm with Sin/Cos normalization and positional hashing.
+ * The embedding is deterministic (same text always produces same embedding)
+ * and suitable for similarity search.
+ *
+ * **BREAKING CHANGE (v1.0.1)**: Default dimension changed from 768 to 128.
+ * If dimension is not specified or 0, the function uses 128 as default.
+ * This improves performance while maintaining good quality for most use cases.
+ *
+ * Supported dimensions: 128, 256, 512, 768, 1024, 2048
+ *
+ * The improved algorithm uses:
+ * - Positional hashing: Character position affects hash value
+ * - Sin/Cos normalization: Better distribution in [-1, 1] range
+ * - Combined hashing: Reduces collision probability
+ *
+ * @param text Input text to embed (null-terminated string, max 8192 chars)
  * @param output Output array for embedding vector (must be pre-allocated, size
  * >= dimension)
- * @param dimension Requested embedding dimension (currently must be 768)
+ * @param dimension Requested embedding dimension (128, 256, 512, 768, 1024, 2048).
+ *                  If 0, uses default dimension 128.
  * @return 0 on success, -1 on error (invalid parameters or generation failure)
  *
  * @note This function uses hash-based embedding, not learned model embeddings.
  *       For ML model embeddings, use fastembed_onnx_generate() instead.
- * @note Current limitation: only supports dimension=768
+ * @note Default dimension is 128 (changed from 768 in v1.0.1)
+ * @note Performance: ~0.01-0.05ms for 128D, ~0.05-0.15ms for 768D
+ * @note For BERT compatibility, use dimension=768 explicitly
  */
 int fastembed_generate(const char *text, float *output, int dimension) {
   /* Validate input parameters */
-  if (!text || !output || dimension <= 0) {
+  if (!text || !output) {
     return -1;
   }
 
-  /* Generate embedding using assembly-optimized function */
-  int result = generate_simple_embedding(text, output);
+  /* Use default dimension if 0 is specified */
+  if (dimension == 0) {
+    dimension = 128; /* Default dimension (changed from 768 in v1.0.1) */
+  }
+
+  /* Validate dimension */
+  if (dimension <= 0 || !is_valid_dimension(dimension)) {
+    return -1;
+  }
+
+  /* Generate embedding using improved assembly-optimized function */
+  int result = generate_embedding_improved_asm(text, output, dimension);
 
   if (result != 0) {
-    return -1;
-  }
-
-  /* Verify dimension matches expected value (current limitation) */
-  if (dimension != 768) {
     return -1;
   }
 
