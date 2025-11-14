@@ -194,6 +194,36 @@ $(TEST_ONNX_TARGET): ../../tests/test_onnx_dimension.c $(BUILD_DIR)/$(TARGET_LIB
 
 test: $(TEST_TARGET) $(TEST_HASH_TARGET) $(TEST_EMBEDDING_TARGET) $(TEST_QUALITY_TARGET)
 	@echo "Running all tests..."
+ifeq ($(OS),Windows_NT)
+	@echo "\n=== Running test_basic ==="
+	@if exist "$(TEST_TARGET)" ( \
+		cd $(BUILD_DIR) && $(TEST_TARGET) \
+	) else ( \
+		echo Test not found \
+	)
+	@echo "\n=== Running test_hash_functions ==="
+	@if exist "$(TEST_HASH_TARGET)" ( \
+		cd $(BUILD_DIR) && $(TEST_HASH_TARGET) \
+	) else ( \
+		echo Test not found \
+	)
+	@echo "\n=== Running test_embedding_generation ==="
+	@if exist "$(TEST_EMBEDDING_TARGET)" ( \
+		cd $(BUILD_DIR) && $(TEST_EMBEDDING_TARGET) \
+	) else ( \
+		echo Test not found \
+	)
+	@echo "\n=== Running test_quality_improvement ==="
+	@if exist "$(TEST_QUALITY_TARGET)" ( \
+		cd $(BUILD_DIR) && $(TEST_QUALITY_TARGET) \
+	) else ( \
+		echo Test not found \
+	)
+	@if exist "$(TEST_ONNX_TARGET)" ( \
+		echo "\n=== Running test_onnx_dimension ===" && \
+		cd $(BUILD_DIR) && $(TEST_ONNX_TARGET) \
+	)
+else
 	@echo "\n=== Running test_basic ==="
 	@if [ -f "$(TEST_TARGET)" ]; then \
 		LD_LIBRARY_PATH=$(BUILD_DIR) ./$(TEST_TARGET) || true; \
@@ -214,6 +244,7 @@ test: $(TEST_TARGET) $(TEST_HASH_TARGET) $(TEST_EMBEDDING_TARGET) $(TEST_QUALITY
 		echo "\n=== Running test_onnx_dimension ==="; \
 		LD_LIBRARY_PATH=$(BUILD_DIR):$(ONNX_RUNTIME_PATH)/lib ./$(TEST_ONNX_TARGET) || true; \
 	fi
+endif
 
 # Benchmark targets
 BENCHMARK_SOURCES = tests/benchmark.c
