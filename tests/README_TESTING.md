@@ -63,6 +63,26 @@ gcc -O2 -Wall -DUSE_ONNX_RUNTIME -I../../bindings/shared/include \
 
 ## Running Tests
 
+### Cross-Platform Test Scripts (Recommended)
+
+We provide cross-platform test scripts that work on both Windows and Linux/WSL:
+
+**Linux/WSL:**
+```bash
+scripts/test_shared_linux.sh
+```
+
+**Windows:**
+```batch
+scripts\test_shared_windows.bat
+```
+
+These scripts will:
+- Check if the library is built
+- Run all available tests
+- Provide a summary of passed/failed tests
+- Exit with appropriate error codes
+
 ### Using Makefile
 
 ```bash
@@ -70,7 +90,7 @@ cd bindings/shared
 make test
 ```
 
-This will run all available tests sequentially.
+This will run all available tests sequentially. The Makefile automatically detects the platform (Windows/Linux) and uses appropriate commands.
 
 ### Manual Execution
 
