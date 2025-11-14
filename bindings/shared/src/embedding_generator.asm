@@ -231,14 +231,14 @@ zero_vector_asm:
     mov r12, PARAM2    ; dimension
     
     test r12, r12
-    jz .done
+    jz .zero_done
     
     xorps xmm0, xmm0   ; Zero register
     
     xor rax, rax
 .zero_loop:
     cmp rax, r12
-    jge .done
+    jge .zero_done
     
     ; Zero 4 floats at a time (if available)
     mov r11, r12
@@ -434,7 +434,8 @@ hash_to_float_sin_asm:
     
     ; Use low 32 bits for modulo (hash % 2^32)
     mov rdx, r10
-    and rdx, 0xFFFFFFFF  ; hash % (2^32)
+    mov eax, edx        ; Copy low 32 bits to eax
+    mov rdx, rax        ; Clear upper 32 bits
     
     ; Convert to float
     cvtsi2ss xmm0, rdx    ; xmm0 = hash (as float)
@@ -559,7 +560,7 @@ generate_embedding_asm:
     ; Save parameters to callee-saved registers
     mov r12, PARAM1    ; text pointer
     mov r13, PARAM2    ; output pointer
-    mov r14d, PARAM3   ; dimension (32-bit)
+    mov r14, PARAM3    ; dimension
     
     ; Step 1: Input Validation
     test r12, r12      ; Check text pointer

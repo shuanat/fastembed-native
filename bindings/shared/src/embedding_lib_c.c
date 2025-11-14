@@ -25,6 +25,7 @@
 
 #include "embedding_lib_c.h"
 #include "../include/fastembed.h"
+#include "../include/fastembed_config.h"
 #include <ctype.h>
 #include <math.h>
 #include <stdint.h>

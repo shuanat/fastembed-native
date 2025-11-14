@@ -56,7 +56,9 @@
 #ifndef FASTEMBED_H
 #define FASTEMBED_H
 
+#include <stddef.h>
 #include <stdint.h>
+#include "fastembed_config.h"
 
 // Export macros for Windows DLL
 #ifdef _WIN32

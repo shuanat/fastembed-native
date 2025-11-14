@@ -24,6 +24,7 @@ make test-build
 ```
 
 This will build all test executables in `bindings/shared/build/`:
+
 - `test_basic`
 - `test_hash_functions`
 - `test_embedding_generation`
@@ -89,6 +90,7 @@ LD_LIBRARY_PATH=. ./benchmark_improved
 ## Test Results
 
 Test results are printed to stdout. Each test file will show:
+
 - Individual test results (✓ PASS or ✗ FAIL)
 - Test summary (tests run, passed, failed)
 - Final status (All tests passed or Some tests failed)
@@ -121,6 +123,7 @@ Tests failed: 0
 ## Test Coverage
 
 ### Hash Functions Tests (test_hash_functions.c)
+
 - ✅ Deterministic behavior
 - ✅ Position sensitivity
 - ✅ Seed sensitivity
@@ -128,6 +131,7 @@ Tests failed: 0
 - ✅ Distribution quality
 
 ### Embedding Generation Tests (test_embedding_generation.c)
+
 - ✅ All supported dimensions (128, 256, 512, 768, 1024, 2048)
 - ✅ Consistency (same text = same embedding)
 - ✅ Different texts produce different embeddings
@@ -137,6 +141,7 @@ Tests failed: 0
 - ✅ Invalid dimension rejection
 
 ### Quality Improvement Tests (test_quality_improvement.c)
+
 - ✅ Single character difference detection
 - ✅ Word order difference detection
 - ✅ Similar texts similarity
@@ -146,6 +151,7 @@ Tests failed: 0
 - ✅ Case variations (case-insensitive)
 
 ### ONNX Dimension Tests (test_onnx_dimension.c)
+
 - ✅ Dimension auto-detection
 - ✅ Dimension validation
 - ✅ Dimension mismatch detection
@@ -155,6 +161,7 @@ Tests failed: 0
 - ✅ Supported dimensions validation
 
 ### Performance Benchmarks (benchmark_improved.c)
+
 - ✅ All dimensions performance
 - ✅ Different text lengths
 - ✅ Performance targets verification (128D < 0.05 ms, 768D < 0.15 ms)
@@ -165,6 +172,7 @@ Tests failed: 0
 ### Tests fail to compile
 
 1. **Check library is built**: Ensure `bindings/shared/build/fastembed.a` exists
+
    ```bash
    cd bindings/shared
    make all
@@ -177,6 +185,7 @@ Tests failed: 0
 ### Tests fail at runtime
 
 1. **Check library path**: Ensure `LD_LIBRARY_PATH` includes `bindings/shared/build/`
+
    ```bash
    export LD_LIBRARY_PATH=bindings/shared/build:$LD_LIBRARY_PATH
    ```
@@ -188,6 +197,7 @@ Tests failed: 0
 ### ONNX tests skipped
 
 ONNX tests will be skipped if:
+
 - ONNX Runtime is not installed
 - `USE_ONNX_RUNTIME` is not defined during compilation
 - Test model file is not found
@@ -197,6 +207,7 @@ This is expected behavior - ONNX tests are optional.
 ## Continuous Integration
 
 Tests are automatically run in GitHub Actions CI on:
+
 - Push to main/develop branches
 - Pull requests
 
@@ -205,9 +216,9 @@ See `.github/workflows/ci.yml` for details.
 ## Next Steps
 
 After running tests:
+
 1. Review test output for any failures
 2. Check test coverage
 3. Run benchmarks to verify performance
 4. Fix any issues found
 5. Update tests if needed
-
