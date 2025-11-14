@@ -113,6 +113,136 @@ Element-wise vector addition.
 
 ---
 
+### ONNX Model Functions
+
+#### `fastembed_onnx_get_model_dimension`
+
+```c
+int fastembed_onnx_get_model_dimension(const char* model_path);
+```
+
+Get the output dimension of an ONNX embedding model. If the model is already loaded (cached), returns the cached dimension immediately. Otherwise, loads the model to detect the dimension.
+
+**Parameters:**
+
+- `model_path` - Path to .onnx model file (must be readable)
+
+**Returns:**
+
+- Model output dimension on success (positive integer)
+- `-1` on error (model not found, invalid model, dimension detection failed, ONNX Runtime not available)
+
+**Notes:**
+
+- The dimension is cached per model path for performance
+- Use this function to determine the correct dimension before calling `fastembed_onnx_generate()`
+- Returns `-1` if ONNX Runtime is not available (compiled without `USE_ONNX_RUNTIME`)
+
+**Example:**
+
+```c
+int dim = fastembed_onnx_get_model_dimension("model.onnx");
+if (dim > 0) {
+    float *output = malloc(dim * sizeof(float));
+    fastembed_onnx_generate("model.onnx", "text", output, dim);
+}
+```
+
+---
+
+#### `fastembed_onnx_generate`
+
+```c
+int fastembed_onnx_generate(const char* model_path, const char* text, float* output, int dimension);
+```
+
+Generate embedding using ONNX Runtime model. Loads a trained ONNX embedding model (e.g., BERT-based, nomic-embed-text) and generates embeddings using neural network inference.
+
+**Parameters:**
+
+- `model_path` - Path to .onnx model file (must be readable)
+- `text` - Input text to embed (null-terminated string, max 8192 chars)
+- `output` - Output array for embedding vector (must be pre-allocated, size >= dimension)
+- `dimension` - Requested embedding dimension (must match model output, max 2048). If 0, automatically detects dimension from model.
+
+**Returns:**
+
+- `0` on success
+- `-1` on error (file not found, inference failure, dimension mismatch, etc.)
+
+**Notes:**
+
+- Requires ONNX Runtime to be installed and linked at compile time
+- Compile with `-DUSE_ONNX_RUNTIME` to enable ONNX support
+- Falls back to hash-based embedding if ONNX Runtime unavailable
+- Output embedding is L2-normalized (unit vector)
+- Model is cached after first load - use `fastembed_onnx_unload()` to free memory
+- Dimension is automatically validated against model output
+- Use `fastembed_onnx_get_model_dimension()` to get model dimension before calling this function
+- If `dimension` is 0, the function automatically detects the dimension from the model
+
+**Example:**
+
+```c
+// Auto-detect dimension
+int result = fastembed_onnx_generate("model.onnx", "text", output, 0);
+
+// Or specify dimension explicitly (must match model)
+int dim = fastembed_onnx_get_model_dimension("model.onnx");
+if (dim > 0) {
+    float *output = malloc(dim * sizeof(float));
+    fastembed_onnx_generate("model.onnx", "text", output, dim);
+}
+```
+
+---
+
+#### `fastembed_onnx_unload`
+
+```c
+int fastembed_onnx_unload(void);
+```
+
+Unload cached ONNX model session. Frees the cached ONNX model session from memory.
+
+**Returns:**
+
+- `0` on success
+- `-1` if ONNX Runtime not initialized or nothing to unload
+
+**Notes:**
+
+- Safe to call even if no model is loaded (returns 0)
+- This function only affects the cached session, not ONNX Runtime itself
+- After calling this function, the next call to `fastembed_onnx_generate()` will automatically reload the model
+
+---
+
+#### `fastembed_onnx_get_last_error`
+
+```c
+int fastembed_onnx_get_last_error(char* error_buffer, size_t buffer_size);
+```
+
+Get last error message from ONNX operations. Returns the last error message that occurred during ONNX operations.
+
+**Parameters:**
+
+- `error_buffer` - Output buffer for error message (must be at least 512 bytes)
+- `buffer_size` - Size of error buffer
+
+**Returns:**
+
+- `0` on success (error message copied)
+- `-1` if no error message available
+
+**Notes:**
+
+- Only available when compiled with `USE_ONNX_RUNTIME`
+- Error message is cleared on each new ONNX operation
+
+---
+
 ## Node.js API (N-API)
 
 ### Class: `FastEmbedNativeClient`

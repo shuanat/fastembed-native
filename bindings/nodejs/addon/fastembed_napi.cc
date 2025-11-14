@@ -245,6 +245,30 @@ static napi_value UnloadOnnxModel(napi_env env, napi_callback_info info) {
 }
 
 /**
+ * Get last error message from ONNX operations
+ *
+ * @returns String (error message) or null if no error
+ */
+static napi_value GetOnnxLastError(napi_env env, napi_callback_info info) {
+  char error_buffer[512];
+  int result =
+      fastembed_onnx_get_last_error(error_buffer, sizeof(error_buffer));
+
+  if (result != 0 || error_buffer[0] == '\0') {
+    // No error message available
+    napi_value null_value;
+    napi_get_null(env, &null_value);
+    return null_value;
+  }
+
+  // Create JavaScript string from error buffer
+  napi_value error_string;
+  napi_create_string_utf8(env, error_buffer, NAPI_AUTO_LENGTH, &error_string);
+
+  return error_string;
+}
+
+/**
  * Calculate cosine similarity between two vectors
  *
  * @param vector_a - First vector (Float32Array or Array)
@@ -466,8 +490,8 @@ static napi_value AddVectors(napi_env env, napi_callback_info info) {
 // Module initialization
 static napi_value Init(napi_env env, napi_value exports) {
   // Export functions
-  napi_value generate_fn, generate_onnx_fn, unload_onnx_fn, cosine_fn, dot_fn,
-      norm_fn, normalize_fn, add_fn;
+  napi_value generate_fn, generate_onnx_fn, unload_onnx_fn, get_onnx_error_fn,
+      cosine_fn, dot_fn, norm_fn, normalize_fn, add_fn;
 
   napi_create_function(env, nullptr, 0, GenerateEmbedding, nullptr,
                        &generate_fn);
@@ -475,6 +499,8 @@ static napi_value Init(napi_env env, napi_value exports) {
                        &generate_onnx_fn);
   napi_create_function(env, nullptr, 0, UnloadOnnxModel, nullptr,
                        &unload_onnx_fn);
+  napi_create_function(env, nullptr, 0, GetOnnxLastError, nullptr,
+                       &get_onnx_error_fn);
   napi_create_function(env, nullptr, 0, CosineSimilarity, nullptr, &cosine_fn);
   napi_create_function(env, nullptr, 0, DotProduct, nullptr, &dot_fn);
   napi_create_function(env, nullptr, 0, VectorNorm, nullptr, &norm_fn);
@@ -486,6 +512,7 @@ static napi_value Init(napi_env env, napi_value exports) {
   napi_set_named_property(env, exports, "generateOnnxEmbedding",
                           generate_onnx_fn);
   napi_set_named_property(env, exports, "unloadOnnxModel", unload_onnx_fn);
+  napi_set_named_property(env, exports, "getOnnxLastError", get_onnx_error_fn);
   napi_set_named_property(env, exports, "cosineSimilarity", cosine_fn);
   napi_set_named_property(env, exports, "dotProduct", dot_fn);
   napi_set_named_property(env, exports, "vectorNorm", norm_fn);

@@ -6,7 +6,8 @@
  * Centralizing constants here ensures consistency and makes it easy to adjust
  * limits and sizes across the entire project.
  *
- * All constants are defined with clear documentation about their purpose and usage.
+ * All constants are defined with clear documentation about their purpose and
+ * usage.
  */
 
 #ifndef FASTEMBED_CONFIG_H
@@ -19,18 +20,19 @@
 #define FASTEMBED_MAX_TEXT_LENGTH 8192
 
 /** Default embedding dimension (changed from 768 to 128 in v1.0.1)
- * 
+ *
  * **BREAKING CHANGE (v1.0.1)**: Default dimension changed from 768 to 128.
  * This improves performance while maintaining good quality for most use cases.
- * 
+ *
  * For BERT compatibility, use FASTEMBED_EMBEDDING_DIM (768) explicitly.
  */
 #define FASTEMBED_DEFAULT_DIMENSION 128
 
 /** BERT-base embedding dimension (for compatibility with BERT models)
- * 
- * This constant is kept for backward compatibility and BERT model compatibility.
- * Use FASTEMBED_DEFAULT_DIMENSION (128) for new code unless BERT compatibility is required.
+ *
+ * This constant is kept for backward compatibility and BERT model
+ * compatibility. Use FASTEMBED_DEFAULT_DIMENSION (128) for new code unless BERT
+ * compatibility is required.
  */
 #define FASTEMBED_EMBEDDING_DIM 768
 

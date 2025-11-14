@@ -231,8 +231,9 @@ FASTEMBED_EXPORT void fastembed_add_vectors(const float *vec1,
  * @param output Output array for embedding vector (must be pre-allocated, size
  * >= dimension)
  * @param dimension Requested embedding dimension (must match model output, max
- * 2048)
- * @return 0 on success, -1 on error (file not found, inference failure, etc.)
+ * 2048). If 0, automatically detects dimension from model.
+ * @return 0 on success, -1 on error (file not found, inference failure,
+ * dimension mismatch, etc.)
  *
  * @note Requires ONNX Runtime to be installed and linked at compile time
  * @note Compile with -DUSE_ONNX_RUNTIME to enable ONNX support
@@ -240,6 +241,9 @@ FASTEMBED_EXPORT void fastembed_add_vectors(const float *vec1,
  * @note Output embedding is L2-normalized (unit vector)
  * @note Model is cached after first load - use fastembed_onnx_unload() to free
  * memory
+ * @note Dimension is automatically validated against model output
+ * @note Use fastembed_onnx_get_model_dimension() to get model dimension before
+ * calling this function
  */
 FASTEMBED_EXPORT int fastembed_onnx_generate(const char *model_path,
                                              const char *text, float *output,
@@ -279,6 +283,36 @@ FASTEMBED_EXPORT int fastembed_onnx_get_last_error(char *error_buffer,
                                                    size_t buffer_size);
 
 /**
+ * @brief Get ONNX model output dimension
+ *
+ * Returns the output dimension of an ONNX embedding model. If the model is
+ * already loaded (cached), returns the cached dimension immediately.
+ * Otherwise, loads the model to detect the dimension.
+ *
+ * This function is useful to determine the correct dimension parameter before
+ * calling fastembed_onnx_generate().
+ *
+ * @param model_path Path to .onnx model file (must be readable)
+ * @return Model output dimension on success, -1 on error (model not found,
+ * invalid model, dimension detection failed)
+ *
+ * @note The dimension is cached per model path for performance
+ * @note Returns -1 if ONNX Runtime is not available
+ * @note Use this function to validate dimension before calling
+ * fastembed_onnx_generate()
+ *
+ * @example
+ * ```c
+ * int dim = fastembed_onnx_get_model_dimension("model.onnx");
+ * if (dim > 0) {
+ *   float *output = malloc(dim * sizeof(float));
+ *   fastembed_onnx_generate("model.onnx", "text", output, dim);
+ * }
+ * ```
+ */
+FASTEMBED_EXPORT int fastembed_onnx_get_model_dimension(const char *model_path);
+
+/**
  * @brief Generate embeddings for multiple texts in batch
  *
  * Processes an array of texts and generates embeddings for each one.
@@ -292,18 +326,19 @@ FASTEMBED_EXPORT int fastembed_onnx_get_last_error(char *error_buffer,
  * @param num_texts Number of texts in the array (must match outputs array size)
  * @param outputs Array of output arrays for embeddings (each must be
  * pre-allocated, size >= dimension)
- * @param dimension Embedding dimension (same for all texts, supported: 128,
- * 256, 512, 768, 1024, 2048). If 0, uses default dimension 128.
+ * @param dimension Embedding dimension (same for all texts). Supported
+ * dimensions: 128, 256, 512, 768, 1024, 2048. If 0, uses default dimension 128.
  * @return 0 on success (all embeddings generated), -1 on error (validation or
  * generation failure)
  *
  * @note Arrays texts and outputs must have num_texts elements
  * @note Each output array must be pre-allocated with size >= dimension
  * @note On error, some embeddings may have been generated (partial results)
- * @note Uses hash-based embedding (not ONNX models)
+ * @note Supported dimensions: 128, 256, 512, 768, 1024, 2048
+ * @note Uses hash-based embeddings (fastembed_generate) for all texts
  */
 FASTEMBED_EXPORT int fastembed_batch_generate(const char **texts, int num_texts,
-                                              float **outputs, int dimension);
+                                               float **outputs, int dimension);
 
 #ifdef __cplusplus
 }
