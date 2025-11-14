@@ -4,6 +4,14 @@
 
 This document describes how to build and run the test suite for FastEmbed.
 
+## Build Methods
+
+FastEmbed supports multiple build systems:
+
+- **CMake** (⭐ Recommended) - Cross-platform, modern, works natively on Windows/Linux/macOS
+- **Makefile** - Unix-only, simple, good for quick local development
+- **Scripts** - Platform-specific build and test scripts
+
 ## Test Files
 
 The test suite includes the following test files:
@@ -16,7 +24,40 @@ The test suite includes the following test files:
 
 ## Building Tests
 
-### Using Makefile (Linux/macOS/WSL)
+### Option 1: CMake (⭐ Recommended for Windows)
+
+CMake provides the best cross-platform experience with native Windows support.
+
+#### Windows
+
+```batch
+REM Build everything (library, tests, benchmarks)
+scripts\build_cmake_windows.bat
+
+REM Tests are built automatically in build_cmake\Release\
+```
+
+#### Linux/WSL/macOS
+
+```bash
+# Build everything
+bash scripts/build_cmake_linux.sh
+
+# Tests are built automatically in build_cmake/
+```
+
+**Advantages:**
+- ✅ Native Windows support (no WSL required)
+- ✅ Works with Visual Studio, CLion, VS Code
+- ✅ Integrated test runner (CTest)
+- ✅ Automatic dependency detection
+- ✅ Modern, maintainable
+
+**See:** [BUILD_CMAKE.md](../docs/BUILD_CMAKE.md) for full CMake documentation.
+
+### Option 2: Using Makefile (Unix/WSL Only)
+
+Works on Linux, macOS, and WSL (not native Windows).
 
 ```bash
 cd bindings/shared
@@ -63,7 +104,35 @@ gcc -O2 -Wall -DUSE_ONNX_RUNTIME -I../../bindings/shared/include \
 
 ## Running Tests
 
-### Cross-Platform Test Scripts (Recommended)
+### Option 1: CMake/CTest (⭐ Best for Windows)
+
+After building with CMake:
+
+**Windows:**
+```batch
+cd bindings\shared\build_cmake
+ctest -C Release --verbose
+
+REM Or run individual tests:
+Release\test_hash_functions.exe
+Release\test_embedding_generation.exe
+Release\test_quality_improvement.exe
+Release\test_onnx_dimension.exe
+```
+
+**Linux/WSL/macOS:**
+```bash
+cd bindings/shared/build_cmake
+ctest --verbose
+
+# Or run individual tests:
+./test_hash_functions
+./test_embedding_generation
+./test_quality_improvement
+./test_onnx_dimension
+```
+
+### Option 2: Cross-Platform Test Scripts
 
 We provide cross-platform test scripts that work on both Windows and Linux/WSL:
 
