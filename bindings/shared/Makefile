@@ -152,31 +152,75 @@ $(BUILD_DIR)/onnx_embedding_loader.o: $(SRC_DIR)/onnx_embedding_loader.c
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -f $(SRC_DIR)/*.o $(SRC_DIR)/*.obj test_basic test_basic.exe
+	rm -f test_hash_functions test_hash_functions.exe
+	rm -f test_embedding_generation test_embedding_generation.exe
+	rm -f test_quality_improvement test_quality_improvement.exe
+	rm -f test_onnx_dimension test_onnx_dimension.exe
+	rm -f benchmark_improved benchmark_improved.exe
 
 # Test targets
-TEST_SOURCES = tests/test_basic.c
+TEST_SOURCES = tests/test_basic.c tests/test_hash_functions.c tests/test_embedding_generation.c tests/test_quality_improvement.c tests/test_onnx_dimension.c
 TEST_TARGET = $(BUILD_DIR)/test_basic$(if $(filter Windows_NT,$(OS)),.exe,)
+TEST_HASH_TARGET = $(BUILD_DIR)/test_hash_functions$(if $(filter Windows_NT,$(OS)),.exe,)
+TEST_EMBEDDING_TARGET = $(BUILD_DIR)/test_embedding_generation$(if $(filter Windows_NT,$(OS)),.exe,)
+TEST_QUALITY_TARGET = $(BUILD_DIR)/test_quality_improvement$(if $(filter Windows_NT,$(OS)),.exe,)
+TEST_ONNX_TARGET = $(BUILD_DIR)/test_onnx_dimension$(if $(filter Windows_NT,$(OS)),.exe,)
 
-test-build: $(TEST_TARGET)
+test-build: $(TEST_TARGET) $(TEST_HASH_TARGET) $(TEST_EMBEDDING_TARGET) $(TEST_QUALITY_TARGET) $(TEST_ONNX_TARGET)
 
-$(TEST_TARGET): $(TEST_SOURCES) $(BUILD_DIR)/$(TARGET_LIB)
-	$(CC) $(CFLAGS) $(INCLUDES) $(TEST_SOURCES) $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_TARGET) -lm -L$(BUILD_DIR)
+$(TEST_TARGET): tests/test_basic.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) tests/test_basic.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_TARGET) -lm -L$(BUILD_DIR)
 	@echo "Built: $(TEST_TARGET)"
 
-test: $(TEST_TARGET)
-	@echo "Running tests..."
+$(TEST_HASH_TARGET): tests/test_hash_functions.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) tests/test_hash_functions.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_HASH_TARGET) -lm -L$(BUILD_DIR)
+	@echo "Built: $(TEST_HASH_TARGET)"
+
+$(TEST_EMBEDDING_TARGET): tests/test_embedding_generation.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) tests/test_embedding_generation.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_EMBEDDING_TARGET) -lm -L$(BUILD_DIR)
+	@echo "Built: $(TEST_EMBEDDING_TARGET)"
+
+$(TEST_QUALITY_TARGET): tests/test_quality_improvement.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) tests/test_quality_improvement.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_QUALITY_TARGET) -lm -L$(BUILD_DIR)
+	@echo "Built: $(TEST_QUALITY_TARGET)"
+
+$(TEST_ONNX_TARGET): tests/test_onnx_dimension.c $(BUILD_DIR)/$(TARGET_LIB)
+	@if [ "$(USE_ONNX)" = "1" ]; then \
+		$(CC) $(CFLAGS) $(ONNX_FLAGS) $(INCLUDES) tests/test_onnx_dimension.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_ONNX_TARGET) -lm -L$(BUILD_DIR) $(ONNX_LIBS); \
+		echo "Built: $(TEST_ONNX_TARGET) (with ONNX support)"; \
+	else \
+		echo "Skipping $(TEST_ONNX_TARGET) (ONNX Runtime not available)"; \
+	fi
+
+test: $(TEST_TARGET) $(TEST_HASH_TARGET) $(TEST_EMBEDDING_TARGET) $(TEST_QUALITY_TARGET)
+	@echo "Running all tests..."
+	@echo "\n=== Running test_basic ==="
 	@if [ -f "$(TEST_TARGET)" ]; then \
 		LD_LIBRARY_PATH=$(BUILD_DIR) ./$(TEST_TARGET) || true; \
-	else \
-		echo "Error: Test executable not found. Run 'make test-build' first."; \
-		exit 1; \
+	fi
+	@echo "\n=== Running test_hash_functions ==="
+	@if [ -f "$(TEST_HASH_TARGET)" ]; then \
+		LD_LIBRARY_PATH=$(BUILD_DIR) ./$(TEST_HASH_TARGET) || true; \
+	fi
+	@echo "\n=== Running test_embedding_generation ==="
+	@if [ -f "$(TEST_EMBEDDING_TARGET)" ]; then \
+		LD_LIBRARY_PATH=$(BUILD_DIR) ./$(TEST_EMBEDDING_TARGET) || true; \
+	fi
+	@echo "\n=== Running test_quality_improvement ==="
+	@if [ -f "$(TEST_QUALITY_TARGET)" ]; then \
+		LD_LIBRARY_PATH=$(BUILD_DIR) ./$(TEST_QUALITY_TARGET) || true; \
+	fi
+	@if [ "$(USE_ONNX)" = "1" ] && [ -f "$(TEST_ONNX_TARGET)" ]; then \
+		echo "\n=== Running test_onnx_dimension ==="; \
+		LD_LIBRARY_PATH=$(BUILD_DIR):$(ONNX_RUNTIME_PATH)/lib ./$(TEST_ONNX_TARGET) || true; \
 	fi
 
 # Benchmark targets
 BENCHMARK_SOURCES = tests/benchmark.c
 BENCHMARK_TARGET = $(BUILD_DIR)/benchmark$(if $(filter Windows_NT,$(OS)),.exe,)
+BENCHMARK_IMPROVED_TARGET = $(BUILD_DIR)/benchmark_improved$(if $(filter Windows_NT,$(OS)),.exe,)
 
-benchmark-build: $(BENCHMARK_TARGET)
+benchmark-build: $(BENCHMARK_TARGET) $(BENCHMARK_IMPROVED_TARGET)
 
 $(BENCHMARK_TARGET): $(BENCHMARK_SOURCES) $(BUILD_DIR)/$(TARGET_LIB)
 	@echo "Building benchmark..."
@@ -187,13 +231,24 @@ $(BENCHMARK_TARGET): $(BENCHMARK_SOURCES) $(BUILD_DIR)/$(TARGET_LIB)
 	fi
 	@echo "Built: $(BENCHMARK_TARGET)"
 
-benchmark: $(BENCHMARK_TARGET)
+$(BENCHMARK_IMPROVED_TARGET): tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB)
+	@echo "Building improved benchmark..."
+	@if [ "$(USE_ONNX)" = "1" ]; then \
+		$(CC) $(CFLAGS) -O2 $(ONNX_FLAGS) $(INCLUDES) tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB) -o $(BENCHMARK_IMPROVED_TARGET) -lm -L$(BUILD_DIR) $(ONNX_LIBS); \
+	else \
+		$(CC) $(CFLAGS) -O2 $(INCLUDES) tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB) -o $(BENCHMARK_IMPROVED_TARGET) -lm -L$(BUILD_DIR); \
+	fi
+	@echo "Built: $(BENCHMARK_IMPROVED_TARGET)"
+
+benchmark: $(BENCHMARK_TARGET) $(BENCHMARK_IMPROVED_TARGET)
 	@echo "Running benchmarks..."
+	@echo "\n=== Running original benchmark ==="
 	@if [ -f "$(BENCHMARK_TARGET)" ]; then \
 		LD_LIBRARY_PATH=$(BUILD_DIR):$(ONNX_RUNTIME_PATH)/lib ./$(BENCHMARK_TARGET) || true; \
-	else \
-		echo "Error: Benchmark executable not found. Run 'make benchmark-build' first."; \
-		exit 1; \
+	fi
+	@echo "\n=== Running improved benchmark ==="
+	@if [ -f "$(BENCHMARK_IMPROVED_TARGET)" ]; then \
+		LD_LIBRARY_PATH=$(BUILD_DIR):$(ONNX_RUNTIME_PATH)/lib ./$(BENCHMARK_IMPROVED_TARGET) || true; \
 	fi
 
 # Setup targets
