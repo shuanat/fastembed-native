@@ -534,8 +534,8 @@ generate_combined_hash_asm:
 
 
 ; ============================================
-; Function: generate_embedding_improved_asm
-; Generate improved embedding with Sin/Cos normalization and positional hashing
+; Function: generate_embedding_asm
+; Generate embedding with Sin/Cos normalization and positional hashing
 ; Parameters:
 ;   PARAM1 = char* text (UTF-8, null-terminated)
 ;   PARAM2 = float* output (pre-allocated, size >= dimension)
@@ -543,8 +543,8 @@ generate_combined_hash_asm:
 ; Returns:
 ;   RAX = 0 on success, -1 on error
 ; ============================================
-global generate_embedding_improved_asm
-generate_embedding_improved_asm:
+global generate_embedding_asm
+generate_embedding_asm:
     ; Save callee-saved registers
     push rbp
     mov rbp, rsp

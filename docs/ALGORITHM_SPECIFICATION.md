@@ -15,7 +15,7 @@ This document specifies the improved hash-based embedding algorithm with Sin/Cos
 ## Function Signature
 
 ```c
-int generate_embedding_improved(
+int generate_embedding_asm(
     const char *text,      // Input text (UTF-8, null-terminated)
     float *output,         // Output array (pre-allocated, size >= dimension)
     int dimension          // Embedding dimension (128, 256, 512, 768, 1024, 2048)
@@ -23,6 +23,7 @@ int generate_embedding_improved(
 ```
 
 **Returns**:
+
 - `0`: Success
 - `-1`: Error (invalid input, dimension not supported, etc.)
 
@@ -59,6 +60,7 @@ hash1 = positional_hash(text, text_length, seed=i)
 ```
 
 **Positional Hash Algorithm**:
+
 ```
 hash = seed
 For each character position j (0..text_length-1):
@@ -68,6 +70,7 @@ For each character position j (0..text_length-1):
 ```
 
 **Mathematical Formula**:
+
 ```
 hash1 = i * 31 + Σ(char_j * (j + 1) * 31^(text_length - j - 1))
 ```
@@ -91,6 +94,7 @@ combined = hash1 ^ (hash2 << 16)
 **Purpose**: XOR operation combines hashes, bit shift adds variation.
 
 **Mathematical Properties**:
+
 - XOR preserves entropy
 - Bit shift adds positional variation
 - Reduces correlation between dimensions
@@ -102,10 +106,12 @@ normalized_value = sin((combined % SCALE) / SCALE * 2π)
 ```
 
 Where:
+
 - `SCALE = 2^31` (or `2^32` for better precision)
 - Result: `normalized_value ∈ [-1, 1]`
 
 **Mathematical Justification**:
+
 - Sin function maps to `[-1, 1]` range
 - Provides non-linear normalization
 - Reduces correlation between dimensions
@@ -127,7 +133,7 @@ return 0
 ## Complete Algorithm Pseudocode
 
 ```
-function generate_embedding_improved(text, output, dimension):
+function generate_embedding_asm(text, output, dimension):
     // Step 1: Input Validation
     if text == NULL or output == NULL:
         return -1
@@ -213,12 +219,14 @@ function generate_embedding_improved(text, output, dimension):
 **Property**: For the same input `(text, dimension)`, the algorithm always produces the same output.
 
 **Mathematical Proof**:
+
 1. Hash functions are deterministic
 2. Sin function is deterministic
 3. All operations are deterministic (no randomness)
 4. No external state (no global variables)
 
 **Verification**:
+
 ```
 generate_embedding_improved("Hello", output1, 128)
 generate_embedding_improved("Hello", output2, 128)
@@ -275,6 +283,7 @@ assert output1 == output2  // Always true
 ### Assembly Optimization
 
 The algorithm will be implemented in x86-64 assembly for performance:
+
 - SIMD instructions for parallel processing
 - Optimized hash calculation
 - Fast Sin approximation (SSE4)
@@ -322,4 +331,3 @@ The algorithm will be implemented in x86-64 assembly for performance:
 ---
 
 **End of Specification**
-
