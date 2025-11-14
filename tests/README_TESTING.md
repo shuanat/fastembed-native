@@ -68,16 +68,19 @@ gcc -O2 -Wall -DUSE_ONNX_RUNTIME -I../../bindings/shared/include \
 We provide cross-platform test scripts that work on both Windows and Linux/WSL:
 
 **Linux/WSL:**
+
 ```bash
 scripts/test_shared_linux.sh
 ```
 
 **Windows:**
+
 ```batch
 scripts\test_shared_windows.bat
 ```
 
 These scripts will:
+
 - Check if the library is built
 - Run all available tests
 - Provide a summary of passed/failed tests
