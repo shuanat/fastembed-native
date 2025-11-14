@@ -92,3 +92,7 @@ benchmark_final_output.txt
 # Keep main benchmark documentation
 !BENCHMARK_RESULTS.md
 !ONNX_BENCHMARK_REPORT.md
+
+# Internal development artifacts (not for public repository)
+plans/
+reports/

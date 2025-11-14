@@ -78,7 +78,8 @@ typedef struct {
   OrtSession *session;                /* Loaded session */
   OrtAllocator *allocator;            /* Allocator for names */
   char *output_name;                  /* Cached output name */
-  int is_loaded;                      /* Flag: is session loaded */
+  int output_dimension; /* Cached output dimension (-1 if not detected) */
+  int is_loaded;        /* Flag: is session loaded */
 } CachedModelSession;
 
 /**
@@ -119,7 +120,10 @@ static int init_onnx_api(void) {
 #ifdef _WIN32
   // On Windows, set DLL directory to prefer loading from current directory
   // This ensures we use the correct onnxruntime.dll, not the system one
-  HMODULE hModule = GetModuleHandleA("fastembed_jni.dll");
+  HMODULE hModule = GetModuleHandleA("fastembed_native.node");
+  if (hModule == NULL) {
+    hModule = GetModuleHandleA("fastembed_jni.dll");
+  }
   if (hModule == NULL) {
     hModule = GetModuleHandleA("fastembed.dll");
   }
@@ -298,6 +302,48 @@ static int load_or_get_cached_session(const char *model_path,
   if (cached->output_name == NULL) {
     fprintf(stderr, "Failed to get output name from model\n");
     return -1;
+  }
+
+  /* Get output dimension from model metadata */
+  OrtTypeInfo *type_info = NULL;
+  OrtTensorTypeAndShapeInfo *tensor_info = NULL;
+  cached->output_dimension = -1; /* Initialize as unknown */
+
+  CHECK_ORT_STATUS(
+      g_ort->SessionGetOutputTypeInfo(cached->session, 0, &type_info));
+
+  if (type_info != NULL) {
+    const OrtTensorTypeAndShapeInfo *tensor_info_const = NULL;
+    CHECK_ORT_STATUS(
+        g_ort->CastTypeInfoToTensorInfo(type_info, &tensor_info_const));
+
+    if (tensor_info_const != NULL) {
+      size_t num_dims = 0;
+      CHECK_ORT_STATUS(g_ort->GetDimensionsCount(tensor_info_const, &num_dims));
+
+      if (num_dims >= 2) {
+        /* Output shape is typically [batch_size, sequence_length, hidden_dim]
+         * or [batch_size, hidden_dim] */
+        /* For embeddings, we want the last dimension (hidden_dim) */
+        int64_t *dims = (int64_t *)malloc(num_dims * sizeof(int64_t));
+        if (dims != NULL) {
+          CHECK_ORT_STATUS(
+              g_ort->GetDimensions(tensor_info_const, dims, num_dims));
+          /* Get last dimension (embedding dimension) */
+          cached->output_dimension = (int)dims[num_dims - 1];
+          free(dims);
+        }
+      } else if (num_dims == 1) {
+        /* Single dimension output */
+        int64_t dim = 0;
+        CHECK_ORT_STATUS(g_ort->GetDimensions(tensor_info_const, &dim, 1));
+        cached->output_dimension = (int)dim;
+      }
+    }
+
+    if (type_info) {
+      g_ort->ReleaseTypeInfo(type_info);
+    }
   }
 
   /* Save resolved path and mark as loaded */
@@ -590,6 +636,57 @@ int onnx_unload_model(void) {
   memset(&g_cached_session, 0, sizeof(CachedModelSession));
 
   return 0;
+}
+
+/**
+ * @brief Get model output dimension
+ *
+ * Returns the output dimension of the ONNX model. If the model is already
+ * loaded (cached), returns the cached dimension. Otherwise, loads the model
+ * to detect the dimension.
+ *
+ * @param model_path Path to .onnx model file
+ * @return Model output dimension on success, -1 on error (model not found,
+ * invalid model, dimension detection failed)
+ *
+ * @note The dimension is cached per model path
+ * @note Returns -1 if ONNX Runtime is not available
+ */
+int onnx_get_model_dimension(const char *model_path) {
+  /* Clear previous error */
+  g_last_error[0] = '\0';
+
+  /* Validate input */
+  if (!model_path) {
+    SAVE_ERROR("Invalid model_path: NULL");
+    return -1;
+  }
+
+#ifdef USE_ONNX_RUNTIME
+  /* Initialize ONNX Runtime API */
+  if (init_onnx_api() != 0) {
+    SAVE_ERROR("Failed to initialize ONNX Runtime API");
+    return -1;
+  }
+
+  /* Load or get cached session (this will detect dimension if not cached) */
+  if (load_or_get_cached_session(model_path, &g_cached_session) != 0) {
+    SAVE_ERROR("Failed to load model session for: %s", model_path);
+    return -1;
+  }
+
+  /* Return cached dimension */
+  if (g_cached_session.output_dimension > 0) {
+    return g_cached_session.output_dimension;
+  }
+
+  /* Dimension detection failed */
+  SAVE_ERROR("Failed to detect model output dimension for: %s", model_path);
+  return -1;
+#else
+  SAVE_ERROR("ONNX Runtime not available (compiled without USE_ONNX_RUNTIME)");
+  return -1;
+#endif
 }
 
 /**
