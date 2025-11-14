@@ -40,16 +40,26 @@ if exist "%BUILD_DIR%\fastembed.dll" (
     echo Found library: fastembed.dll
 )
 if !LIB_FOUND! equ 0 (
-    echo Library not found. Attempting to build...
-    cd "%SHARED_DIR%"
-    make all
-    if !errorlevel! neq 0 (
-        echo ERROR: Failed to build library
+    echo Library not found. Attempting to build using build_windows.bat...
+    echo.
+    REM Try to use build_windows.bat (native Windows build)
+    if exist "%PROJECT_ROOT%\scripts\build_windows.bat" (
+        call "%PROJECT_ROOT%\scripts\build_windows.bat"
+        if !errorlevel! neq 0 (
+            echo.
+            echo ERROR: Failed to build library using build_windows.bat
+            echo.
+            echo Please try one of these options:
+            echo   1. Use WSL: wsl bash -c "cd /mnt/g/GitHub/KAG-workspace/FastEmbed/bindings/shared && make all"
+            echo   2. Install MSYS2 or MinGW and use: cd bindings\shared && make all
+            echo   3. Use Visual Studio and build manually
+            exit /b 1
+        )
+    ) else (
+        echo ERROR: build_windows.bat not found
         echo Please build manually:
         echo   cd %SHARED_DIR%
-        echo   make all
-        echo   OR
-        echo   scripts\build_windows.bat
+        echo   Use WSL or install build tools
         exit /b 1
     )
     cd "%PROJECT_ROOT%"
@@ -64,17 +74,21 @@ if !LIB_FOUND! equ 0 (
 
 REM Check if tests are built, if not, try to build them
 if not exist "%BUILD_DIR%\test_hash_functions.exe" (
-    echo Tests not found. Attempting to build tests...
-    cd "%SHARED_DIR%"
-    make test-build
-    if !errorlevel! neq 0 (
-        echo ERROR: Failed to build tests
-        echo Please build manually:
-        echo   cd %SHARED_DIR%
-        echo   make test-build
-        exit /b 1
-    )
-    cd "%PROJECT_ROOT%"
+    echo Tests not found. They need to be built using WSL or Unix-like environment.
+    echo.
+    echo Please build tests manually using one of these methods:
+    echo.
+    echo   Option 1 - WSL (Recommended):
+    echo   wsl bash -c "cd /mnt/g/GitHub/KAG-workspace/FastEmbed/bindings/shared && make test-build"
+    echo.
+    echo   Option 2 - Linux script:
+    echo   wsl bash scripts/test_shared_linux.sh
+    echo.
+    echo   Option 3 - MSYS2/MinGW:
+    echo   cd bindings\shared
+    echo   make test-build
+    echo.
+    exit /b 1
 )
 
 set "FAILED=0"
