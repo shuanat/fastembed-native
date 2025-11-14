@@ -42,6 +42,19 @@ int generate_embedding_asm(
 6. If text_length > MAX_TEXT_LENGTH → return -1
 ```
 
+### Step 1.5: Text Normalization (Case-Insensitive)
+
+```
+1. Create normalized_text buffer (size: text_length + 1)
+2. For each character in text:
+   - normalized_text[i] = tolower(text[i])
+3. Set normalized_text[text_length] = '\0'
+4. Use normalized_text for all subsequent operations
+
+Note: This ensures "Hello" and "hello" produce identical embeddings,
+      improving search quality and consistency with ONNX loader.
+```
+
 ### Step 2: Initialize
 
 ```
@@ -231,6 +244,11 @@ function generate_embedding_asm(text, output, dimension):
 generate_embedding_asm("Hello", output1, 128)
 generate_embedding_asm("Hello", output2, 128)
 assert output1 == output2  // Always true
+
+// Case-insensitive behavior:
+generate_embedding_asm("Hello", output1, 128)
+generate_embedding_asm("hello", output2, 128)
+assert output1 == output2  // Always true (case-insensitive)
 ```
 
 ---
