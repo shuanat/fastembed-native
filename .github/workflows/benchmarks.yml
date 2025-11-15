@@ -243,23 +243,120 @@ jobs:
 
       - name: Aggregate results
         run: |
-          echo "# Benchmark Results - $(date +%Y-%m-%d)" > BENCHMARK_RESULTS_CI.md
-          echo "" >> BENCHMARK_RESULTS_CI.md
-          echo "## Linux x64" >> BENCHMARK_RESULTS_CI.md
-          echo '```' >> BENCHMARK_RESULTS_CI.md
-          cat benchmark-results/benchmark-results-linux/*.txt >> BENCHMARK_RESULTS_CI.md 2>/dev/null || echo "No results" >> BENCHMARK_RESULTS_CI.md
-          echo '```' >> BENCHMARK_RESULTS_CI.md
-          echo "" >> BENCHMARK_RESULTS_CI.md
-          echo "## Windows x64" >> BENCHMARK_RESULTS_CI.md
-          echo '```' >> BENCHMARK_RESULTS_CI.md
-          cat benchmark-results/benchmark-results-windows/*.txt >> BENCHMARK_RESULTS_CI.md 2>/dev/null || echo "No results" >> BENCHMARK_RESULTS_CI.md
-          echo '```' >> BENCHMARK_RESULTS_CI.md
-          echo "" >> BENCHMARK_RESULTS_CI.md
-          echo "## macOS ARM64 (Apple Silicon)" >> BENCHMARK_RESULTS_CI.md
-          echo '```' >> BENCHMARK_RESULTS_CI.md
-          cat benchmark-results/benchmark-results-macos-arm64/*.txt >> BENCHMARK_RESULTS_CI.md 2>/dev/null || echo "No results" >> BENCHMARK_RESULTS_CI.md
-          echo '```' >> BENCHMARK_RESULTS_CI.md
-          cat BENCHMARK_RESULTS_CI.md
+          cat > aggregate_benchmarks.sh << 'EOF'
+          #!/bin/bash
+
+          # Function to extract benchmark data from text file
+          extract_benchmark_data() {
+            local file="$1"
+            local platform="$2"
+            
+            if [ ! -f "$file" ]; then
+              return
+            fi
+            
+            # Extract dimension, avg time, and throughput from table format
+            # Format: "  DIM    | AVG_TIME    | THROUGHPUT"
+            grep -E "^\s+[0-9]+\s+\|\s+[0-9]+\.[0-9]+\s+\|\s+[0-9]+" "$file" | while read line; do
+              dimension=$(echo "$line" | awk -F'|' '{print $1}' | xargs)
+              avg_time=$(echo "$line" | awk -F'|' '{print $2}' | xargs)
+              throughput=$(echo "$line" | awk -F'|' '{print $3}' | xargs)
+              
+              # Get text label from context (look for "=== Benchmark:" line before)
+              text_label=$(grep -B 5 "$line" "$file" | grep "=== Benchmark:" | head -1 | sed 's/=== Benchmark: //' | sed 's/ ===//' | xargs)
+              
+              if [ -n "$dimension" ] && [ -n "$avg_time" ] && [ -n "$throughput" ]; then
+                echo "${platform}|${text_label}|${dimension}|${avg_time}|${throughput}"
+              fi
+            done
+          }
+
+          # Output file
+          OUTPUT="BENCHMARK_RESULTS_CI.md"
+
+          # Header
+          echo "# Benchmark Results - $(date +%Y-%m-%d)" > "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "## Summary" >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "Performance benchmarks across all platforms and language bindings." >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+
+          # Extract data from all platforms
+          TEMP_DATA=$(mktemp)
+
+          # Linux
+          for file in benchmark-results/benchmark-results-linux/*.txt; do
+            extract_benchmark_data "$file" "Linux x64" >> "$TEMP_DATA"
+          done
+
+          # Windows
+          for file in benchmark-results/benchmark-results-windows/*.txt; do
+            extract_benchmark_data "$file" "Windows x64" >> "$TEMP_DATA"
+          done
+
+          # macOS ARM64
+          for file in benchmark-results/benchmark-results-macos-arm64/*.txt; do
+            extract_benchmark_data "$file" "macOS ARM64" >> "$TEMP_DATA"
+          done
+
+          # Generate tables by text length
+          for text_type in "Short (~5 chars)" "Medium (~40 chars)" "Long (~250 chars)"; do
+            echo "### $text_type" >> "$OUTPUT"
+            echo "" >> "$OUTPUT"
+            echo "| Platform | Dimension | Avg Time (ms) | Throughput (emb/s) |" >> "$OUTPUT"
+            echo "|----------|----------|---------------|---------------------|" >> "$OUTPUT"
+            
+            grep "|${text_type}|" "$TEMP_DATA" | sort -t'|' -k3 -n | while IFS='|' read -r platform label dimension avg_time throughput; do
+              printf "| %s | %s | %.4f | %.0f |\n" "$platform" "$dimension" "$avg_time" "$throughput" >> "$OUTPUT"
+            done
+            
+            echo "" >> "$OUTPUT"
+          done
+
+          # Overall comparison table
+          echo "## Overall Performance Comparison" >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "| Platform | 128D (ms) | 768D (ms) | Best Throughput (emb/s) |" >> "$OUTPUT"
+          echo "|----------|-----------|-----------|-------------------------|" >> "$OUTPUT"
+
+          for platform in "Linux x64" "Windows x64" "macOS ARM64"; do
+            dim128=$(grep "^${platform}|" "$TEMP_DATA" | grep "|128|" | head -1 | cut -d'|' -f4)
+            dim768=$(grep "^${platform}|" "$TEMP_DATA" | grep "|768|" | head -1 | cut -d'|' -f4)
+            best_throughput=$(grep "^${platform}|" "$TEMP_DATA" | cut -d'|' -f5 | sort -n | tail -1)
+            
+            if [ -n "$dim128" ] && [ -n "$dim768" ] && [ -n "$best_throughput" ]; then
+              printf "| %s | %.4f | %.4f | %.0f |\n" "$platform" "$dim128" "$dim768" "$best_throughput" >> "$OUTPUT"
+            fi
+          done
+
+          echo "" >> "$OUTPUT"
+          echo "## Raw Results" >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "### Linux x64" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          cat benchmark-results/benchmark-results-linux/*.txt >> "$OUTPUT" 2>/dev/null || echo "No results" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "### Windows x64" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          cat benchmark-results/benchmark-results-windows/*.txt >> "$OUTPUT" 2>/dev/null || echo "No results" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "### macOS ARM64 (Apple Silicon)" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          cat benchmark-results/benchmark-results-macos-arm64/*.txt >> "$OUTPUT" 2>/dev/null || echo "No results" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+
+          # Cleanup
+          rm -f "$TEMP_DATA"
+
+          # Display result
+          cat "$OUTPUT"
+          EOF
+
+          chmod +x aggregate_benchmarks.sh
+          ./aggregate_benchmarks.sh
 
       - name: Upload aggregated results
         uses: actions/upload-artifact@v4
