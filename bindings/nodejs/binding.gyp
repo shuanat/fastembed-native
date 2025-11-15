@@ -15,6 +15,7 @@
       "defines": ["NAPI_DISABLE_CPP_EXCEPTIONS", "USE_ONNX_RUNTIME"],
       "conditions": [
         ["OS=='win'", {
+          "defines": ["FASTEMBED_BUILDING_LIB"],
           "sources": [
             "../shared/src/embedding_lib.asm",
             "../shared/src/embedding_generator.asm"

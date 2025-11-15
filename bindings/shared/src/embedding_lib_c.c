@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef USE_ONLY_C
 /** External assembly function: dot product of two vectors (SIMD-optimized) */
 extern float dot_product_asm(float *vector_a, float *vector_b, int dimension);
 /** External assembly function: cosine similarity between two vectors
@@ -51,6 +52,84 @@ extern int generate_embedding_asm(const char *text, float *output,
                                   int dimension);
 /** External assembly function: hash text to 64-bit value */
 extern uint64_t simple_text_hash(const char *text, int text_length, int seed);
+#else
+/* C-only mode: Provide C implementations */
+
+/** C implementation: dot product */
+static float dot_product_asm(float *vector_a, float *vector_b, int dimension) {
+  float sum = 0.0f;
+  for (int i = 0; i < dimension; i++) {
+    sum += vector_a[i] * vector_b[i];
+  }
+  return sum;
+}
+
+/** C implementation: cosine similarity */
+static float cosine_similarity_asm(float *vector_a, float *vector_b, int dimension) {
+  float dot = 0.0f, norm_a = 0.0f, norm_b = 0.0f;
+  for (int i = 0; i < dimension; i++) {
+    dot += vector_a[i] * vector_b[i];
+    norm_a += vector_a[i] * vector_a[i];
+    norm_b += vector_b[i] * vector_b[i];
+  }
+  float magnitude = sqrtf(norm_a) * sqrtf(norm_b);
+  return (magnitude > 0.0f) ? (dot / magnitude) : 0.0f;
+}
+
+/** C implementation: vector norm */
+static float vector_norm_asm(float *vector, int dimension) {
+  float sum = 0.0f;
+  for (int i = 0; i < dimension; i++) {
+    sum += vector[i] * vector[i];
+  }
+  return sqrtf(sum);
+}
+
+/** C implementation: normalize vector */
+static void normalize_vector_asm(float *vector, int dimension) {
+  float norm = vector_norm_asm(vector, dimension);
+  if (norm > 0.0f) {
+    for (int i = 0; i < dimension; i++) {
+      vector[i] /= norm;
+    }
+  }
+}
+
+/** C implementation: add vectors */
+static void add_vectors_asm(float *vector_a, float *vector_b, float *result, int dimension) {
+  for (int i = 0; i < dimension; i++) {
+    result[i] = vector_a[i] + vector_b[i];
+  }
+}
+
+/** C implementation: generate embedding (placeholder - calls hash function) */
+static int generate_embedding_asm(const char *text, float *output, int dimension) {
+  /* Simple hash-based implementation for C-only mode */
+  size_t text_len = strlen(text);
+  for (int i = 0; i < dimension; i++) {
+    /* Use simple hash function with position-dependent seed */
+    uint32_t hash = 2166136261u; /* FNV-1a offset basis */
+    for (size_t j = 0; j < text_len; j++) {
+      hash ^= (uint8_t)text[j];
+      hash *= 16777619u; /* FNV-1a prime */
+      hash ^= (uint32_t)(i + j); /* Position-dependent mixing */
+    }
+    /* Normalize to [-1, 1] range using sine */
+    output[i] = sinf((float)hash / (float)UINT32_MAX * 2.0f * 3.14159265f);
+  }
+  return 0;
+}
+
+/** C implementation: simple text hash */
+static uint64_t simple_text_hash(const char *text, int text_length, int seed) {
+  uint64_t hash = 14695981039346656037ULL + (uint64_t)seed; /* FNV-1a offset */
+  for (int i = 0; i < text_length; i++) {
+    hash ^= (uint8_t)text[i];
+    hash *= 1099511628211ULL; /* FNV-1a prime */
+  }
+  return hash;
+}
+#endif /* USE_ONLY_C */
 
 /**
  * @brief Check if dimension is valid (supported dimension)
