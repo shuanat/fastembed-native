@@ -118,7 +118,12 @@ static int generate_embedding_asm(const char *text, float *output,
       hash ^= (uint32_t)(i + j); /* Position-dependent mixing */
     }
     /* Normalize to [-1, 1] range using sine */
-    output[i] = sinf((float)hash / (float)UINT32_MAX * 2.0f * 3.14159265f);
+    /* Use fmodf to ensure input to sinf stays in valid range */
+    float normalized = (float)hash / (float)UINT32_MAX;
+    float angle = fmodf(normalized * 2.0f * 3.14159265f, 2.0f * 3.14159265f);
+    float result = sinf(angle);
+    /* Guard against NaN (should not happen but safety first) */
+    output[i] = isnan(result) ? 0.0f : result;
   }
   return 0;
 }
