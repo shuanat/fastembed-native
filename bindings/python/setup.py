@@ -100,20 +100,37 @@ class CMakeBuild(build_ext):
             import platform
             is_macos_arm64 = IS_MACOS and platform.machine() == 'arm64'
             
+            import os
+            import subprocess
+            obj_dir = os.path.join(os.getcwd(), "build", "temp")
+            os.makedirs(obj_dir, exist_ok=True)
+            
             if is_macos_arm64:
-                # macOS arm64: Use C-only implementation (no assembly)
-                # Assembly is x86_64 only and will cause linking issues on arm64
-                extra_objects = []
-                print("macOS arm64 detected - using C-only implementation (no assembly)")
+                # macOS arm64: Use native ARM64 NEON assembly
+                print("macOS arm64 detected - using ARM64 NEON assembly")
+                
+                asm_files = [
+                    ("../shared/src/embedding_lib_arm64.s", os.path.join(obj_dir, "embedding_lib_arm64.o")),
+                    ("../shared/src/embedding_generator_arm64.s", os.path.join(obj_dir, "embedding_generator_arm64.o"))
+                ]
+                
+                for asm_src, asm_obj in asm_files:
+                    if not os.path.exists(asm_obj):
+                        cmd = ["as", "-arch", "arm64", asm_src, "-o", asm_obj]
+                        
+                        try:
+                            subprocess.run(cmd, check=True)
+                        except subprocess.CalledProcessError:
+                            raise RuntimeError(f"Failed to compile {asm_src}")
+                        except FileNotFoundError:
+                            raise RuntimeError(
+                                "ARM64 assembler (as) not found. Please install Xcode Command Line Tools:\n"
+                                "  xcode-select --install"
+                            )
+                
+                extra_objects = [obj for _, obj in asm_files]
             else:
                 # Linux or macOS x86_64: Compile assembly files with NASM
-                import os
-                obj_dir = os.path.join(os.getcwd(), "build", "temp")
-                os.makedirs(obj_dir, exist_ok=True)
-                
-                # Compile assembly files
-                import subprocess
-                
                 asm_files = [
                     ("../shared/src/embedding_lib.asm", os.path.join(obj_dir, "embedding_lib.o")),
                     ("../shared/src/embedding_generator.asm", os.path.join(obj_dir, "embedding_generator.o"))

@@ -80,10 +80,10 @@
         }],
         ["OS=='mac'", {
           "sources": [
-            # macOS arm64: Use C-only implementation (no assembly)
-            # Assembly is x86_64 only and causes segfaults on arm64
+            # macOS: ARM64 NEON assembly for Apple Silicon
+            "../shared/src/embedding_lib_arm64.s",
+            "../shared/src/embedding_generator_arm64.s"
           ],
-          "defines": ["USE_ONLY_C"],
           "include_dirs": [
             "<(module_root_dir)/../../bindings/onnxruntime/include"
           ],

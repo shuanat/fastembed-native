@@ -44,19 +44,18 @@ ifeq ($(OS),Windows_NT)
 endif
 
 # ============================================================================
-# Phase 1, Task 1.3: macOS arm64 C-only implementation
+# Phase 1, Task 1.3: macOS arm64 NEON assembly implementation
 # ============================================================================
-# Skip assembly on macOS arm64 due to persistent NASM architecture mismatch
-# issues (Rosetta emulation, x86_64 vs arm64 object file conflicts).
-# C-only implementation is stable and performance impact is acceptable.
+# Use native ARM64 NEON assembly on Apple Silicon for optimal performance
+# Replaces previous C-only fallback with proper ARM64 SIMD support
 ifeq ($(UNAME_S),Darwin)
     ARCH := $(shell uname -m)
     ifeq ($(ARCH),arm64)
         $(info ========================================)
-        $(info macOS arm64 detected - Building C-only)
-        $(info Assembly disabled due to NASM/Rosetta)
+        $(info macOS arm64 detected - Building with ARM64 NEON)
+        $(info Using native ARM64 assembly for maximum performance)
         $(info ========================================)
-        USE_ONLY_C = 1
+        USE_ARM64_ASM = 1
     endif
 endif
 
@@ -69,14 +68,19 @@ BUILD_DIR = build
 $(shell mkdir -p $(BUILD_DIR))
 
 # Source files
-# Conditional assembly sources (disabled for macOS arm64 - see Phase 1, Task 1.3)
-ifndef USE_ONLY_C
+# Conditional assembly sources based on architecture
+ifdef USE_ARM64_ASM
+    # ARM64 NEON assembly (macOS Apple Silicon)
+    ASM_SOURCES = $(SRC_DIR)/embedding_lib_arm64.s $(SRC_DIR)/embedding_generator_arm64.s
+    OBJECTS = $(BUILD_DIR)/embedding_lib_arm64.o $(BUILD_DIR)/embedding_generator_arm64.o $(BUILD_DIR)/embedding_lib_c.o
+    ASM_COMPILER = as
+    ASM_FLAGS = -arch arm64
+else
+    # x86_64 assembly (Linux/Windows/macOS Intel)
     ASM_SOURCES = $(SRC_DIR)/embedding_lib.asm $(SRC_DIR)/embedding_generator.asm
     OBJECTS = $(BUILD_DIR)/embedding_lib$(OBJ_EXT) $(BUILD_DIR)/embedding_generator$(OBJ_EXT) $(BUILD_DIR)/embedding_lib_c.o
-else
-    # C-only mode (macOS arm64)
-    ASM_SOURCES =
-    OBJECTS = $(BUILD_DIR)/embedding_lib_c.o
+    ASM_COMPILER = $(NASM)
+    ASM_FLAGS = $(NASM_FLAGS)
 endif
 C_SOURCES = $(SRC_DIR)/embedding_lib_c.c
 CLI_SOURCES = $(SRC_DIR)/vector_ops_cli.c $(SRC_DIR)/embedding_gen_cli.c
@@ -123,21 +127,21 @@ $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,): $(BUILD_DI
 	$(CC) $(CFLAGS) $(BUILD_DIR)/embedding_gen_cli.o $(BUILD_DIR)/$(TARGET_LIB) -o $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,) -lm
 	@echo "Built: $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,)"
 
-# Compile assembly files (skipped if USE_ONLY_C=1)
-# Use $(NASM) variable which can be overridden from environment (e.g., "arch -arm64 nasm")
-ifndef USE_ONLY_C
+# Compile assembly files
+# ARM64 NEON (.s) or x86_64 NASM (.asm) based on architecture
+ifdef USE_ARM64_ASM
+# ARM64 NEON assembly (macOS Apple Silicon)
+$(BUILD_DIR)/%_arm64.o: $(SRC_DIR)/%_arm64.s
+	$(ASM_COMPILER) $(ASM_FLAGS) $< -o $@
+else
+# x86_64 assembly (Linux/Windows/macOS Intel)
 $(BUILD_DIR)/%$(OBJ_EXT): $(SRC_DIR)/%.asm
-	$(NASM) $(NASM_FLAGS) $< -o $@
+	$(ASM_COMPILER) $(ASM_FLAGS) $< -o $@
 endif
 
 # Compile C files
-# Pass USE_ONLY_C flag if in C-only mode (macOS arm64)
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
-ifeq ($(USE_ONLY_C),1)
-	$(CC) $(CFLAGS) $(INCLUDES) -DUSE_ONLY_C -c $< -o $@
-else
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
-endif
 
 # ONNX Runtime support
 # Auto-detect ONNX Runtime: first check project root, then current dir, then /usr/local
