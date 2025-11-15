@@ -75,12 +75,35 @@ echo.
 
 REM Setup Visual Studio paths
 REM First check if GitHub Actions has already set up MSVC (via microsoft/setup-msbuild@v2)
+REM Check multiple possible environment variables set by setup-msbuild
 if defined VCToolsInstallDir (
     echo [INFO] Using Visual Studio environment from GitHub Actions
+    echo [INFO] VCToolsInstallDir: !VCToolsInstallDir!
     REM Verify cl.exe is available
     where cl >nul 2>&1
     if !errorlevel! equ 0 (
         echo [INFO] MSVC compiler found in PATH
+        goto :vs_ready
+    )
+    REM Try to add VCToolsInstallDir to PATH if cl.exe not found
+    if exist "!VCToolsInstallDir!\bin\Hostx64\x64\cl.exe" (
+        set "PATH=!VCToolsInstallDir!\bin\Hostx64\x64;!PATH!"
+        echo [INFO] Added VCToolsInstallDir to PATH
+        where cl >nul 2>&1
+        if !errorlevel! equ 0 (
+            echo [INFO] MSVC compiler found after PATH update
+            goto :vs_ready
+        )
+    )
+)
+REM Also check for MSBuild environment variables
+if defined MSBUILD (
+    echo [INFO] MSBuild found: !MSBUILD!
+    REM Extract VS path from MSBuild path
+    for %%I in ("!MSBUILD!") do set "VS_PATH=%%~dpI..\..\.."
+    if exist "!VS_PATH!\VC\Auxiliary\Build\vcvars64.bat" (
+        echo [INFO] Found Visual Studio at: !VS_PATH!
+        call "!VS_PATH!\VC\Auxiliary\Build\vcvars64.bat"
         goto :vs_ready
     )
 )

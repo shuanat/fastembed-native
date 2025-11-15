@@ -484,6 +484,8 @@ jobs:
           if [ "$ARCH" = "arm64" ]; then
             export CC="clang -arch arm64"
             export CXX="clang++ -arch arm64"
+            # NASM doesn't support -arch flag, but macho64 format creates files for current architecture
+            # We need to ensure NASM creates arm64 files by using the correct format
             export NASM_FLAGS="-f macho64"
             export ARCH_FLAGS="-arch arm64"
           else
@@ -496,7 +498,9 @@ jobs:
           echo "::notice::Architecture: $ARCH"
           echo "::notice::CC: $CC"
           echo "::notice::NASM_FLAGS: $NASM_FLAGS"
-          make clean || true
+          # Force complete clean to remove any old object files with wrong architecture
+          rm -rf build
+          mkdir -p build
           make all
           make shared
 
