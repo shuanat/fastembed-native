@@ -38,6 +38,7 @@
         <junit.version>5.9.3</junit.version>
         <maven.native.skip>false</maven.native.skip>
         <maven.javah.skip>true</maven.javah.skip>
+        <maven.native.link.skip>true</maven.native.link.skip>
         <maven.native.javah.phase>process-classes</maven.native.javah.phase>
         <maven.native.compile.phase>compile</maven.native.compile.phase>
         <maven.native.link.phase>compile</maven.native.link.phase>
@@ -143,6 +144,7 @@
                             <goal>javah</goal>
                         </goals>
                         <configuration>
+                            <skip>${maven.javah.skip}</skip>
                             <javahClassNames>
                                 <javahClassName>com.fastembed.FastEmbed</javahClassName>
                             </javahClassNames>
@@ -162,6 +164,9 @@
                         <goals>
                             <goal>link</goal>
                         </goals>
+                        <configuration>
+                            <skip>${maven.native.link.skip}</skip>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
