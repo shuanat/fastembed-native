@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\FastEmbed.csproj" />
+  </ItemGroup>
+
+  <!-- Include native libraries in output -->
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <None Include="..\..\shared\lib\fastembed_native.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\shared\lib\fastembed_native.dll')" />
+    <!-- ONNX Runtime DLL -->
+    <None Include="..\..\onnxruntime\lib\onnxruntime.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\onnxruntime\lib\onnxruntime.dll')" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+    <!-- Linux -->
+    <None Include="..\..\shared\lib\libfastembed_native.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\shared\lib\libfastembed_native.so')" />
+    <None Include="..\..\onnxruntime\lib\libonnxruntime.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\onnxruntime\lib\libonnxruntime.so')" />
+    <None Include="..\..\onnxruntime\lib\libonnxruntime.so.*" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\onnxruntime\lib\libonnxruntime.so')" />
+    <!-- macOS -->
+    <None Include="..\..\shared\lib\libfastembed_native.dylib" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\shared\lib\libfastembed_native.dylib')" />
+    <None Include="..\..\onnxruntime\lib\libonnxruntime.dylib" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\onnxruntime\lib\libonnxruntime.dylib')" />
+    <None Include="..\..\onnxruntime\lib\libonnxruntime.*.dylib" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\onnxruntime\lib\libonnxruntime.dylib')" />
+  </ItemGroup>
+
+</Project>
+

@@ -1,0 +1,28 @@
+# Dockerfile for Python wheel testing
+FROM ubuntu:24.04
+
+# Install Python build dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    build-essential \
+    nasm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy project files
+COPY . .
+
+# Test Python wheel build
+CMD ["/bin/bash", "-c", "\
+    echo '=== Testing Python Wheel Build ===' && \
+    cd bindings/python && \
+    pip3 install --break-system-packages build wheel pybind11 numpy setuptools && \
+    python3 -m build --wheel && \
+    echo '=== Wheel built successfully ===' && \
+    ls -lh dist/ \
+"]
+

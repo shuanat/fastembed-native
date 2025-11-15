@@ -37,13 +37,13 @@
  * @note Embedding dimension is fixed at 768 (BERT-base size)
  */
 
+#include "../include/fastembed.h"
+#include "../include/fastembed_config.h"
+#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <math.h>
-#include "../include/fastembed_config.h"
-#include "embedding_lib_c.h"
 
 #define MAX_TEXT_LENGTH FASTEMBED_MAX_TEXT_LENGTH
 #define EMBEDDING_DIM FASTEMBED_EMBEDDING_DIM
@@ -68,44 +68,38 @@
  * @note Empty input or read failure results in error
  * @note Output is always to stdout, errors to stderr
  */
-int main(int argc, char *argv[])
-{
-    char text_buffer[MAX_TEXT_LENGTH];
-    float output[EMBEDDING_DIM];
+int main(int argc, char *argv[]) {
+  char text_buffer[MAX_TEXT_LENGTH];
+  float output[EMBEDDING_DIM];
 
-    /* Read text from stdin (supports piping and redirection) */
-    if (fgets(text_buffer, sizeof(text_buffer), stdin) == NULL)
-    {
-        fprintf(stderr, "{\"error\":\"Failed to read input\"}\n");
-        return 1;
+  /* Read text from stdin (supports piping and redirection) */
+  if (fgets(text_buffer, sizeof(text_buffer), stdin) == NULL) {
+    fprintf(stderr, "{\"error\":\"Failed to read input\"}\n");
+    return 1;
+  }
+
+  /* Remove trailing newline character if present (added by fgets) */
+  size_t len = strlen(text_buffer);
+  if (len > 0 && text_buffer[len - 1] == '\n') {
+    text_buffer[len - 1] = '\0';
+  }
+
+  /* Generate embedding using hash-based algorithm (assembly-optimized) */
+  if (fastembed_generate(text_buffer, output, EMBEDDING_DIM) != 0) {
+    fprintf(stderr, "{\"error\":\"Failed to generate embedding\"}\n");
+    return 1;
+  }
+
+  /* Output embedding as JSON array for easy parsing */
+  /* Format: [0.123456, -0.789012, ...] */
+  printf("[");
+  for (int i = 0; i < EMBEDDING_DIM; i++) {
+    printf("%.6f", output[i]);
+    if (i < EMBEDDING_DIM - 1) {
+      printf(",");
     }
+  }
+  printf("]\n");
 
-    /* Remove trailing newline character if present (added by fgets) */
-    size_t len = strlen(text_buffer);
-    if (len > 0 && text_buffer[len - 1] == '\n')
-    {
-        text_buffer[len - 1] = '\0';
-    }
-
-    /* Generate embedding using hash-based algorithm (assembly-optimized) */
-    if (generate_embedding(text_buffer, output, EMBEDDING_DIM) != 0)
-    {
-        fprintf(stderr, "{\"error\":\"Failed to generate embedding\"}\n");
-        return 1;
-    }
-
-    /* Output embedding as JSON array for easy parsing */
-    /* Format: [0.123456, -0.789012, ...] */
-    printf("[");
-    for (int i = 0; i < EMBEDDING_DIM; i++)
-    {
-        printf("%.6f", output[i]);
-        if (i < EMBEDDING_DIM - 1)
-        {
-            printf(",");
-        }
-    }
-    printf("]\n");
-
-    return 0;
+  return 0;
 }

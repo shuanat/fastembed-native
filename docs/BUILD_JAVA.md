@@ -1,15 +1,19 @@
 # Building FastEmbed Java Native Module
 
-Java интерфейс для FastEmbed с использованием JNI (Java Native Interface) для максимальной производительности.
+**Navigation**: [Documentation Index](README.md) → Build Guides → Java
 
-## Требования
+Java interface for FastEmbed using JNI (Java Native Interface) for maximum performance.
 
-### Все платформы
+## Requirements
+
+> **Note**: Common requirements (NASM, compiler) are described in [BUILD_WINDOWS.md](BUILD_WINDOWS.md) (Windows) or [BUILD_CMAKE.md](BUILD_CMAKE.md) (Linux/macOS).
+
+### All Platforms
 
 1. **JDK 11+**
 
    ```bash
-   # Проверьте версию
+   # Check version
    java -version
    javac -version
    ```
@@ -17,7 +21,7 @@ Java интерфейс для FastEmbed с использованием JNI (Ja
 2. **Maven 3.6+**
 
    ```bash
-   # Установка
+   # Installation
    # Ubuntu/Debian
    sudo apt install maven
    
@@ -41,48 +45,52 @@ Java интерфейс для FastEmbed с использованием JNI (Ja
    brew install nasm
    ```
 
+   See details: [BUILD_CMAKE.md](BUILD_CMAKE.md#prerequisites)
+
 ### Windows
 
 1. **Visual Studio Build Tools 2022**
+   - See details: [BUILD_WINDOWS.md](BUILD_WINDOWS.md#visual-studio-build-tools)
 2. **NASM**
+   - See details: [BUILD_WINDOWS.md](BUILD_WINDOWS.md#nasm-installation)
 
-## Структура файлов
+## File Structure
 
 ```
 FastEmbed/
 ├── java/
 │   ├── src/main/java/com/fastembed/
-│   │   └── FastEmbed.java           # Java класс
+│   │   └── FastEmbed.java           # Java class
 │   ├── native/
 │   │   └── fastembed_jni.c          # JNI C wrapper
-│   ├── pom.xml                       # Maven проект
-│   └── target/                       # Собранные файлы
-│       ├── classes/                  # .class файлы
-│       ├── lib/                      # Нативные библиотеки
+│   ├── pom.xml                       # Maven project
+│   └── target/                       # Built files
+│       ├── classes/                  # .class files
+│       ├── lib/                      # Native libraries
 │       └── fastembed-native-1.0.0.jar
-└── test_java_native.java             # Тестовая программа
+└── test_java_native.java             # Test program
 ```
 
-## Сборка
+## Building
 
-### Вариант 1: Автоматическая сборка через Maven
+### Option 1: Automatic Build via Maven
 
 ```bash
 cd java
 mvn clean compile
 ```
 
-Это автоматически:
+This automatically:
 
-1. Скомпилирует Java классы
-2. Сгенерирует JNI заголовки (`javah`)
-3. Скомпилирует C/assembly код
-4. Создаст `libfastembed_jni.so` (или `.dll`/`.dylib`)
-5. Упакует все в JAR
+1. Compiles Java classes
+2. Generates JNI headers (`javah`)
+3. Compiles C/assembly code
+4. Creates `libfastembed_jni.so` (or `.dll`/`.dylib`)
+5. Packages everything into JAR
 
-### Вариант 2: Ручная сборка (для кастомизации)
+### Option 2: Manual Build (for customization)
 
-#### Шаг 1: Соберите ассемблерные файлы
+#### Step 1: Build Assembly Files
 
 ```bash
 # Linux/macOS
@@ -95,26 +103,26 @@ nasm -f win64 src/embedding_lib.asm -o obj/embedding_lib.obj
 nasm -f win64 src/embedding_generator.asm -o obj/embedding_generator.obj
 ```
 
-#### Шаг 2: Скомпилируйте Java классы
+#### Step 2: Compile Java Classes
 
 ```bash
 cd java
 javac -d target/classes src/main/java/com/fastembed/FastEmbed.java
 ```
 
-#### Шаг 3: Сгенерируйте JNI заголовки
+#### Step 3: Generate JNI Headers
 
 ```bash
 javac -h target/native/include -d target/classes src/main/java/com/fastembed/FastEmbed.java
 ```
 
-Или используйте `javah` (устаревший, но работает):
+Or use `javah` (deprecated, but works):
 
 ```bash
 javah -o target/native/include/com_fastembed_FastEmbed.h -classpath target/classes com.fastembed.FastEmbed
 ```
 
-#### Шаг 4: Скомпилируйте JNI C код
+#### Step 4: Compile JNI C Code
 
 **Linux**:
 
@@ -146,7 +154,7 @@ gcc -shared -fPIC -O3 -march=native \
   -o target/lib/libfastembed_jni.dylib
 ```
 
-**Windows** (через Visual Studio Command Prompt):
+**Windows** (via Visual Studio Command Prompt):
 
 ```cmd
 cl /LD /O2 /MD ^
@@ -160,7 +168,7 @@ cl /LD /O2 /MD ^
   /link /OUT:target\lib\fastembed_jni.dll
 ```
 
-#### Шаг 5: Создайте JAR
+#### Step 5: Create JAR
 
 ```bash
 cd target/classes
@@ -168,28 +176,28 @@ jar cvf ../fastembed-native-1.0.0.jar com/fastembed/*.class
 cd ../..
 ```
 
-## Запуск тестов
+## Running Tests
 
-### Вариант 1: Прямой запуск
+### Option 1: Direct Execution
 
 ```bash
-# Скомпилируйте тест
+# Compile test
 javac -cp java/target/classes test_java_native.java -d .
 
-# Запустите с указанием пути к нативной библиотеке
+# Run with native library path specified
 java -Djava.library.path=java/target/lib -cp .:java/target/classes com.fastembed.test.TestFastEmbedJava
 ```
 
-### Вариант 2: Через Maven
+### Option 2: Via Maven
 
-Создайте `src/test/java/com/fastembed/test/TestFastEmbedJava.java` и запустите:
+Create `src/test/java/com/fastembed/test/TestFastEmbedJava.java` and run:
 
 ```bash
 cd java
 mvn test
 ```
 
-### Вариант 3: Через WSL (если на Windows)
+### Option 3: Via WSL (if on Windows)
 
 ```bash
 wsl bash -c "cd /mnt/g/GitHub/KAG-workspace/FastEmbed/java && \
@@ -197,11 +205,11 @@ wsl bash -c "cd /mnt/g/GitHub/KAG-workspace/FastEmbed/java && \
   java -Djava.library.path=target/lib -cp target/classes com.fastembed.test.TestFastEmbedJava"
 ```
 
-## Использование в своем проекте
+## Using in Your Project
 
-### Maven dependency
+### Maven Dependency
 
-После публикации в Maven Central:
+After publishing to Maven Central:
 
 ```xml
 <dependency>
@@ -211,14 +219,14 @@ wsl bash -c "cd /mnt/g/GitHub/KAG-workspace/FastEmbed/java && \
 </dependency>
 ```
 
-### Локальная установка
+### Local Installation
 
 ```bash
 cd java
 mvn install
 ```
 
-Затем в своем `pom.xml`:
+Then in your `pom.xml`:
 
 ```xml
 <dependency>
@@ -228,23 +236,23 @@ mvn install
 </dependency>
 ```
 
-### Пример кода
+### Code Example
 
 ```java
 import com.fastembed.FastEmbed;
 
 public class Example {
     public static void main(String[] args) {
-        // Проверьте доступность
+        // Check availability
         if (!FastEmbed.isAvailable()) {
             System.err.println("Native library not available");
             System.exit(1);
         }
 
-        // Инициализация
+        // Initialization
         FastEmbed fastembed = new FastEmbed(768);
         
-        // Генерация эмбеддинга
+        // Generate embedding
         String text = "machine learning example";
         float[] embedding = fastembed.generateEmbedding(text);
         
@@ -253,7 +261,7 @@ public class Example {
             Arrays.copyOfRange(embedding, 0, 5)
         ));
         
-        // Векторные операции
+        // Vector operations
         String text2 = "deep learning neural networks";
         float[] embedding2 = fastembed.generateEmbedding(text2);
         
@@ -265,24 +273,24 @@ public class Example {
 
 ## API Reference
 
-### Класс FastEmbed
+### FastEmbed Class
 
-#### Конструкторы
+#### Constructors
 
 ```java
 public FastEmbed()                  // dimension=768 (default)
 public FastEmbed(int dimension)     // custom dimension
 ```
 
-#### Статические методы
+#### Static Methods
 
 ```java
 public static boolean isAvailable()
 ```
 
-Проверяет, загружена ли нативная библиотека.
+Checks if the native library is loaded.
 
-#### Методы экземпляра
+#### Instance Methods
 
 **generateEmbedding**
 
@@ -290,11 +298,11 @@ public static boolean isAvailable()
 public float[] generateEmbedding(String text)
 ```
 
-Генерирует hash-based эмбеддинг для текста.
+Generates a hash-based embedding for text.
 
-- **Параметры**: `text` - входной текст
-- **Возвращает**: `float[]` - вектор эмбеддинга
-- **Исключения**: `IllegalArgumentException`, `FastEmbedException`
+- **Parameters**: `text` - input text
+- **Returns**: `float[]` - embedding vector
+- **Exceptions**: `IllegalArgumentException`, `FastEmbedException`
 
 **cosineSimilarity**
 
@@ -302,11 +310,11 @@ public float[] generateEmbedding(String text)
 public float cosineSimilarity(float[] vectorA, float[] vectorB)
 ```
 
-Вычисляет косинусное сходство между двумя векторами.
+Calculates cosine similarity between two vectors.
 
-- **Параметры**: два вектора одинаковой размерности
-- **Возвращает**: косинусное сходство в диапазоне [-1, 1]
-- **Исключения**: `IllegalArgumentException`
+- **Parameters**: two vectors of the same dimension
+- **Returns**: cosine similarity in range [-1, 1]
+- **Exceptions**: `IllegalArgumentException`
 
 **dotProduct**
 
@@ -314,7 +322,7 @@ public float cosineSimilarity(float[] vectorA, float[] vectorB)
 public float dotProduct(float[] vectorA, float[] vectorB)
 ```
 
-Вычисляет скалярное произведение двух векторов.
+Calculates dot product of two vectors.
 
 **vectorNorm**
 
@@ -322,7 +330,7 @@ public float dotProduct(float[] vectorA, float[] vectorB)
 public float vectorNorm(float[] vector)
 ```
 
-Вычисляет L2 норму вектора.
+Calculates L2 norm of a vector.
 
 **normalizeVector**
 
@@ -330,7 +338,7 @@ public float vectorNorm(float[] vector)
 public float[] normalizeVector(float[] vector)
 ```
 
-Нормализует вектор (L2 нормализация). Возвращает новый массив.
+Normalizes a vector (L2 normalization). Returns a new array.
 
 **addVectors**
 
@@ -338,7 +346,7 @@ public float[] normalizeVector(float[] vector)
 public float[] addVectors(float[] vectorA, float[] vectorB)
 ```
 
-Складывает два вектора поэлементно.
+Adds two vectors element-wise.
 
 **textSimilarity**
 
@@ -346,7 +354,7 @@ public float[] addVectors(float[] vectorA, float[] vectorB)
 public float textSimilarity(String text1, String text2)
 ```
 
-Вычисляет семантическую схожесть между двумя текстами.
+Calculates semantic similarity between two texts.
 
 **generateEmbeddings**
 
@@ -354,9 +362,9 @@ public float textSimilarity(String text1, String text2)
 public float[][] generateEmbeddings(String... texts)
 ```
 
-Генерирует эмбеддинги для множества текстов (batch processing).
+Generates embeddings for multiple texts (batch processing).
 
-## Производительность
+## Performance
 
 **Measured Performance** (Linux x64, WSL, Nov 2025):
 
@@ -366,25 +374,25 @@ public float[][] generateEmbeddings(String... texts)
 
 See [BENCHMARK_RESULTS.md](../BENCHMARK_RESULTS.md) for complete benchmark data.
 
-Благодаря:
+Thanks to:
 
 - JNI (direct native calls)
-- SIMD оптимизации в assembly
-- `-O3 -march=native` компиляция
+- SIMD optimizations in assembly
+- `-O3 -march=native` compilation
 
 ## Troubleshooting
 
 ### "UnsatisfiedLinkError: no fastembed_jni in java.library.path"
 
-**Причина**: Нативная библиотека не найдена.
+**Cause**: Native library not found.
 
-**Решение 1**: Укажите путь к библиотеке:
+**Solution 1**: Specify library path:
 
 ```bash
 java -Djava.library.path=/path/to/FastEmbed/java/target/lib -cp ... MainClass
 ```
 
-**Решение 2**: Скопируйте библиотеку в стандартную директорию:
+**Solution 2**: Copy library to standard directory:
 
 ```bash
 # Linux
@@ -394,7 +402,7 @@ sudo cp java/target/lib/libfastembed_jni.so /usr/lib/
 sudo cp java/target/lib/libfastembed_jni.dylib /usr/local/lib/
 ```
 
-**Решение 3**: Добавьте в переменную окружения:
+**Solution 3**: Add to environment variable:
 
 ```bash
 # Linux
@@ -406,9 +414,9 @@ export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/path/to/FastEmbed/java/target/lib
 
 ### "ClassNotFoundException: com.fastembed.FastEmbed"
 
-**Причина**: Java классы не скомпилированы или не в classpath.
+**Cause**: Java classes not compiled or not in classpath.
 
-**Решение**:
+**Solution**:
 
 ```bash
 cd java
@@ -418,9 +426,9 @@ java -cp target/classes:target/fastembed-native-1.0.0.jar com.fastembed.test.Tes
 
 ### Maven build fails: "javah: command not found"
 
-**Причина**: `javah` устарел в JDK 10+ и удален в JDK 11+.
+**Cause**: `javah` is deprecated in JDK 10+ and removed in JDK 11+.
 
-**Решение**: Maven плагин автоматически использует `javac -h` для JDK 9+. Убедитесь, что `JAVA_HOME` указывает на JDK 11+:
+**Solution**: Maven plugin automatically uses `javac -h` for JDK 9+. Ensure `JAVA_HOME` points to JDK 11+:
 
 ```bash
 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
@@ -429,9 +437,9 @@ mvn clean compile
 
 ### "UnsatisfiedLinkError: ... undefined symbol: fastembed_generate"
 
-**Причина**: Линковка JNI библиотеки не включила FastEmbed функции.
+**Cause**: JNI library linking did not include FastEmbed functions.
 
-**Решение**: Убедитесь, что при линковке указаны объектные файлы assembly и C код:
+**Solution**: Ensure assembly object files and C code are specified during linking:
 
 ```bash
 gcc -shared ... \
@@ -442,9 +450,9 @@ gcc -shared ... \
   -o libfastembed_jni.so
 ```
 
-## Публикация в Maven Central
+## Publishing to Maven Central
 
-### Шаг 1: Настройте `~/.m2/settings.xml`
+### Step 1: Configure `~/.m2/settings.xml`
 
 ```xml
 <settings>
@@ -458,7 +466,7 @@ gcc -shared ... \
 </settings>
 ```
 
-### Шаг 2: Добавьте в `pom.xml`
+### Step 2: Add to `pom.xml`
 
 ```xml
 <distributionManagement>
@@ -469,13 +477,13 @@ gcc -shared ... \
 </distributionManagement>
 ```
 
-### Шаг 3: Опубликуйте
+### Step 3: Publish
 
 ```bash
 mvn clean deploy -P release
 ```
 
-## Интеграция с Apache Spark
+## Integration with Apache Spark
 
 ```java
 import org.apache.spark.sql.Dataset;
@@ -493,13 +501,13 @@ public class SparkExample {
         
         FastEmbed fastembed = new FastEmbed(768);
         
-        // Регистрируйте UDF
+        // Register UDF
         spark.udf().register("fastembed", (UDF1<String, float[]>) text -> 
             fastembed.generateEmbedding(text),
             DataTypes.createArrayType(DataTypes.FloatType)
         );
         
-        // Используйте в SQL
+        // Use in SQL
         Dataset<Row> df = spark.read().json("texts.json");
         df.createOrReplaceTempView("texts");
         
@@ -512,7 +520,7 @@ public class SparkExample {
 }
 ```
 
-## Интеграция с Spring Boot
+## Integration with Spring Boot
 
 ```java
 import org.springframework.stereotype.Service;
@@ -536,9 +544,9 @@ public class EmbeddingService {
 }
 ```
 
-## Gradle build
+## Gradle Build
 
-Если предпочитаете Gradle вместо Maven, создайте `build.gradle`:
+If you prefer Gradle instead of Maven, create `build.gradle`:
 
 ```groovy
 plugins {
@@ -572,16 +580,39 @@ task compileJNI(type: Exec) {
 compileJava.dependsOn compileJNI
 ```
 
-## Следующие шаги
+## Next Steps
 
-1. **Публикация на Maven Central**
-2. **CI/CD для автоматической сборки**
-3. **Поддержка Android** (ARM64)
+1. **Publish to Maven Central**
+2. **CI/CD for automated builds**
+3. **Android support** (ARM64)
 4. **Async API** (CompletableFuture)
 5. **GPU acceleration** (CUDA/JCuda)
 
 ---
 
-**Создано**: 1 ноября 2025  
-**Статус**: ✓ Готово к использованию  
-**Производительность**: ★★★★★ (native JNI speed)
+## See Also
+
+### Related Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and build system details
+- **[API Reference](API.md)** - Complete API documentation for Java
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Other Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Windows](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[Build Native](BUILD_NATIVE.md)** - Node.js N-API module build
+- **[Build Python](BUILD_PYTHON.md)** - Python pybind11 module build
+- **[Build C#](BUILD_CSHARP.md)** - C# P/Invoke module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start
+
+---
+
+**Created**: November 1, 2025  
+**Status**: ✓ Ready for use  
+**Performance**: ★★★★★ (native JNI speed)

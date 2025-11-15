@@ -1,10 +1,14 @@
 # Building FastEmbed Python Native Module
 
-Python extension module для FastEmbed с использованием pybind11 для максимальной производительности.
+**Navigation**: [Documentation Index](README.md) → Build Guides → Python
 
-## Требования
+Python extension module for FastEmbed using pybind11 for maximum performance.
 
-### Все платформы
+## Requirements
+
+> **Note**: Common requirements (NASM, compiler) are described in [BUILD_WINDOWS.md](BUILD_WINDOWS.md) (Windows) or [BUILD_CMAKE.md](BUILD_CMAKE.md) (Linux/macOS).
+
+### All Platforms
 
 1. **Python 3.7+**
 2. **NumPy** (>=1.20.0)
@@ -15,12 +19,14 @@ Python extension module для FastEmbed с использованием pybind1
 
 1. **Visual Studio Build Tools 2022**
    - Desktop development with C++
-2. **NASM** (для ассемблерных файлов)
-3. Предварительно собранные объектные файлы (`obj/embedding_lib.obj`, `obj/embedding_generator.obj`)
+   - See details: [BUILD_WINDOWS.md](BUILD_WINDOWS.md#visual-studio-build-tools)
+2. **NASM** (for assembly files)
+   - See details: [BUILD_WINDOWS.md](BUILD_WINDOWS.md#nasm-installation)
+3. Pre-built object files (`obj/embedding_lib.obj`, `obj/embedding_generator.obj`)
 
 ### Linux/macOS
 
-1. **GCC/Clang** (C++17 поддержка)
+1. **GCC/Clang** (C++17 support)
 2. **NASM**
 
    ```bash
@@ -31,71 +37,73 @@ Python extension module для FastEmbed с использованием pybind1
    brew install nasm
    ```
 
-## Установка зависимостей
+   See details: [BUILD_CMAKE.md](BUILD_CMAKE.md#prerequisites)
+
+## Installing Dependencies
 
 ```bash
 pip install numpy pybind11
 ```
 
-## Сборка
+## Building
 
-### Вариант 1: Автоматическая сборка (рекомендуется)
+### Option 1: Automatic Build (Recommended)
 
 ```bash
 python setup.py build_ext --inplace
 ```
 
-Это автоматически:
+This automatically:
 
-1. Определит платформу
-2. Скомпилирует ассемблерные файлы (Linux/macOS)
-3. Соберёт Python extension module
-4. Установит в текущую директорию
+1. Detects the platform
+2. Compiles assembly files (Linux/macOS)
+3. Builds the Python extension module
+4. Installs in the current directory
 
-### Вариант 2: Установка как пакет
+### Option 2: Install as Package
 
 ```bash
 pip install -e .
 ```
 
-Это установит FastEmbed как editable package.
+This installs FastEmbed as an editable package.
 
-### Вариант 3: Build wheel для распространения
+### Option 3: Build Wheel for Distribution
 
 ```bash
 python setup.py bdist_wheel
 ```
 
-Wheel будет в `dist/fastembed_native-1.0.0-*.whl`
+Wheel will be in `dist/fastembed_native-1.0.0-*.whl`
 
-## Сборка на Windows
+## Building on Windows
 
-### Шаг 1: Подготовка ассемблерных файлов
+### Step 1: Prepare Assembly Files
 
 ```cmd
-REM Соберите ассемблерные объектные файлы
+REM Build assembly object files
 build_windows.bat
 
-REM Переместите их в obj/
+REM Move them to obj/
 mkdir obj
 copy build\embedding_lib.obj obj\
 copy build\embedding_generator.obj obj\
 ```
 
-### Шаг 2: Сборка Python модуля
+### Step 2: Build Python Module
 
 ```cmd
 python setup.py build_ext --inplace
 ```
 
-## Сборка на Linux/macOS
+## Building on Linux/macOS
 
 ```bash
-# Сборка выполняется автоматически
+# Build runs automatically
 python setup.py build_ext --inplace
 ```
 
-## Проверка сборки
+## Verifying Build
 
 ```python
 from python import FastEmbed, is_available
@@ -110,24 +118,24 @@ else:
     print("✗ Native module not available")
 ```
 
-Или запустите тестовый скрипт:
+Or run the test script:
 
 ```bash
 python test_python_native.py
 ```
 
-## Использование
+## Usage
 
-### Базовое использование
+### Basic Usage
 
 ```python
 from python import FastEmbed
 import numpy as np
 
-# Инициализация
+# Initialization
 fastembed = FastEmbed(dimension=768)
 
-# Генерация эмбеддинга
+# Generate embedding
 text = "machine learning example"
 embedding = fastembed.generate_embedding(text)
 
@@ -135,45 +143,45 @@ print(f"Embedding shape: {embedding.shape}")
 print(f"Embedding type: {type(embedding)}")  # numpy.ndarray
 ```
 
-### Векторные операции
+### Vector Operations
 
 ```python
-# Два эмбеддинга
+# Two embeddings
 emb1 = fastembed.generate_embedding("first text")
 emb2 = fastembed.generate_embedding("second text")
 
-# Косинусное сходство
+# Cosine similarity
 similarity = fastembed.cosine_similarity(emb1, emb2)
 print(f"Cosine similarity: {similarity:.4f}")
 
-# Скалярное произведение
+# Dot product
 dot = fastembed.dot_product(emb1, emb2)
 print(f"Dot product: {dot:.4f}")
 
-# Норма вектора
+# Vector norm
 norm = fastembed.vector_norm(emb1)
 print(f"Vector norm: {norm:.4f}")
 
-# Нормализация
+# Normalization
 normalized = fastembed.normalize_vector(emb1)
 
-# Сложение векторов
+# Vector addition
 sum_vec = fastembed.add_vectors(emb1, emb2)
 ```
 
-### Module-level функции
+### Module-level Functions
 
 ```python
 from python import generate_embedding, is_available
 
 if is_available():
-    # Прямой вызов без создания класса
+    # Direct call without creating class
     embedding = generate_embedding("text", dimension=768)
 ```
 
 ## API Reference
 
-### Класс FastEmbed
+### FastEmbed Class
 
 ```python
 class FastEmbed:
@@ -207,7 +215,7 @@ class FastEmbed:
     ) -> np.ndarray
 ```
 
-### Module-level функции
+### Module-level Functions
 
 ```python
 def is_available() -> bool
@@ -217,21 +225,21 @@ def generate_embedding(text: str, dimension: int = 768) -> np.ndarray
     """Generate embedding (module-level)"""
 ```
 
-## Структура файлов
+## File Structure
 
 ```
 FastEmbed/
 ├── python/
-│   ├── __init__.py              # Python интерфейс
-│   └── fastembed_native.cpp     # pybind11 C++ обёртка
-├── setup.py                      # Сборочный скрипт
-├── test_python_native.py         # Тестовый скрипт
-└── obj/                          # Ассемблерные объектные файлы (Windows)
+│   ├── __init__.py              # Python interface
+│   └── fastembed_native.cpp     # pybind11 C++ wrapper
+├── setup.py                      # Build script
+├── test_python_native.py         # Test script
+└── obj/                          # Assembly object files (Windows)
     ├── embedding_lib.obj
     └── embedding_generator.obj
 ```
 
-## Производительность
+## Performance
 
 **Measured Performance** (Nov 2025):
 
@@ -246,7 +254,7 @@ See [BENCHMARK_RESULTS.md](../BENCHMARK_RESULTS.md) for complete benchmark data.
 
 ### "ModuleNotFoundError: No module named 'fastembed_native'"
 
-Модуль не собран. Запустите:
+Module not built. Run:
 
 ```bash
 python setup.py build_ext --inplace
@@ -254,7 +262,7 @@ python setup.py build_ext --inplace
 
 ### Windows: "Assembly object files not found"
 
-Сначала соберите ассемблерные файлы:
+Build assembly files first:
 
 ```cmd
 build_windows.bat
@@ -264,7 +272,7 @@ copy build\*.obj obj\
 
 ### Linux/macOS: "nasm: command not found"
 
-Установите NASM:
+Install NASM:
 
 ```bash
 sudo apt install nasm      # Ubuntu/Debian
@@ -273,23 +281,23 @@ brew install nasm          # macOS
 
 ### "ImportError: numpy.core.multiarray failed to import"
 
-Обновите NumPy:
+Update NumPy:
 
 ```bash
 pip install --upgrade numpy
 ```
 
-## Сравнение с другими подходами
+## Comparison with Other Approaches
 
-| Метод        | Скорость    | Требования     | Простота      |
-| ------------ | ----------- | -------------- | ------------- |
-| **pybind11** | **Fastest** | Компиляция C++ | Средняя       |
-| ctypes/cffi  | Fast        | DLL/SO         | Простая       |
-| Python CLI   | Slow        | Subprocess     | Очень простая |
+| Method       | Speed       | Requirements    | Simplicity  |
+| ------------ | ----------- | --------------- | ----------- |
+| **pybind11** | **Fastest** | C++ compilation | Medium      |
+| ctypes/cffi  | Fast        | DLL/SO          | Simple      |
+| Python CLI   | Slow        | Subprocess      | Very simple |
 
-pybind11 обеспечивает оптимальный баланс производительности и удобства использования.
+pybind11 provides optimal balance of performance and ease of use.
 
-## Интеграция с ML фреймворками
+## Integration with ML Frameworks
 
 ### PyTorch
 
@@ -300,7 +308,7 @@ from python import FastEmbed
 fastembed = FastEmbed(768)
 embedding = fastembed.generate_embedding("text")
 
-# Конвертация в PyTorch tensor
+# Convert to PyTorch tensor
 tensor = torch.from_numpy(embedding)
 ```
 
@@ -313,7 +321,7 @@ from python import FastEmbed
 fastembed = FastEmbed(768)
 embedding = fastembed.generate_embedding("text")
 
-# Конвертация в TensorFlow tensor
+# Convert to TensorFlow tensor
 tensor = tf.convert_to_tensor(embedding)
 ```
 
@@ -329,13 +337,36 @@ embeddings = [
     for text in texts
 ]
 
-# Используйте как обычные NumPy arrays
+# Use as regular NumPy arrays
 similarity_matrix = cosine_similarity(embeddings)
 ```
 
-## Следующие шаги
+## Next Steps
 
-1. Публикация wheel пакетов на PyPI
-2. Поддержка GPU acceleration (CUDA)
-3. Batch processing для множественных текстов
+1. Publish wheel packages to PyPI
+2. GPU acceleration support (CUDA)
+3. Batch processing for multiple texts
 4. ONNX model support
+
+---
+
+## See Also
+
+### Related Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and build system details
+- **[API Reference](API.md)** - Complete API documentation for Python
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Other Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Windows](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[Build Native](BUILD_NATIVE.md)** - Node.js N-API module build
+- **[Build C#](BUILD_CSHARP.md)** - C# P/Invoke module build
+- **[Build Java](BUILD_JAVA.md)** - Java JNI module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start

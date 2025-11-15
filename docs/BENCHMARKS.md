@@ -6,7 +6,8 @@ See [../BENCHMARKS.md](../BENCHMARKS.md) for the complete benchmarking guide.
 
 ```bash
 # Run all benchmarks
-bash scripts/run_benchmarks.sh
+# Run benchmarks using Makefile
+make benchmark
 
 # Results will be saved to BENCHMARK_RESULTS.md
 ```
@@ -25,13 +26,15 @@ bash scripts/run_benchmarks.sh
 **Windows:**
 
 ```batch
-scripts\run_onnx_benchmarks.bat
+REM Run ONNX benchmarks (see BENCHMARKS.md for instructions)
+make benchmark-onnx
 ```
 
 **Linux:**
 
 ```bash
-bash scripts/run_onnx_benchmarks.sh
+# Run ONNX benchmarks (see BENCHMARKS.md for instructions)
+make benchmark-onnx
 ```
 
 ## Results Location

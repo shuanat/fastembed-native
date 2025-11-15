@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=42", "wheel", "pybind11>=2.10.0", "numpy>=1.19.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fastembed-native"
+version = "1.0.1"
+description = "Ultra-fast native embedding library with SIMD optimizations"
+authors = [{ name = "FastEmbed Team" }]
+license = { text = "AGPL-3.0" }
+readme = "README.md"
+requires-python = ">=3.7"
+keywords = ["embeddings", "vector", "simd", "machine-learning"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = ["numpy>=1.20.0", "pybind11>=2.10.0"]
+
+[project.urls]
+Homepage = "https://github.com/shuanat/fastembed-native"
+
+[tool.setuptools]
+zip-safe = false

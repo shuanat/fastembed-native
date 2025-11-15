@@ -159,7 +159,11 @@ cd ../..
 **macOS** (alternative):
 
 ```bash
-bash scripts/build_macos.sh
+# Use Makefile (recommended)
+make shared
+
+# Or use cross-platform build script
+python scripts/build_native.py
 ```
 
 ### Build All Language Bindings
@@ -167,8 +171,11 @@ bash scripts/build_macos.sh
 **Windows**:
 
 ```batch
-# Build all bindings at once
-scripts\build_all_windows.bat
+# Build shared library first
+scripts\build_windows.bat
+
+# Then build all bindings using Makefile
+make all
 
 # Or build individually:
 cd bindings\nodejs && npm install && npm run build
@@ -261,9 +268,8 @@ print(embedding.shape)  # (768,)
 ```batch
 cd bindings\csharp\src
 dotnet build FastEmbed.csproj
-cd ..
-dotnet build test_csharp_native.csproj
-dotnet run --project test_csharp_native.csproj --no-build
+cd ..\tests
+dotnet test
 ```
 
 **Linux/macOS**:
@@ -271,8 +277,8 @@ dotnet run --project test_csharp_native.csproj --no-build
 ```bash
 cd bindings/csharp/src
 dotnet build FastEmbed.csproj
-cd ..
-LD_LIBRARY_PATH=../shared/build dotnet run --project test_csharp_native.csproj --no-build
+cd ../tests
+dotnet test
 ```
 
 ```csharp
@@ -427,11 +433,14 @@ make clean        # Clean build artifacts
 **Windows**: Full native build support with Visual Studio.
 
 ```batch
-# Build all bindings
-scripts\build_all_windows.bat
+# Build shared library first
+scripts\build_windows.bat
+
+# Then build all bindings using Makefile
+make all
 
 # Run all tests
-scripts\test_all_windows.bat
+make test
 ```
 
 **Linux/macOS**: Use Makefile.
@@ -444,7 +453,11 @@ make test   # Run tests
 **macOS** (alternative):
 
 ```bash
-bash scripts/build_macos.sh
+# Use Makefile (recommended)
+make all
+
+# Or use cross-platform build script
+python scripts/build_native.py
 ```
 
 See [bindings/shared/README.md](bindings/shared/README.md) for detailed build instructions.
@@ -453,16 +466,62 @@ See [bindings/shared/README.md](bindings/shared/README.md) for detailed build in
 
 ## 🧪 Testing
 
+### Core Library Tests (C/Assembly)
+
 **Windows**:
 
 ```batch
-# Run all tests
-scripts\test_all_windows.bat
+# Build and run all tests
+# Use CMake directly (see docs/BUILD_CMAKE.md)
+cd bindings\shared
+mkdir build_cmake
+cd build_cmake
+cmake ..
+cmake --build .
+cd bindings\shared\build_cmake
+ctest -C Release
+
+# Or run individual tests
+Release\test_hash_functions.exe
+Release\test_embedding_generation.exe
+Release\test_sqrt_quality.exe
+Release\benchmark_improved.exe
+```
+
+**Linux/WSL**:
+
+```bash
+# Build and run all tests
+# Use CMake directly (see docs/BUILD_CMAKE.md)
+cd bindings/shared
+mkdir -p build_cmake
+cd build_cmake
+cmake ..
+cmake --build .
+cd bindings/shared/build_cmake
+ctest
+
+# Or run individual tests
+./test_hash_functions
+./test_embedding_generation
+./test_sqrt_quality
+./benchmark_improved
+```
+
+**See:** [tests/README_TESTING.md](tests/README_TESTING.md) for detailed testing guide.
+
+### Language Bindings Tests
+
+**Windows**:
+
+```batch
+# Run all tests using Makefile
+make test
 
 # Or test individually
 cd bindings\nodejs && node test-native.js
 cd ..\python && python test_python_native.py
-cd ..\csharp && dotnet run --project test_csharp_native.csproj
+cd ..\csharp\tests && dotnet test
 cd ..\java\java && mvn test
 ```
 
@@ -475,7 +534,7 @@ make test
 # Or test individually
 cd bindings/nodejs && node test-native.js
 cd bindings/python && python test_python_native.py
-cd bindings/csharp && LD_LIBRARY_PATH=../shared/build dotnet run --project test_csharp_native.csproj
+cd bindings/csharp/tests && dotnet test
 cd bindings/java && mvn test
 ```
 

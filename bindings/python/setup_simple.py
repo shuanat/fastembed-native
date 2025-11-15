@@ -62,7 +62,7 @@ ext_modules = [
 
 setup(
     name='fastembed-native',
-    version='1.0.0',
+    version='1.0.1',
     ext_modules=ext_modules,
     install_requires=['numpy>=1.20.0', 'pybind11>=2.10.0'],
     python_requires='>=3.7',

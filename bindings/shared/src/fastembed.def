@@ -1,0 +1,13 @@
+EXPORTS
+fastembed_generate
+fastembed_dot_product
+fastembed_cosine_similarity
+fastembed_vector_norm
+fastembed_normalize
+fastembed_add_vectors
+fastembed_onnx_generate
+fastembed_onnx_unload
+fastembed_onnx_get_last_error
+fastembed_onnx_get_model_dimension
+fastembed_batch_generate
+

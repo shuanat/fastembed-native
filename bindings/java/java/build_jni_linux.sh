@@ -7,7 +7,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../" && pwd)"
 SHARED_DIR="$PROJECT_ROOT/bindings/shared"
-ONNX_RUNTIME_DIR="${ONNX_RUNTIME_PATH:-$PROJECT_ROOT/bindings/onnxruntime-linux-x64-1.23.2}"
+# Check multiple ONNX Runtime locations (workflow renames to "onnxruntime")
+ONNX_RUNTIME_DIR="${ONNX_RUNTIME_PATH:-$PROJECT_ROOT/bindings/onnxruntime}"
+# Fallback to versioned name if exists
+if [ ! -d "$ONNX_RUNTIME_DIR" ]; then
+  ONNX_RUNTIME_DIR="$PROJECT_ROOT/bindings/onnxruntime-linux-x64-1.23.2"
+fi
 
 echo "========================================"
 echo "FastEmbed Java JNI Build Script (Linux)"
@@ -57,7 +62,10 @@ echo "Using compiler: $(which gcc)"
 # Check for ONNX Runtime
 if [ ! -d "$ONNX_RUNTIME_DIR" ] || [ ! -f "$ONNX_RUNTIME_DIR/include/onnxruntime_c_api.h" ]; then
     echo "❌ ERROR: ONNX Runtime not found at $ONNX_RUNTIME_DIR"
-    echo "Please set ONNX_RUNTIME_PATH or extract onnxruntime-linux-x64-1.23.2.tgz"
+    echo "Checked locations:"
+    echo "  - $PROJECT_ROOT/bindings/onnxruntime"
+    echo "  - $PROJECT_ROOT/bindings/onnxruntime-linux-x64-1.23.2"
+    echo "Please set ONNX_RUNTIME_PATH or ensure ONNX Runtime is downloaded"
     exit 1
 fi
 echo "Found ONNX Runtime at: $ONNX_RUNTIME_DIR"

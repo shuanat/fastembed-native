@@ -1,0 +1,772 @@
+# ============================================================================
+# Build Release Artifacts Workflow
+# ============================================================================
+#
+# Purpose:
+#   Build cross-platform native libraries and language bindings for FastEmbed releases
+#   Creates GitHub Release with all artifacts (native libs + Node.js + Python + C# + Java)
+#
+# Trigger:
+#   - Push of version tag (v*.*.*) - e.g., v1.0.1
+#   - Manual trigger via workflow_dispatch
+#
+# Platforms:
+#   - Linux (x64) - Ubuntu latest
+#   - Windows (x64) - Windows latest
+#   - macOS (x64/arm64) - macOS latest
+#
+# Build Process:
+#   1. Checkout code at tag
+#   2. Setup platform-specific build tools (NASM, GCC/MSVC, Make)
+#   3. Download ONNX Runtime 1.23.2
+#   4. Build shared native library (C/Assembly)
+#   5. Validate build artifacts
+#   6. Build language bindings (Node.js, Python, C#, Java)
+#   7. Package all artifacts (tar.gz for Linux/macOS, zip for Windows)
+#   8. Create GitHub Release with all artifacts
+#
+# Expected Build Times:
+#   - Linux: ~10-15 minutes (includes all bindings)
+#   - Windows: ~15-20 minutes (includes all bindings)
+#   - macOS: ~12-18 minutes (includes all bindings)
+#   - Total: ~37-53 minutes
+#
+# Troubleshooting:
+#   - Build failures: Check compiler version, NASM version (>= 2.14)
+#   - Path errors: Verify working directory (should be repository root)
+#   - Type errors: Check header file consistency (const float* vs float*)
+#   - Assembly errors: Verify format support (elf64, win64, macho64)
+#   - Artifact validation failures: Check file sizes and types
+#
+# Dependencies:
+#   - NASM >= 2.14 (assembly compiler)
+#   - GCC/Clang/MSVC (C compiler)
+#   - Make (build system)
+#   - ONNX Runtime 1.23.2 (downloaded automatically)
+#
+# ============================================================================
+
+name: Build Release Artifacts
+
+on:
+  push:
+    tags:
+      - "v*.*.*" # Triggers on version tags (e.g., v1.0.1)
+  workflow_dispatch: # Allows manual trigger
+
+env:
+  ONNX_VERSION: "1.23.2"
+
+jobs:
+  build-linux:
+    name: Build Linux Artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc make
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          curl -fL -o onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime.tgz
+          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
+          rm onnxruntime.tgz
+
+      - name: Build shared library
+        run: |
+          START_TIME=$(date +%s)
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Starting Linux build"
+          echo "::notice::Platform: Linux (Ubuntu)"
+          echo "::notice::Compiler: $(gcc --version | head -n1)"
+          echo "::notice::NASM: $(nasm --version | head -n1)"
+
+          cd bindings/shared
+          make all
+          make shared
+          # Install to lib/ directory (for language bindings)
+          make install || echo "::warning::make install failed (may not be needed)"
+
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Build completed in ${DURATION} seconds"
+
+          if [ $DURATION -gt 600 ]; then
+            echo "::warning::Build time (${DURATION}s) exceeds expected threshold (600s)"
+          fi
+        continue-on-error: false
+
+      - name: Validate Linux artifacts
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Validating Linux build artifacts"
+
+          # Check shared library exists (updated to match Makefile: libfastembed_native.so)
+          if [ ! -f "bindings/shared/build/libfastembed_native.so" ]; then
+            echo "::error::Linux shared library not found"
+            echo "::error::Expected: bindings/shared/build/libfastembed_native.so"
+            echo "::error::Found files:"
+            ls -la bindings/shared/build/ || echo "Build directory not found"
+            exit 1
+          fi
+
+          # Check static library exists
+          if [ ! -f "bindings/shared/build/fastembed.a" ] && [ ! -f "bindings/shared/build/libfastembed.a" ]; then
+            echo "::warning::Linux static library not found (optional)"
+          fi
+
+          # Verify file types
+          for file in bindings/shared/build/*.so bindings/shared/build/*.a; do
+            if [ -f "$file" ]; then
+              FILE_TYPE=$(file "$file")
+              FILE_SIZE=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "unknown")
+              echo "::notice::Artifact: $(basename $file) - Type: $FILE_TYPE - Size: $FILE_SIZE bytes"
+              
+              if [ "$FILE_SIZE" != "unknown" ] && [ "$FILE_SIZE" -eq 0 ]; then
+                echo "::error::Artifact $(basename $file) has zero size"
+                exit 1
+              fi
+            fi
+          done
+
+          # Verify headers exist
+          if [ ! -f "bindings/shared/include/fastembed.h" ]; then
+            echo "::error::Header file not found: bindings/shared/include/fastembed.h"
+            exit 1
+          fi
+
+          echo "::notice::All Linux artifacts validated successfully"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build Node.js binding
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Node.js binding"
+          cd bindings/nodejs
+          npm install
+          npm run build
+          npm pack
+          echo "::notice::Node.js package built successfully"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Python wheel
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Python wheel"
+          cd bindings/python
+          pip install build wheel pybind11 numpy
+          python -m build --wheel
+          echo "::notice::Python wheel built successfully"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build C# NuGet
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building C# NuGet package"
+          cd bindings/csharp
+          dotnet pack src/FastEmbed.csproj -c Release -o nupkg
+          echo "::notice::C# NuGet package built successfully"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Build Java JAR
+        continue-on-error: true
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Java JAR"
+          cd bindings/java/java
+          if [ -f "build_jni_linux.sh" ]; then
+            chmod +x build_jni_linux.sh
+            bash build_jni_linux.sh
+          fi
+          mvn clean package
+          echo "::notice::Java JAR built successfully"
+
+      - name: Package all Linux artifacts
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Packaging all Linux artifacts"
+          mkdir -p artifacts/linux
+          cp bindings/shared/build/*.so artifacts/linux/ || true
+          cp bindings/shared/build/*.a artifacts/linux/ || true
+          cp bindings/shared/include/*.h artifacts/linux/ || true
+          cp bindings/nodejs/*.tgz artifacts/linux/ 2>/dev/null || true
+          cp bindings/python/dist/*.whl artifacts/linux/ 2>/dev/null || true
+          cp bindings/csharp/nupkg/*.nupkg artifacts/linux/ 2>/dev/null || true
+          cp bindings/java/java/target/*.jar artifacts/linux/ 2>/dev/null || true
+
+          # Verify we have at least some files
+          FILE_COUNT=$(ls -1 artifacts/linux/ 2>/dev/null | wc -l)
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::No artifacts found to package"
+            exit 1
+          fi
+          echo "::notice::Packaging $FILE_COUNT files"
+
+          cd artifacts
+          # Replace slashes in ref_name with dashes for valid filename
+          REF_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+          tar -czf "fastembed-linux-x64-${REF_NAME}.tar.gz" linux/
+
+          # Verify archive was created
+          if [ ! -f "fastembed-linux-x64-${REF_NAME}.tar.gz" ]; then
+            echo "::error::Failed to create Linux artifact archive"
+            exit 1
+          fi
+
+          ARCHIVE_SIZE=$(stat -f%z "fastembed-linux-x64-${REF_NAME}.tar.gz" 2>/dev/null || stat -c%s "fastembed-linux-x64-${REF_NAME}.tar.gz" 2>/dev/null || echo "unknown")
+          echo "::notice::Linux archive created: fastembed-linux-x64-${REF_NAME}.tar.gz (${ARCHIVE_SIZE} bytes)"
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastembed-linux-x64
+          path: artifacts/fastembed-linux-x64-*.tar.gz
+          retention-days: 90
+
+      - name: Log build failure
+        if: failure()
+        run: |
+          echo "::error::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Linux build failed"
+          echo "::error::Platform: Linux (Ubuntu)"
+          echo "::error::Job: ${{ job.name }}"
+          echo "::error::Workflow: ${{ github.workflow }}"
+          echo "::error::Tag: ${{ github.ref_name }}"
+          echo "::error::Commit: ${{ github.sha }}"
+          echo "::error::Check workflow logs for detailed error information"
+          echo "::error::Common issues:"
+          echo "::error::  - Compiler version mismatch"
+          echo "::error::  - NASM version < 2.14"
+          echo "::error::  - Missing dependencies"
+          echo "::error::  - Type conflicts in header files"
+
+  build-windows:
+    name: Build Windows Artifacts
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup NASM
+        run: choco install nasm -y
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          Invoke-WebRequest -Uri "https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-win-x64-${{ env.ONNX_VERSION }}.zip" -OutFile "onnxruntime.zip"
+          Expand-Archive -Path "onnxruntime.zip" -DestinationPath "."
+          Rename-Item -Path "onnxruntime-win-x64-${{ env.ONNX_VERSION }}" -NewName "onnxruntime"
+        shell: powershell
+
+      - name: Build shared library
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Starting Windows build"
+          Write-Host "::notice::Platform: Windows"
+          Write-Host "::notice::Compiler: MSVC (Visual Studio Build Tools)"
+
+          # Verify repository root
+          if (-not (Test-Path "bindings\shared\src\embedding_lib.asm")) {
+            Write-Host "::error::Repository structure not found. Expected bindings\shared\src\embedding_lib.asm"
+            Write-Host "::error::Current directory: $PWD"
+            exit 1
+          }
+
+          # Call PowerShell build script (Phase 1, Task 1.2)
+          & ".\scripts\build_windows.ps1" -ErrorAction Stop
+
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Build completed"
+        shell: powershell
+        working-directory: ${{ github.workspace }}
+        continue-on-error: false
+
+      - name: Validate Windows artifacts
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Validating Windows build artifacts"
+
+          # Debug: Show current directory and build directory contents
+          Write-Host "::notice::Current directory: $(Get-Location)"
+          Write-Host "::notice::Build directory contents:"
+          if (Test-Path "bindings\shared\build") {
+            Get-ChildItem -Path "bindings\shared\build\" -ErrorAction SilentlyContinue | Select-Object Name, Length, FullName | Format-Table
+          } else {
+            Write-Host "::warning::Build directory does not exist: bindings\shared\build"
+          }
+
+          # Check DLL exists (try both fastembed_native.dll and *.dll pattern)
+          $dllFiles = Get-ChildItem -Path "bindings\shared\build\*.dll" -ErrorAction SilentlyContinue
+          if (-not $dllFiles) {
+            # Try specific name
+            if (Test-Path "bindings\shared\build\fastembed_native.dll") {
+              Write-Host "::notice::Found DLL: bindings\shared\build\fastembed_native.dll"
+              $dllFiles = Get-Item "bindings\shared\build\fastembed_native.dll"
+            } else {
+              Write-Host "::error::Windows DLL not found"
+              Write-Host "::error::Expected: bindings\shared\build\fastembed_native.dll or bindings\shared\build\*.dll"
+              Write-Host "::error::Found files:"
+              Get-ChildItem -Path "bindings\shared\build\" -ErrorAction SilentlyContinue | Select-Object Name, Length
+              exit 1
+            }
+          }
+
+          # Check LIB exists
+          $libFiles = Get-ChildItem -Path "bindings\shared\build\*.lib" -ErrorAction SilentlyContinue
+          if (-not $libFiles) {
+            Write-Host "::warning::Windows LIB not found (optional)"
+          }
+
+          # Verify file sizes
+          $allFiles = @($dllFiles) + @($libFiles)
+          foreach ($file in $allFiles) {
+            $fileSize = $file.Length
+            Write-Host "::notice::Artifact: $($file.Name) - Size: $fileSize bytes"
+            
+            if ($fileSize -eq 0) {
+              Write-Host "::error::Artifact $($file.Name) has zero size"
+              exit 1
+            }
+          }
+
+          # Verify headers exist
+          if (-not (Test-Path "bindings\shared\include\fastembed.h")) {
+            Write-Host "::error::Header file not found: bindings\shared\include\fastembed.h"
+            exit 1
+          }
+
+          Write-Host "::notice::All Windows artifacts validated successfully"
+        shell: powershell
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build Node.js binding
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Building Node.js binding"
+          cd bindings/nodejs
+          npm install
+          npm run build
+          npm pack
+          Write-Host "::notice::Node.js package built successfully"
+        shell: powershell
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Python wheel
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Building Python wheel"
+          cd bindings/python
+          # Install build tools (pybind11, numpy declared in pyproject.toml)
+          pip install build wheel
+          python -m build --wheel
+          Write-Host "::notice::Python wheel built successfully"
+        shell: powershell
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build C# NuGet
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Building C# NuGet package"
+          cd bindings/csharp
+          dotnet pack src/FastEmbed.csproj -c Release -o nupkg
+          Write-Host "::notice::C# NuGet package built successfully"
+        shell: powershell
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Build Java JAR
+        continue-on-error: true
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Building Java JAR"
+          cd bindings/java/java
+          if (Test-Path "build_jni.bat") {
+            .\build_jni.bat
+          }
+          mvn clean package
+          Write-Host "::notice::Java JAR built successfully"
+        shell: powershell
+
+      - name: Package all Windows artifacts
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Packaging all Windows artifacts"
+          New-Item -ItemType Directory -Force -Path artifacts\windows
+          Copy-Item -Path bindings\shared\build\*.dll -Destination artifacts\windows\ -ErrorAction SilentlyContinue
+          Copy-Item -Path bindings\shared\build\*.lib -Destination artifacts\windows\ -ErrorAction SilentlyContinue
+          Copy-Item -Path bindings\shared\include\*.h -Destination artifacts\windows\
+          Copy-Item -Path bindings\nodejs\*.tgz -Destination artifacts\windows\ -ErrorAction SilentlyContinue
+          Copy-Item -Path bindings\python\dist\*.whl -Destination artifacts\windows\ -ErrorAction SilentlyContinue
+          Copy-Item -Path bindings\csharp\nupkg\*.nupkg -Destination artifacts\windows\ -ErrorAction SilentlyContinue
+          Copy-Item -Path bindings\java\java\target\*.jar -Destination artifacts\windows\ -ErrorAction SilentlyContinue
+          cd artifacts
+          # Replace slashes in ref_name with dashes for valid filename
+          $refName = "${{ github.ref_name }}" -replace '/', '-'
+          Compress-Archive -Path windows\* -DestinationPath "fastembed-windows-x64-${refName}.zip"
+
+          # Verify archive was created
+          if (-not (Test-Path "fastembed-windows-x64-${refName}.zip")) {
+            Write-Host "::error::Failed to create Windows artifact archive"
+            exit 1
+          }
+
+          $archiveSize = (Get-Item "fastembed-windows-x64-${refName}.zip").Length
+          Write-Host "::notice::Windows archive created: fastembed-windows-x64-${refName}.zip ($archiveSize bytes)"
+        shell: powershell
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastembed-windows-x64
+          path: artifacts/fastembed-windows-x64-*.zip
+          retention-days: 90
+
+      - name: Log build failure
+        if: failure()
+        run: |
+          echo ::error::[%date% %time%] Windows build failed
+          echo ::error::Platform: Windows
+          echo ::error::Job: ${{ job.name }}
+          echo ::error::Workflow: ${{ github.workflow }}
+          echo ::error::Tag: ${{ github.ref_name }}
+          echo ::error::Commit: ${{ github.sha }}
+          echo ::error::Check workflow logs for detailed error information
+          echo ::error::Common issues:
+          echo ::error::  - Visual Studio Build Tools not found
+          echo ::error::  - NASM not in PATH
+          echo ::error::  - Path resolution errors
+          echo ::error::  - Missing ONNX Runtime
+        shell: cmd
+
+  build-macos:
+    name: Build macOS Artifacts
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          ARCH=$(uname -m)
+          if [ "$ARCH" != "arm64" ]; then
+            # Only install NASM for x86_64 (ARM64 uses native as compiler)
+            brew install nasm
+          else
+            echo "::notice::ARM64 detected - using native as compiler (no NASM needed)"
+          fi
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            curl -fL -o onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-arm64-${{ env.ONNX_VERSION }}.tgz
+            tar -xzf onnxruntime.tgz
+            mv onnxruntime-osx-arm64-${{ env.ONNX_VERSION }} onnxruntime
+            rm onnxruntime.tgz
+          else
+            curl -fL -o onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }}.tgz
+            tar -xzf onnxruntime.tgz
+            mv onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }} onnxruntime
+            rm onnxruntime.tgz
+          fi
+
+      - name: Build shared library
+        run: |
+          START_TIME=$(date +%s)
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Starting macOS build"
+          echo "::notice::Platform: macOS ($(uname -m))"
+          echo "::notice::Compiler: $(clang --version | head -n1)"
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            echo "::notice::Assembly: ARM64 NEON (native as compiler)"
+          else
+            echo "::notice::NASM: $(nasm --version | head -n1)"
+          fi
+
+          cd bindings/shared
+          # Ensure all files are compiled for the same architecture
+          ARCH=$(uname -m)
+
+          # macOS ARM64: Use native ARM64 NEON assembly (as -arch arm64)
+          # macOS x86_64: Use NASM for x86_64 assembly
+          echo "::notice::Building shared library for macOS ($ARCH)"
+
+          if [ "$ARCH" = "arm64" ]; then
+            # ARM64: Makefile automatically detects arm64 and uses as -arch arm64
+            # No need to set NASM - Makefile uses native ARM64 NEON assembly
+            echo "::notice::Using ARM64 NEON assembly (native as compiler)"
+            echo "::notice::Makefile will automatically detect arm64 and use ARM64 assembly"
+          else
+            # x86_64: Use NASM for x86_64 assembly
+            export CC="clang -arch x86_64"
+            export CXX="clang++ -arch x86_64"
+            export NASM="nasm"
+            export NASM_FLAGS="-f macho64"
+            echo "::notice::Using x86_64 NASM assembly"
+          fi
+
+          # Verify architecture consistency
+          echo "::notice::System architecture: $ARCH"
+          echo "::notice::Compiler: $(which clang)"
+
+          # Force complete clean to remove any old object files with wrong architecture
+          echo "::notice::Cleaning build directory to ensure architecture consistency"
+          rm -rf build lib
+          mkdir -p build lib
+
+          # Build shared library (Makefile handles ARM64 vs x86_64 automatically)
+          make shared
+
+          # Install to lib/ directory (for language bindings)
+          make install || echo "::warning::make install failed (may not be needed)"
+
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Build completed in ${DURATION} seconds"
+
+          if [ $DURATION -gt 600 ]; then
+            echo "::warning::Build time (${DURATION}s) exceeds expected threshold (600s)"
+          fi
+        continue-on-error: false
+
+      - name: Validate macOS artifacts
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Validating macOS build artifacts"
+
+          # Check dynamic library exists (updated to match Makefile: libfastembed_native.dylib)
+          if [ ! -f "bindings/shared/build/libfastembed_native.dylib" ]; then
+            echo "::error::macOS dynamic library not found"
+            echo "::error::Expected: bindings/shared/build/libfastembed_native.dylib"
+            echo "::error::Found files:"
+            ls -la bindings/shared/build/ || echo "Build directory not found"
+            exit 1
+          fi
+
+          # Check static library exists
+          if [ ! -f "bindings/shared/build/fastembed.a" ] && [ ! -f "bindings/shared/build/libfastembed.a" ]; then
+            echo "::warning::macOS static library not found (optional)"
+          fi
+
+          # Verify file types
+          for file in bindings/shared/build/*.dylib bindings/shared/build/*.a; do
+            if [ -f "$file" ]; then
+              FILE_TYPE=$(file "$file")
+              FILE_SIZE=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "unknown")
+              echo "::notice::Artifact: $(basename $file) - Type: $FILE_TYPE - Size: $FILE_SIZE bytes"
+              
+              if [ "$FILE_SIZE" != "unknown" ] && [ "$FILE_SIZE" -eq 0 ]; then
+                echo "::error::Artifact $(basename $file) has zero size"
+                exit 1
+              fi
+            fi
+          done
+
+          # Verify headers exist
+          if [ ! -f "bindings/shared/include/fastembed.h" ]; then
+            echo "::error::Header file not found: bindings/shared/include/fastembed.h"
+            exit 1
+          fi
+
+          echo "::notice::All macOS artifacts validated successfully"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build Node.js binding
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Node.js binding"
+          cd bindings/nodejs
+          npm install
+          npm run build
+          npm pack
+          echo "::notice::Node.js package built successfully"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Python wheel
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Python wheel"
+          cd bindings/python
+          pip install build wheel pybind11 numpy
+          python -m build --wheel
+          echo "::notice::Python wheel built successfully"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build C# NuGet
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building C# NuGet package"
+          cd bindings/csharp
+          dotnet pack src/FastEmbed.csproj -c Release -o nupkg
+          echo "::notice::C# NuGet package built successfully"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Build Java JAR
+        continue-on-error: true
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Java JAR"
+          cd bindings/java/java
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ] && [ -f "build_jni_macos.sh" ]; then
+            chmod +x build_jni_macos.sh
+            bash build_jni_macos.sh
+          elif [ -f "build_jni_linux.sh" ]; then
+            chmod +x build_jni_linux.sh
+            bash build_jni_linux.sh
+          fi
+          mvn clean package
+          echo "::notice::Java JAR built successfully"
+
+      - name: Package all macOS artifacts
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Packaging all macOS artifacts"
+          mkdir -p artifacts/macos
+          cp bindings/shared/build/*.dylib artifacts/macos/ || true
+          cp bindings/shared/build/*.a artifacts/macos/ || true
+          cp bindings/shared/include/*.h artifacts/macos/ || true
+          cp bindings/nodejs/*.tgz artifacts/macos/ 2>/dev/null || true
+          cp bindings/python/dist/*.whl artifacts/macos/ 2>/dev/null || true
+          cp bindings/csharp/nupkg/*.nupkg artifacts/macos/ 2>/dev/null || true
+          cp bindings/java/java/target/*.jar artifacts/macos/ 2>/dev/null || true
+
+          # Verify we have at least some files
+          FILE_COUNT=$(ls -1 artifacts/macos/ 2>/dev/null | wc -l)
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::No artifacts found to package"
+            exit 1
+          fi
+          echo "::notice::Packaging $FILE_COUNT files"
+
+          cd artifacts
+          ARCH=$(uname -m)
+          # Replace slashes in ref_name with dashes for valid filename
+          REF_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+          ARCHIVE_NAME="fastembed-macos-${ARCH}-${REF_NAME}.tar.gz"
+          tar -czf "$ARCHIVE_NAME" macos/
+
+          # Verify archive was created
+          if [ ! -f "$ARCHIVE_NAME" ]; then
+            echo "::error::Failed to create macOS artifact archive"
+            exit 1
+          fi
+
+          ARCHIVE_SIZE=$(stat -f%z "$ARCHIVE_NAME" 2>/dev/null || stat -c%s "$ARCHIVE_NAME" 2>/dev/null || echo "unknown")
+          echo "::notice::macOS archive created: $ARCHIVE_NAME (${ARCHIVE_SIZE} bytes)"
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastembed-macos-${{ runner.arch }}
+          path: artifacts/fastembed-macos-*.tar.gz
+          retention-days: 90
+
+      - name: Log build failure
+        if: failure()
+        run: |
+          echo "::error::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] macOS build failed"
+          echo "::error::Platform: macOS ($(uname -m))"
+          echo "::error::Job: ${{ job.name }}"
+          echo "::error::Workflow: ${{ github.workflow }}"
+          echo "::error::Tag: ${{ github.ref_name }}"
+          echo "::error::Commit: ${{ github.sha }}"
+          echo "::error::Check workflow logs for detailed error information"
+          echo "::error::Common issues:"
+          echo "::error::  - NASM version < 2.14"
+          echo "::error::  - Missing macho64 format support"
+          echo "::error::  - ABI compatibility issues"
+          echo "::error::  - Missing dependencies"
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') && always()
+
+    steps:
+      - name: Check build status
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Checking build status"
+          echo "Linux build: ${{ needs.build-linux.result }}"
+          echo "Windows build: ${{ needs.build-windows.result }}"
+          echo "macOS build: ${{ needs.build-macos.result }}"
+
+          if [ "${{ needs.build-linux.result }}" != "success" ] || \
+             [ "${{ needs.build-windows.result }}" != "success" ] || \
+             [ "${{ needs.build-macos.result }}" != "success" ]; then
+            echo "::error::One or more builds failed. Cannot create release."
+            echo "::error::Linux: ${{ needs.build-linux.result }}"
+            echo "::error::Windows: ${{ needs.build-windows.result }}"
+            echo "::error::macOS: ${{ needs.build-macos.result }}"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Extract version from CHANGELOG
+        id: changelog
+        run: |
+          # Extract v1.0.1 section from CHANGELOG.md
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Extract release notes from CHANGELOG
+          awk '/^## \['$VERSION'\]/,/^## \[/' CHANGELOG.md | sed '1d;$d' > release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: FastEmbed ${{ steps.changelog.outputs.version }}
+          body_path: release-notes.md
+          files: |
+            artifacts/fastembed-linux-x64/*.tar.gz
+            artifacts/fastembed-windows-x64/*.zip
+            artifacts/fastembed-macos-*/*.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

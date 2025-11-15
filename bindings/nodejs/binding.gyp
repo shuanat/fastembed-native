@@ -10,18 +10,22 @@
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
         "../shared/include",
-        "../../onnxruntime/include"
+        "<(module_root_dir)/../../bindings/onnxruntime/include"
       ],
       "defines": ["NAPI_DISABLE_CPP_EXCEPTIONS", "USE_ONNX_RUNTIME"],
       "conditions": [
         ["OS=='win'", {
+          "defines": ["FASTEMBED_BUILDING_LIB"],
           "sources": [
             "../shared/src/embedding_lib.asm",
             "../shared/src/embedding_generator.asm"
           ],
-              "libraries": [
-                "<!@(node -p \"require('path').resolve(process.cwd(),'..','..','onnxruntime','lib','onnxruntime.lib').replace(/\\\\/g,'/')\")"
-              ],
+          "include_dirs": [
+            "<(module_root_dir)/../../bindings/onnxruntime/include"
+          ],
+          "libraries": [
+            "<(module_root_dir)/../../bindings/onnxruntime/lib/onnxruntime.lib"
+          ],
           "msvs_settings": {
             "VCCLCompilerTool": {
               "ExceptionHandling": 1,
@@ -53,8 +57,8 @@
           ],
           "cflags": ["-fPIC"],
           "cflags_cc": ["-fPIC", "-std=c++17"],
-          "libraries": ["-lm", "-L<(module_root_dir)/../onnxruntime/lib", "-lonnxruntime"],
-          "ldflags": ["-Wl,-rpath,<(module_root_dir)/../onnxruntime/lib"],
+          "libraries": ["-lm", "-L<(module_root_dir)/../../bindings/onnxruntime/lib", "-lonnxruntime"],
+          "ldflags": ["-Wl,-rpath,<(module_root_dir)/../../bindings/onnxruntime/lib"],
           "rules": [
             {
               "rule_name": "asm_to_o",
@@ -76,30 +80,19 @@
         }],
         ["OS=='mac'", {
           "sources": [
-            "../shared/src/embedding_lib.asm",
-            "../shared/src/embedding_generator.asm"
+            # macOS: ARM64 NEON assembly for Apple Silicon
+            "../shared/src/embedding_lib_arm64.s",
+            "../shared/src/embedding_generator_arm64.s"
+          ],
+          "include_dirs": [
+            "<(module_root_dir)/../../bindings/onnxruntime/include"
           ],
           "cflags": ["-fPIC"],
           "cflags_cc": ["-fPIC", "-std=c++17"],
-          "libraries": ["-lm", "-L<(module_root_dir)/../onnxruntime/lib", "-lonnxruntime"],
-          "ldflags": ["-Wl,-rpath,<(module_root_dir)/../onnxruntime/lib"],
-          "rules": [
-            {
-              "rule_name": "asm_to_o",
-              "extension": "asm",
-              "inputs": ["<(RULE_INPUT_PATH)"],
-              "outputs": ["<(INTERMEDIATE_DIR)/<(RULE_INPUT_ROOT).o"],
-              "action": [
-                "nasm",
-                "-f",
-                "macho64",
-                "<(RULE_INPUT_PATH)",
-                "-o",
-                "<(INTERMEDIATE_DIR)/<(RULE_INPUT_ROOT).o"
-              ],
-              "process_outputs_as_sources": 1,
-              "message": "Assembling <(RULE_INPUT_PATH)"
-            }
+          "libraries": ["-lm", "-L<(module_root_dir)/../../bindings/onnxruntime/lib", "-lonnxruntime"],
+          "ldflags": [
+            "-Wl,-rpath,<(module_root_dir)/../../bindings/onnxruntime/lib",
+            "-Wl,-rpath,@loader_path/../../../../onnxruntime/lib"
           ]
         }]
       ]

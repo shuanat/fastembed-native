@@ -18,13 +18,17 @@
 
   <!-- Copy native DLLs to output directory -->
   <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
-    <None Include="../../shared/build/fastembed.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/build/fastembed.dll')" />
+    <None Include="../../shared/lib/fastembed_native.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/lib/fastembed_native.dll')" />
     <None Include="../../onnxruntime/lib/onnxruntime.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/onnxruntime.dll')" />
   </ItemGroup>
   
   <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
-    <None Include="../../shared/build/fastembed.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/build/fastembed.so')" />
+    <!-- Linux -->
+    <None Include="../../shared/lib/libfastembed_native.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/lib/libfastembed_native.so')" />
     <None Include="../../onnxruntime/lib/libonnxruntime.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/libonnxruntime.so')" />
+    <!-- macOS -->
+    <None Include="../../shared/lib/libfastembed_native.dylib" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/lib/libfastembed_native.dylib')" />
+    <None Include="../../onnxruntime/lib/libonnxruntime.dylib" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/libonnxruntime.dylib')" />
   </ItemGroup>
 
 </Project>

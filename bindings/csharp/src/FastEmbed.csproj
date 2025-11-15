@@ -8,7 +8,7 @@
     
     <!-- Package metadata -->
     <PackageId>FastEmbed.Native</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Authors>FastEmbed Team</Authors>
     <Company>FastEmbed</Company>
     <Description>High-performance hash-based text embedding library with native SIMD acceleration</Description>
@@ -33,16 +33,21 @@
 
   <!-- Include native libraries in output -->
   <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
-    <None Include="../../shared/build/fastembed.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../shared/lib/fastembed_native.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/lib/fastembed_native.dll')" />
     <!-- ONNX Runtime DLL -->
     <None Include="../../onnxruntime/lib/onnxruntime.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/onnxruntime.dll')" />
   </ItemGroup>
   
   <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
-    <None Include="../../shared/build/fastembed.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/build/fastembed.so')" />
+    <!-- Linux -->
+    <None Include="../../shared/lib/libfastembed_native.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/lib/libfastembed_native.so')" />
     <!-- ONNX Runtime shared library -->
     <None Include="../../onnxruntime/lib/libonnxruntime.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/libonnxruntime.so')" />
     <None Include="../../onnxruntime/lib/libonnxruntime.so.*" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/libonnxruntime.so')" />
+    <!-- macOS -->
+    <None Include="../../shared/lib/libfastembed_native.dylib" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/lib/libfastembed_native.dylib')" />
+    <None Include="../../onnxruntime/lib/libonnxruntime.dylib" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/libonnxruntime.dylib')" />
+    <None Include="../../onnxruntime/lib/libonnxruntime.*.dylib" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/libonnxruntime.dylib')" />
   </ItemGroup>
 
 </Project>

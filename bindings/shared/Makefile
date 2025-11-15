@@ -1,34 +1,62 @@
 # Makefile for Embedding Library Assembly Project
 
 # Compiler and flags
-NASM = nasm
-CC = gcc
+# NASM can be overridden from environment (e.g., "arch -arm64 nasm" on macOS)
+NASM ?= nasm
+CC ?= gcc
 AR = ar
 CFLAGS = -O2 -Wall
 LDFLAGS = -shared
 
 # Detect OS
 UNAME_S := $(shell uname -s)
+
+# Use NASM_FLAGS from environment if set (for architecture-specific builds)
+# Otherwise set default based on OS
+ifndef NASM_FLAGS
+    ifeq ($(UNAME_S),Linux)
+        NASM_FLAGS = -f elf64
+    else ifeq ($(UNAME_S),Darwin)
+        NASM_FLAGS = -f macho64
+    else ifeq ($(OS),Windows_NT)
+        NASM_FLAGS = -f win64
+    endif
+endif
+
+# Set platform-specific variables
 ifeq ($(UNAME_S),Linux)
-    NASM_FLAGS = -f elf64
     TARGET_LIB = fastembed.a
-    TARGET_DLL = fastembed.so
+    TARGET_DLL = libfastembed_native.so
     OBJ_EXT = .o
     BUILD_SHARED = yes
 endif
 ifeq ($(UNAME_S),Darwin)
-    NASM_FLAGS = -f macho64
-    TARGET_LIB = fastembed.a
-    TARGET_DLL = fastembed.dylib
-    OBJ_EXT = .o
-    BUILD_SHARED = yes
+	TARGET_LIB = fastembed.a
+	TARGET_DLL = libfastembed_native.dylib
+	OBJ_EXT = .o
+	BUILD_SHARED = yes
 endif
 ifeq ($(OS),Windows_NT)
-    NASM_FLAGS = -f win64
     TARGET_LIB = fastembed.lib
-    TARGET_DLL = fastembed.dll
+    TARGET_DLL = fastembed_native.dll
     OBJ_EXT = .obj
     BUILD_SHARED = yes
+endif
+
+# ============================================================================
+# Phase 1, Task 1.3: macOS arm64 NEON assembly implementation
+# ============================================================================
+# Use native ARM64 NEON assembly on Apple Silicon for optimal performance
+# Replaces previous C-only fallback with proper ARM64 SIMD support
+ifeq ($(UNAME_S),Darwin)
+    ARCH := $(shell uname -m)
+    ifeq ($(ARCH),arm64)
+        $(info ========================================)
+        $(info macOS arm64 detected - Building with ARM64 NEON)
+        $(info Using native ARM64 assembly for maximum performance)
+        $(info ========================================)
+        USE_ARM64_ASM = 1
+    endif
 endif
 
 # Directories
@@ -40,9 +68,21 @@ BUILD_DIR = build
 $(shell mkdir -p $(BUILD_DIR))
 
 # Source files
-ASM_SOURCES = $(SRC_DIR)/embedding_lib.asm $(SRC_DIR)/embedding_generator.asm
+# Conditional assembly sources based on architecture
+ifdef USE_ARM64_ASM
+    # ARM64 NEON assembly (macOS Apple Silicon)
+    ASM_SOURCES = $(SRC_DIR)/embedding_lib_arm64.s $(SRC_DIR)/embedding_generator_arm64.s
+    OBJECTS = $(BUILD_DIR)/embedding_lib_arm64.o $(BUILD_DIR)/embedding_generator_arm64.o $(BUILD_DIR)/embedding_lib_c.o
+    ASM_COMPILER = as
+    ASM_FLAGS = -arch arm64
+else
+    # x86_64 assembly (Linux/Windows/macOS Intel)
+    ASM_SOURCES = $(SRC_DIR)/embedding_lib.asm $(SRC_DIR)/embedding_generator.asm
+    OBJECTS = $(BUILD_DIR)/embedding_lib$(OBJ_EXT) $(BUILD_DIR)/embedding_generator$(OBJ_EXT) $(BUILD_DIR)/embedding_lib_c.o
+    ASM_COMPILER = $(NASM)
+    ASM_FLAGS = $(NASM_FLAGS)
+endif
 C_SOURCES = $(SRC_DIR)/embedding_lib_c.c
-OBJECTS = $(BUILD_DIR)/embedding_lib$(OBJ_EXT) $(BUILD_DIR)/embedding_generator$(OBJ_EXT) $(BUILD_DIR)/embedding_lib_c.o
 CLI_SOURCES = $(SRC_DIR)/vector_ops_cli.c $(SRC_DIR)/embedding_gen_cli.c
 CLI_OBJECTS = $(BUILD_DIR)/vector_ops_cli.o $(BUILD_DIR)/embedding_gen_cli.o
 CLI_TARGETS = $(BUILD_DIR)/vector_ops_cli$(if $(filter Windows_NT,$(OS)),.exe,) $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,)
@@ -63,11 +103,16 @@ fastembed.a: $(BUILD_DIR)/$(TARGET_LIB)
 
 # Build static library
 $(BUILD_DIR)/$(TARGET_LIB): $(OBJECTS)
+	@rm -f $(BUILD_DIR)/$(TARGET_LIB)
 	$(AR) rcs $(BUILD_DIR)/$(TARGET_LIB) $(OBJECTS)
+	@if command -v ranlib >/dev/null 2>&1; then ranlib $(BUILD_DIR)/$(TARGET_LIB); fi
 	@echo "Built: $(BUILD_DIR)/$(TARGET_LIB)"
 
 # Build shared library (optional)
 shared: $(BUILD_DIR)/$(TARGET_DLL)
+	@mkdir -p lib
+	@cp -f $(BUILD_DIR)/$(TARGET_DLL) lib/$(TARGET_DLL)
+	@echo "Installed: lib/$(TARGET_DLL)"
 
 $(BUILD_DIR)/$(TARGET_DLL): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(BUILD_DIR)/$(TARGET_DLL) -lm
@@ -83,8 +128,16 @@ $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,): $(BUILD_DI
 	@echo "Built: $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,)"
 
 # Compile assembly files
+# ARM64 NEON (.s) or x86_64 NASM (.asm) based on architecture
+ifdef USE_ARM64_ASM
+# ARM64 NEON assembly (macOS Apple Silicon)
+$(BUILD_DIR)/%_arm64.o: $(SRC_DIR)/%_arm64.s
+	$(ASM_COMPILER) $(ASM_FLAGS) $< -o $@
+else
+# x86_64 assembly (Linux/Windows/macOS Intel)
 $(BUILD_DIR)/%$(OBJ_EXT): $(SRC_DIR)/%.asm
-	$(NASM) $(NASM_FLAGS) $< -o $@
+	$(ASM_COMPILER) $(ASM_FLAGS) $< -o $@
+endif
 
 # Compile C files
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
@@ -152,31 +205,122 @@ $(BUILD_DIR)/onnx_embedding_loader.o: $(SRC_DIR)/onnx_embedding_loader.c
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -f $(SRC_DIR)/*.o $(SRC_DIR)/*.obj test_basic test_basic.exe
+	@if [ -d "$(BUILD_DIR)" ]; then rm -rf $(BUILD_DIR); fi
+	rm -f test_hash_functions test_hash_functions.exe
+	rm -f test_embedding_generation test_embedding_generation.exe
+	rm -f test_quality_improvement test_quality_improvement.exe
+	rm -f test_onnx_dimension test_onnx_dimension.exe
+	rm -f benchmark_improved benchmark_improved.exe
+
+# Install target: copy libraries to lib/ directory for language bindings
+install: all
+	@echo "==================================="
+	@echo "Installing Libraries"
+	@echo "==================================="
+	@mkdir -p lib
+ifdef BUILD_SHARED
+	@echo "Installing shared library: $(TARGET_DLL)"
+	@cp $(BUILD_DIR)/$(TARGET_DLL) lib/
+endif
+	@echo "Installing static library: $(TARGET_LIB)"
+	@cp $(BUILD_DIR)/$(TARGET_LIB) lib/
+	@echo "Installation complete!"
+	@echo "Libraries installed to: lib/"
 
 # Test targets
-TEST_SOURCES = tests/test_basic.c
+TEST_SOURCES = tests/test_basic.c tests/test_hash_functions.c tests/test_embedding_generation.c tests/test_quality_improvement.c tests/test_onnx_dimension.c
 TEST_TARGET = $(BUILD_DIR)/test_basic$(if $(filter Windows_NT,$(OS)),.exe,)
+TEST_HASH_TARGET = $(BUILD_DIR)/test_hash_functions$(if $(filter Windows_NT,$(OS)),.exe,)
+TEST_EMBEDDING_TARGET = $(BUILD_DIR)/test_embedding_generation$(if $(filter Windows_NT,$(OS)),.exe,)
+TEST_QUALITY_TARGET = $(BUILD_DIR)/test_quality_improvement$(if $(filter Windows_NT,$(OS)),.exe,)
+TEST_ONNX_TARGET = $(BUILD_DIR)/test_onnx_dimension$(if $(filter Windows_NT,$(OS)),.exe,)
 
-test-build: $(TEST_TARGET)
+test-build: $(TEST_TARGET) $(TEST_HASH_TARGET) $(TEST_EMBEDDING_TARGET) $(TEST_QUALITY_TARGET) $(TEST_ONNX_TARGET)
 
-$(TEST_TARGET): $(TEST_SOURCES) $(BUILD_DIR)/$(TARGET_LIB)
-	$(CC) $(CFLAGS) $(INCLUDES) $(TEST_SOURCES) $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_TARGET) -lm -L$(BUILD_DIR)
+$(TEST_TARGET): ../../tests/test_basic.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) ../../tests/test_basic.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_TARGET) -lm -L$(BUILD_DIR)
 	@echo "Built: $(TEST_TARGET)"
 
-test: $(TEST_TARGET)
-	@echo "Running tests..."
+$(TEST_HASH_TARGET): ../../tests/test_hash_functions.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) ../../tests/test_hash_functions.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_HASH_TARGET) -lm -L$(BUILD_DIR)
+	@echo "Built: $(TEST_HASH_TARGET)"
+
+$(TEST_EMBEDDING_TARGET): ../../tests/test_embedding_generation.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) ../../tests/test_embedding_generation.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_EMBEDDING_TARGET) -lm -L$(BUILD_DIR)
+	@echo "Built: $(TEST_EMBEDDING_TARGET)"
+
+$(TEST_QUALITY_TARGET): ../../tests/test_quality_improvement.c $(BUILD_DIR)/$(TARGET_LIB)
+	$(CC) $(CFLAGS) $(INCLUDES) ../../tests/test_quality_improvement.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_QUALITY_TARGET) -lm -L$(BUILD_DIR)
+	@echo "Built: $(TEST_QUALITY_TARGET)"
+
+$(TEST_ONNX_TARGET): ../../tests/test_onnx_dimension.c $(BUILD_DIR)/$(TARGET_LIB)
+	@if [ "$(USE_ONNX)" = "1" ]; then \
+		$(CC) $(CFLAGS) $(ONNX_FLAGS) $(INCLUDES) ../../tests/test_onnx_dimension.c $(BUILD_DIR)/$(TARGET_LIB) -o $(TEST_ONNX_TARGET) -lm -L$(BUILD_DIR) $(ONNX_LIBS); \
+		echo "Built: $(TEST_ONNX_TARGET) (with ONNX support)"; \
+	else \
+		echo "Skipping $(TEST_ONNX_TARGET) (ONNX Runtime not available)"; \
+	fi
+
+test: $(TEST_TARGET) $(TEST_HASH_TARGET) $(TEST_EMBEDDING_TARGET) $(TEST_QUALITY_TARGET)
+	@echo "Running all tests..."
+ifeq ($(OS),Windows_NT)
+	@echo "\n=== Running test_basic ==="
+	@if exist "$(TEST_TARGET)" ( \
+		cd $(BUILD_DIR) && $(TEST_TARGET) \
+	) else ( \
+		echo Test not found \
+	)
+	@echo "\n=== Running test_hash_functions ==="
+	@if exist "$(TEST_HASH_TARGET)" ( \
+		cd $(BUILD_DIR) && $(TEST_HASH_TARGET) \
+	) else ( \
+		echo Test not found \
+	)
+	@echo "\n=== Running test_embedding_generation ==="
+	@if exist "$(TEST_EMBEDDING_TARGET)" ( \
+		cd $(BUILD_DIR) && $(TEST_EMBEDDING_TARGET) \
+	) else ( \
+		echo Test not found \
+	)
+	@echo "\n=== Running test_quality_improvement ==="
+	@if exist "$(TEST_QUALITY_TARGET)" ( \
+		cd $(BUILD_DIR) && $(TEST_QUALITY_TARGET) \
+	) else ( \
+		echo Test not found \
+	)
+	@if exist "$(TEST_ONNX_TARGET)" ( \
+		echo "\n=== Running test_onnx_dimension ===" && \
+		cd $(BUILD_DIR) && $(TEST_ONNX_TARGET) \
+	)
+else
+	@echo "\n=== Running test_basic ==="
 	@if [ -f "$(TEST_TARGET)" ]; then \
 		LD_LIBRARY_PATH=$(BUILD_DIR) ./$(TEST_TARGET) || true; \
-	else \
-		echo "Error: Test executable not found. Run 'make test-build' first."; \
-		exit 1; \
 	fi
+	@echo "\n=== Running test_hash_functions ==="
+	@if [ -f "$(TEST_HASH_TARGET)" ]; then \
+		LD_LIBRARY_PATH=$(BUILD_DIR) ./$(TEST_HASH_TARGET) || true; \
+	fi
+	@echo "\n=== Running test_embedding_generation ==="
+	@if [ -f "$(TEST_EMBEDDING_TARGET)" ]; then \
+		LD_LIBRARY_PATH=$(BUILD_DIR) ./$(TEST_EMBEDDING_TARGET) || true; \
+	fi
+	@echo "\n=== Running test_quality_improvement ==="
+	@if [ -f "$(TEST_QUALITY_TARGET)" ]; then \
+		LD_LIBRARY_PATH=$(BUILD_DIR) ./$(TEST_QUALITY_TARGET) || true; \
+	fi
+	@if [ "$(USE_ONNX)" = "1" ] && [ -f "$(TEST_ONNX_TARGET)" ]; then \
+		echo "\n=== Running test_onnx_dimension ==="; \
+		LD_LIBRARY_PATH=$(BUILD_DIR):$(ONNX_RUNTIME_PATH)/lib ./$(TEST_ONNX_TARGET) || true; \
+	fi
+endif
 
 # Benchmark targets
 BENCHMARK_SOURCES = tests/benchmark.c
 BENCHMARK_TARGET = $(BUILD_DIR)/benchmark$(if $(filter Windows_NT,$(OS)),.exe,)
+BENCHMARK_IMPROVED_TARGET = $(BUILD_DIR)/benchmark_improved$(if $(filter Windows_NT,$(OS)),.exe,)
 
-benchmark-build: $(BENCHMARK_TARGET)
+benchmark-build: $(BENCHMARK_TARGET) $(BENCHMARK_IMPROVED_TARGET)
 
 $(BENCHMARK_TARGET): $(BENCHMARK_SOURCES) $(BUILD_DIR)/$(TARGET_LIB)
 	@echo "Building benchmark..."
@@ -187,13 +331,24 @@ $(BENCHMARK_TARGET): $(BENCHMARK_SOURCES) $(BUILD_DIR)/$(TARGET_LIB)
 	fi
 	@echo "Built: $(BENCHMARK_TARGET)"
 
-benchmark: $(BENCHMARK_TARGET)
+$(BENCHMARK_IMPROVED_TARGET): ../../tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB)
+	@echo "Building improved benchmark..."
+	@if [ "$(USE_ONNX)" = "1" ]; then \
+		$(CC) $(CFLAGS) -O2 $(ONNX_FLAGS) $(INCLUDES) ../../tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB) -o $(BENCHMARK_IMPROVED_TARGET) -lm -L$(BUILD_DIR) $(ONNX_LIBS); \
+	else \
+		$(CC) $(CFLAGS) -O2 $(INCLUDES) ../../tests/benchmark_improved.c $(BUILD_DIR)/$(TARGET_LIB) -o $(BENCHMARK_IMPROVED_TARGET) -lm -L$(BUILD_DIR); \
+	fi
+	@echo "Built: $(BENCHMARK_IMPROVED_TARGET)"
+
+benchmark: $(BENCHMARK_TARGET) $(BENCHMARK_IMPROVED_TARGET)
 	@echo "Running benchmarks..."
+	@echo "\n=== Running original benchmark ==="
 	@if [ -f "$(BENCHMARK_TARGET)" ]; then \
 		LD_LIBRARY_PATH=$(BUILD_DIR):$(ONNX_RUNTIME_PATH)/lib ./$(BENCHMARK_TARGET) || true; \
-	else \
-		echo "Error: Benchmark executable not found. Run 'make benchmark-build' first."; \
-		exit 1; \
+	fi
+	@echo "\n=== Running improved benchmark ==="
+	@if [ -f "$(BENCHMARK_IMPROVED_TARGET)" ]; then \
+		LD_LIBRARY_PATH=$(BUILD_DIR):$(ONNX_RUNTIME_PATH)/lib ./$(BENCHMARK_IMPROVED_TARGET) || true; \
 	fi
 
 # Setup targets
@@ -251,5 +406,5 @@ setup: setup-onnx setup-model
 	@echo "   ONNX Runtime: onnxruntime/"
 	@echo "   Model: models/nomic-embed-text.onnx"
 
-.PHONY: all clean test test-build benchmark benchmark-build setup setup-onnx setup-model
+.PHONY: all clean test test-build benchmark benchmark-build setup setup-onnx setup-model install
 

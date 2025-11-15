@@ -1,45 +1,53 @@
-# Сборка FastEmbed на Windows
+# Building FastEmbed on Windows
 
-Этот гайд описывает актуальный, поддерживаемый процесс сборки и тестирования FastEmbed на Windows для всех биндингов: Node.js (N-API), Python (pybind11), C# (P/Invoke), Java (JNI).
+**Navigation**: [Documentation Index](README.md) → Build Guides → Windows
 
-## Предварительные требования
+This guide describes the current, supported build and testing process for FastEmbed on Windows for all bindings: Node.js (N-API), Python (pybind11), C# (P/Invoke), Java (JNI).
+
+## Prerequisites
 
 - Visual Studio 2022 Build Tools (Workload: "Desktop development with C++")
-- NASM ≥ 2.14 (добавьте `nasm.exe` в PATH)
+- NASM ≥ 2.14 (add `nasm.exe` to PATH)
 - Node.js 18+
-- Python 3.8+ (рекомендуется) + `pip`
+- Python 3.8+ (recommended) + `pip`
 - .NET SDK 8.0+
-- JDK 17+ и Maven
+- JDK 17+ and Maven
 
-## Быстрый старт
+## Quick Start
 
-### 1) Сборка общей нативной библиотеки
+### 1) Build Shared Native Library
 
-Используйте универсальный скрипт (рекомендуется):
+Use the universal script (recommended):
 
 ```bat
 python scripts\build_native.py
 ```
 
-Альтернатива (батник, вызывает тот же пайплайн):
+Alternative (batch file, calls the same pipeline):
 
 ```bat
 scripts\build_windows.bat
 ```
 
-Итоговые артефакты появятся в `bindings\shared\build\`:
+Final artifacts will appear in `bindings\shared\build\`:
 
 - `fastembed.dll` (Windows)
-- предкомпилированные объектные файлы для Python-сборки: `embedding_lib.obj`, `embedding_generator.obj`
+- Pre-compiled object files for Python build: `embedding_lib.obj`, `embedding_generator.obj`
 
-### 2) Сборка всех биндингов и тесты
+### 2) Build All Bindings and Tests
 
 ```bat
-scripts\build_all_windows.bat
-scripts\test_all_windows.bat
+REM Build shared library first
+scripts\build_windows.bat
+
+REM Then build all bindings using Makefile
+make all
+
+REM Run tests
+make test
 ```
 
-## Сборка и проверка по языкам
+## Building and Testing by Language
 
 ### Node.js (N-API)
 
@@ -52,7 +60,7 @@ node test-native.js
 
 ### Python (pybind11)
 
-На Windows расширение ссылается на объектные файлы из `bindings\shared\build`. Если их нет — выполните шаг "Сборка общей нативной библиотеки".
+On Windows, the extension links to object files from `bindings\shared\build`. If they don't exist, run the "Build Shared Native Library" step first.
 
 ```bat
 cd bindings\python
@@ -66,8 +74,11 @@ python test_python_native.py
 ```bat
 cd bindings\csharp
 dotnet build src\FastEmbed.csproj
-dotnet run --project test_csharp_native.csproj --no-build
+cd tests
+dotnet test
 ```
+
+**Test Suite**: The C# binding includes a comprehensive xUnit test suite with 49+ tests.
 
 ### Java (JNI)
 
@@ -76,29 +87,52 @@ cd bindings\java
 bash run_benchmark.sh
 ```
 
-Скрипт соберёт JNI-обёртку и класс-тест, затем запустит бенчмарк/проверку загрузки `fastembed.dll` из `target\lib`.
+The script will build the JNI wrapper and test class, then run a benchmark/verification to load `fastembed.dll` from `target\lib`.
 
-## Очистка артефактов (Windows)
+## Cleaning Artifacts (Windows)
 
 ```bat
-make clean  ^  (вызовет scripts\clean_windows.bat)
+make clean  ^  (will call scripts\clean_windows.bat)
 ```
 
-Либо напрямую:
+Or directly:
 
 ```bat
 scripts\clean_windows.bat
 ```
 
-## Примечания
+## Notes
 
-- Node.js использует N-API (нативный модуль), FFI не применяется.
-- Python использует pybind11; на Windows линковка идёт к заранее собранным `.obj` из `bindings\shared\build`.
-- C# использует P/Invoke и резолвер `NativeLibrary.SetDllImportResolver`, который сначала ищет `fastembed.dll` рядом с собранными `.dll` биндинга.
-- Java использует минимальный JNI-слой; библиотека ищется через `-Djava.library.path`.
+- Node.js uses N-API (native module), FFI is not used.
+- Python uses pybind11; on Windows, linking goes to pre-built `.obj` files from `bindings\shared\build`.
+- C# uses P/Invoke and `NativeLibrary.SetDllImportResolver`, which first looks for `fastembed.dll` next to the built `.dll` binding.
+- Java uses a minimal JNI layer; the library is found via `-Djava.library.path`.
 
-## Частые проблемы
+## Common Issues
 
-- «nasm не найден»: установите NASM и добавьте путь к `nasm.exe` в PATH, либо используйте `bindings\nodejs\nasm_wrapper.bat` (оно вызывается автоматически из `binding.gyp`).
-- Ошибка при сборке Python: убедитесь, что выполнен шаг сборки общей библиотеки и присутствуют `.obj` файлы в `bindings\shared\build`.
-- Проблемы с очисткой `make clean` под Windows: используйте `scripts\clean_windows.bat` напрямую.
+- "nasm not found": Install NASM and add the path to `nasm.exe` to PATH, or use `bindings\nodejs\nasm_wrapper.bat` (it's called automatically from `binding.gyp`).
+- Python build error: Ensure the shared library build step is completed and `.obj` files are present in `bindings\shared\build`.
+- Issues with `make clean` on Windows: Use `scripts\clean_windows.bat` directly.
+
+---
+
+## See Also
+
+### Related Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and build system details
+- **[API Reference](API.md)** - Complete API documentation
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Other Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Native](BUILD_NATIVE.md)** - Node.js N-API module build
+- **[Build Python](BUILD_PYTHON.md)** - Python pybind11 module build
+- **[Build C#](BUILD_CSHARP.md)** - C# P/Invoke module build
+- **[Build Java](BUILD_JAVA.md)** - Java JNI module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start

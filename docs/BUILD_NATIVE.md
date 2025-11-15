@@ -1,30 +1,35 @@
 # Building FastEmbed Native N-API Module
 
-FastEmbed теперь использует нативный N-API модуль вместо FFI для максимальной производительности и надёжности на Windows.
+**Navigation**: [Documentation Index](README.md) → Build Guides → Node.js
 
-## Требования
+FastEmbed now uses a native N-API module instead of FFI for maximum performance and reliability on Windows.
+
+## Requirements
+
+> **Note**: Common requirements (NASM, compiler) are described in [BUILD_WINDOWS.md](BUILD_WINDOWS.md) (Windows) or [BUILD_CMAKE.md](BUILD_CMAKE.md) (Linux/macOS).
 
 ### Windows
 
-1. **Visual Studio Build Tools 2022** (или полная Visual Studio)
-   - Скачайте: <https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022>
-   - Установите рабочую нагрузку: "Desktop development with C++"
-   - Включает: MSVC, Windows SDK, MSBuild
+1. **Visual Studio Build Tools 2022** (or full Visual Studio)
+   - Download: <https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022>
+   - Install workload: "Desktop development with C++"
+   - Includes: MSVC, Windows SDK, MSBuild
 
 2. **NASM** (Netwide Assembler)
-   - Установите NASM и добавьте в PATH
-   - Или используйте скрипт `build_windows.bat` для автоматической сборки ассемблерных файлов
+   - Install NASM and add to PATH
+   - Or use `build_windows.bat` script for automatic assembly file compilation
+   - See details: [BUILD_WINDOWS.md](BUILD_WINDOWS.md#nasm-installation)
 
 3. **Python 3.x**
-   - Для node-gyp
-   - Скачайте: <https://www.python.org/downloads/>
+   - For node-gyp
+   - Download: <https://www.python.org/downloads/>
 
 4. **Node.js** (v16+)
 
 ### Linux/macOS
 
-1. **GCC/Clang** (обычно уже установлен)
-2. **NASM** (для ассемблерных файлов)
+1. **GCC/Clang** (usually already installed)
+2. **NASM** (for assembly files)
 
    ```bash
    # Ubuntu/Debian
@@ -34,36 +39,38 @@ FastEmbed теперь использует нативный N-API модуль 
    brew install nasm
    ```
 
+   See details: [BUILD_CMAKE.md](BUILD_CMAKE.md#prerequisites)
+
 3. **Python 3.x**
 4. **Node.js** (v16+)
 
-## Сборка
+## Building
 
-### Автоматическая сборка (рекомендуется)
+### Automatic Build (Recommended)
 
 ```bash
 npm install
 ```
 
-Это автоматически:
+This automatically:
 
-1. Установит зависимости (`node-gyp`, `node-addon-api`)
-2. Соберёт нативный модуль
-3. При ошибке использует CLI fallback
+1. Installs dependencies (`node-gyp`, `node-addon-api`)
+2. Builds the native module
+3. Uses CLI fallback on error
 
-### Ручная сборка
+### Manual Build
 
 #### Windows
 
-1. **Соберите ассемблерные объектные файлы:**
+1. **Build assembly object files:**
 
    ```cmd
    build_windows.bat
    ```
 
-   Это создаст `build/embedding_lib.obj` и `build/embedding_generator.obj`
+   This creates `build/embedding_lib.obj` and `build/embedding_generator.obj`
 
-2. **Соберите нативный модуль:**
+2. **Build the native module:**
 
    ```cmd
    npm run build
@@ -72,20 +79,20 @@ npm install
 #### Linux/macOS
 
 ```bash
-# Соберите shared library (опционально для CLI)
+# Build shared library (optional for CLI)
 make shared
 
-# Соберите нативный модуль
+# Build the native module
 npm run build
 ```
 
-### Debug сборка
+### Debug Build
 
 ```bash
 npm run build:debug
 ```
 
-## Проверка сборки
+## Verifying Build
 
 ```javascript
 const { loadNativeModule, generateEmbedding } = require('./lib/fastembed-native');
@@ -100,7 +107,7 @@ if (loadNativeModule()) {
 }
 ```
 
-Или через TypeScript:
+Or via TypeScript:
 
 ```typescript
 import { FastEmbedNativeClient } from './lib/fastembed-native';
@@ -113,45 +120,45 @@ if (client.isAvailable()) {
 }
 ```
 
-## Архитектура
+## Architecture
 
 ### N-API vs FFI
 
-| Аспект                 | N-API (Нативный)        | FFI                   |
-| ---------------------- | ----------------------- | --------------------- |
-| **Производительность** | Максимальная (нативная) | Средняя (overhead)    |
-| **Сборка**             | Требует компиляции      | Не требует компиляции |
-| **Совместимость**      | ABI-стабильная          | Проблемы на Windows   |
-| **Поддержка**          | Официальная Node.js     | Сторонняя библиотека  |
-| **Типы**               | Прямое преобразование   | Требует ref-napi      |
+| Aspect            | N-API (Native)       | FFI                   |
+| ----------------- | -------------------- | --------------------- |
+| **Performance**   | Maximum (native)     | Medium (overhead)     |
+| **Build**         | Requires compilation | No compilation needed |
+| **Compatibility** | ABI-stable           | Issues on Windows     |
+| **Support**       | Official Node.js     | Third-party library   |
+| **Types**         | Direct conversion    | Requires ref-napi     |
 
-### Структура
+### Structure
 
 ```
 FastEmbed/
 ├── addon/
-│   └── fastembed_napi.cc       # N-API C++ обёртка
+│   └── fastembed_napi.cc       # N-API C++ wrapper
 ├── lib/
-│   └── fastembed-native.ts     # TypeScript интерфейс
+│   └── fastembed-native.ts     # TypeScript interface
 ├── src/
-│   ├── embedding_lib.asm       # Оптимизированные SIMD функции
-│   ├── embedding_generator.asm # Hash-based генератор
-│   └── embedding_lib_c.c       # C функции-обёртки
-├── binding.gyp                 # node-gyp конфигурация
+│   ├── embedding_lib.asm       # Optimized SIMD functions
+│   ├── embedding_generator.asm # Hash-based generator
+│   └── embedding_lib_c.c       # C function wrappers
+├── binding.gyp                 # node-gyp configuration
 └── build/
     └── Release/
-        └── fastembed_native.node  # Скомпилированный модуль
+        └── fastembed_native.node  # Compiled module
 ```
 
 ## API
 
-### Экспортируемые функции
+### Exported Functions
 
 ```typescript
-// Генерация эмбеддингов
+// Embedding generation
 generateEmbedding(text: string, dimension?: number): Float32Array
 
-// Векторные операции
+// Vector operations
 cosineSimilarity(vectorA: Float32Array | number[], vectorB: Float32Array | number[]): number
 dotProduct(vectorA: Float32Array | number[], vectorB: Float32Array | number[]): number
 vectorNorm(vector: Float32Array | number[]): number
@@ -161,17 +168,17 @@ addVectors(vectorA: Float32Array | number[], vectorB: Float32Array | number[]): 
 
 ### FastEmbedNativeClient
 
-Класс-обёртка для удобного использования:
+Wrapper class for convenient usage:
 
 ```typescript
 const client = new FastEmbedNativeClient(768);
 
-// Проверка доступности
+// Check availability
 if (client.isAvailable()) {
-  // Генерация
+  // Generation
   const embedding = await client.generateEmbedding('text');
   
-  // Векторные операции
+  // Vector operations
   const similarity = client.cosineSimilarity(vec1, vec2);
   const dot = client.dotProduct(vec1, vec2);
   const norm = client.vectorNorm(vec1);
@@ -182,7 +189,7 @@ if (client.isAvailable()) {
 
 ### Windows: "MSBuild failed"
 
-Убедитесь, что установлены Visual Studio Build Tools:
+Ensure Visual Studio Build Tools are installed:
 
 ```cmd
 npm config set msvs_version 2022
@@ -191,7 +198,7 @@ npm run build
 
 ### Windows: "NASM not found"
 
-Запустите `build_windows.bat` сначала, или добавьте NASM в PATH.
+Run `build_windows.bat` first, or add NASM to PATH.
 
 ### Linux/macOS: "nasm: command not found"
 
@@ -202,9 +209,9 @@ brew install nasm      # macOS
 
 ### "Native module not found"
 
-Модуль не собран или сборка не удалась. Используется CLI fallback автоматически.
+Module not built or build failed. CLI fallback is used automatically.
 
-## Производительность
+## Performance
 
 **Measured Performance** (Nov 2025):
 
@@ -218,9 +225,32 @@ See [BENCHMARK_RESULTS.md](../BENCHMARK_RESULTS.md) for complete benchmark data.
 
 ## Fallback Chain
 
-FastEmbed автоматически использует лучший доступный метод:
+FastEmbed automatically uses the best available method:
 
-1. **Native N-API** (fastest) ← по умолчанию
-2. **CLI mode** (fallback) ← если N-API не доступен
+1. **Native N-API** (fastest) ← default
+2. **CLI mode** (fallback) ← if N-API is not available
 
-FFI больше не используется из-за проблем на Windows.
+FFI is no longer used due to issues on Windows.
+
+---
+
+## See Also
+
+### Related Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and build system details
+- **[API Reference](API.md)** - Complete API documentation for Node.js
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Other Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Windows](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[Build Python](BUILD_PYTHON.md)** - Python pybind11 module build
+- **[Build C#](BUILD_CSHARP.md)** - C# P/Invoke module build
+- **[Build Java](BUILD_JAVA.md)** - Java JNI module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start

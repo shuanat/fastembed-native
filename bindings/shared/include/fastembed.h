@@ -31,11 +31,18 @@
  * **Usage Example:**
  * @code
  * #include "fastembed.h"
+ * #include "fastembed_config.h"
  *
- * float embedding[768];
- * int result = fastembed_generate("Hello world", embedding, 768);
+ * // Default dimension (128) - recommended for most use cases
+ * float embedding[FASTEMBED_DEFAULT_DIMENSION];
+ * int result = fastembed_generate("Hello world", embedding, 0); // 0 = use
+ * default (128)
  *
- * float similarity = fastembed_cosine_similarity(embedding1, embedding2, 768);
+ * // BERT compatibility (768 dimensions)
+ * float embedding_bert[FASTEMBED_EMBEDDING_DIM];
+ * int result_bert = fastembed_generate("Hello world", embedding_bert, 768);
+ *
+ * float similarity = fastembed_cosine_similarity(embedding1, embedding2, 128);
  * @endcode
  *
  * @note For backwards compatibility, see embedding_lib_c.h (deprecated)
@@ -49,16 +56,24 @@
 #ifndef FASTEMBED_H
 #define FASTEMBED_H
 
+#include "fastembed_config.h"
+#include <stddef.h>
 #include <stdint.h>
 
 // Export macros for Windows DLL
 #ifdef _WIN32
-#ifdef FASTEMBED_BUILDING_LIB
+#ifdef FASTEMBED_STATIC
+// Static library - no import/export needed
+#define FASTEMBED_EXPORT
+#elif defined(FASTEMBED_BUILDING_LIB)
+// Building DLL - export symbols
 #define FASTEMBED_EXPORT __declspec(dllexport)
 #else
+// Using DLL - import symbols
 #define FASTEMBED_EXPORT __declspec(dllimport)
 #endif
 #else
+// Non-Windows platforms
 #define FASTEMBED_EXPORT
 #endif
 
@@ -67,26 +82,38 @@ extern "C" {
 #endif
 
 /**
- * @brief Generate text embedding using hash-based algorithm
+ * @brief Generate text embedding using improved hash-based algorithm
  *
- * Converts input text into a fixed-size embedding vector using a hash-based
- * algorithm optimized with SIMD instructions. The embedding is deterministic:
- * the same text always produces the same embedding.
+ * Converts input text into a fixed-size embedding vector using an improved
+ * hash-based algorithm with Sin/Cos normalization and positional hashing.
+ * The embedding is deterministic: the same text always produces the same
+ * embedding.
  *
- * Current implementation generates 768-dimensional vectors (BERT-base size).
- * The algorithm splits text into words, hashes each word, and constructs
- * a dense vector representation.
+ * **BREAKING CHANGE (v1.0.1)**: Default dimension changed from 768 to 128.
+ * If dimension is 0, the function uses 128 as default. This improves
+ * performance while maintaining good quality for most use cases.
+ *
+ * Supported dimensions: 128, 256, 512, 768, 1024, 2048
+ *
+ * The improved algorithm uses:
+ * - Positional hashing: Character position affects hash value
+ * - Sin/Cos normalization: Better distribution in [-1, 1] range
+ * - Combined hashing: Reduces collision probability
+ * - Case-insensitive normalization: Text is converted to lowercase before
+ *   hashing (improves search quality and consistency with ONNX loader)
  *
  * @param text Input text to embed (null-terminated string, max 8192 chars)
  * @param output Output array for embedding vector (must be pre-allocated, size
  * >= dimension)
- * @param dimension Requested embedding dimension (currently must be 768)
+ * @param dimension Requested embedding dimension (128, 256, 512, 768, 1024,
+ * 2048). If 0, uses default dimension 128.
  * @return 0 on success, -1 on error (invalid parameters or generation failure)
  *
  * @note This function uses hash-based embedding, not learned model embeddings
  * @note For ML model embeddings, use fastembed_onnx_generate() instead
- * @note Current limitation: only supports dimension=768
- * @note Performance: O(text_length), optimized with SIMD
+ * @note Default dimension is 128 (changed from 768 in v1.0.1)
+ * @note Performance: ~0.01-0.05ms for 128D, ~0.05-0.15ms for 768D
+ * @note For BERT compatibility, use dimension=768 explicitly
  */
 FASTEMBED_EXPORT int fastembed_generate(const char *text, float *output,
                                         int dimension);
@@ -212,8 +239,9 @@ FASTEMBED_EXPORT void fastembed_add_vectors(const float *vec1,
  * @param output Output array for embedding vector (must be pre-allocated, size
  * >= dimension)
  * @param dimension Requested embedding dimension (must match model output, max
- * 2048)
- * @return 0 on success, -1 on error (file not found, inference failure, etc.)
+ * 2048). If 0, automatically detects dimension from model.
+ * @return 0 on success, -1 on error (file not found, inference failure,
+ * dimension mismatch, etc.)
  *
  * @note Requires ONNX Runtime to be installed and linked at compile time
  * @note Compile with -DUSE_ONNX_RUNTIME to enable ONNX support
@@ -221,6 +249,9 @@ FASTEMBED_EXPORT void fastembed_add_vectors(const float *vec1,
  * @note Output embedding is L2-normalized (unit vector)
  * @note Model is cached after first load - use fastembed_onnx_unload() to free
  * memory
+ * @note Dimension is automatically validated against model output
+ * @note Use fastembed_onnx_get_model_dimension() to get model dimension before
+ * calling this function
  */
 FASTEMBED_EXPORT int fastembed_onnx_generate(const char *model_path,
                                              const char *text, float *output,
@@ -260,6 +291,36 @@ FASTEMBED_EXPORT int fastembed_onnx_get_last_error(char *error_buffer,
                                                    size_t buffer_size);
 
 /**
+ * @brief Get ONNX model output dimension
+ *
+ * Returns the output dimension of an ONNX embedding model. If the model is
+ * already loaded (cached), returns the cached dimension immediately.
+ * Otherwise, loads the model to detect the dimension.
+ *
+ * This function is useful to determine the correct dimension parameter before
+ * calling fastembed_onnx_generate().
+ *
+ * @param model_path Path to .onnx model file (must be readable)
+ * @return Model output dimension on success, -1 on error (model not found,
+ * invalid model, dimension detection failed)
+ *
+ * @note The dimension is cached per model path for performance
+ * @note Returns -1 if ONNX Runtime is not available
+ * @note Use this function to validate dimension before calling
+ * fastembed_onnx_generate()
+ *
+ * @example
+ * ```c
+ * int dim = fastembed_onnx_get_model_dimension("model.onnx");
+ * if (dim > 0) {
+ *   float *output = malloc(dim * sizeof(float));
+ *   fastembed_onnx_generate("model.onnx", "text", output, dim);
+ * }
+ * ```
+ */
+FASTEMBED_EXPORT int fastembed_onnx_get_model_dimension(const char *model_path);
+
+/**
  * @brief Generate embeddings for multiple texts in batch
  *
  * Processes an array of texts and generates embeddings for each one.
@@ -273,15 +334,16 @@ FASTEMBED_EXPORT int fastembed_onnx_get_last_error(char *error_buffer,
  * @param num_texts Number of texts in the array (must match outputs array size)
  * @param outputs Array of output arrays for embeddings (each must be
  * pre-allocated, size >= dimension)
- * @param dimension Embedding dimension (same for all texts, currently must be
- * 768)
+ * @param dimension Embedding dimension (same for all texts). Supported
+ * dimensions: 128, 256, 512, 768, 1024, 2048. If 0, uses default dimension 128.
  * @return 0 on success (all embeddings generated), -1 on error (validation or
  * generation failure)
  *
  * @note Arrays texts and outputs must have num_texts elements
  * @note Each output array must be pre-allocated with size >= dimension
  * @note On error, some embeddings may have been generated (partial results)
- * @note Uses hash-based embedding (not ONNX models)
+ * @note Supported dimensions: 128, 256, 512, 768, 1024, 2048
+ * @note Uses hash-based embeddings (fastembed_generate) for all texts
  */
 FASTEMBED_EXPORT int fastembed_batch_generate(const char **texts, int num_texts,
                                               float **outputs, int dimension);

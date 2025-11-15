@@ -158,23 +158,73 @@ def compile_c_files():
             print("❌ ERROR: Visual Studio Build Tools not found!")
             return False
         
+        # Check if ONNX Runtime is available
+        onnx_dir = PROJECT_ROOT / "onnxruntime"
+        onnx_include = onnx_dir / "include"
+        onnx_lib = onnx_dir / "lib"
+        use_onnx = (onnx_lib / "onnxruntime.lib").exists()
+        
+        # Build compile command with ONNX support if available
+        include_flags = f'/I"{INC_DIR}"'
+        if use_onnx and onnx_include.exists():
+            include_flags += f' /I"{onnx_include}"'
+            define_flags = '/DUSE_ONNX_RUNTIME /DFASTEMBED_BUILDING_LIB'
+        else:
+            define_flags = '/DFASTEMBED_BUILDING_LIB'
+        
         # Compile using cl via vcvars
-        cmd = f'call "{vcvars}" && cl /O2 /W3 /c /I"{INC_DIR}" "{c_path}" /Fo:"{obj_file}"'
+        print(f"  {c_file} -> {obj_file.name}")
+        cmd = f'call "{vcvars}" && cl /O2 /W3 /c {include_flags} {define_flags} "{c_path}" /Fo:"{obj_file}"'
         try:
-            subprocess.run(cmd, shell=True, check=True)
-        except subprocess.CalledProcessError:
+            subprocess.run(cmd, shell=True, check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
             print(f"❌ ERROR: Failed to compile {c_file}")
+            if e.stderr:
+                print(f"   Error: {e.stderr.decode()}")
+            # Try again with verbose output
+            cmd_verbose = f'call "{vcvars}" && cl /O2 /W3 /c {include_flags} {define_flags} "{c_path}" /Fo:"{obj_file}"'
+            subprocess.run(cmd_verbose, shell=True)
             return False
+        
+        # Compile ONNX loader if ONNX Runtime is available
+        if use_onnx:
+            onnx_c_file = "onnx_embedding_loader.c"
+            onnx_c_path = SRC_DIR / onnx_c_file
+            onnx_obj_file = BUILD_DIR / "onnx_embedding_loader.obj"
+            
+            print(f"  {onnx_c_file} -> {onnx_obj_file.name} (ONNX Runtime support)")
+            onnx_cmd = f'call "{vcvars}" && cl /O2 /W3 /c {include_flags} {define_flags} "{onnx_c_path}" /Fo:"{onnx_obj_file}"'
+            try:
+                subprocess.run(onnx_cmd, shell=True, check=True, capture_output=True)
+            except subprocess.CalledProcessError as e:
+                print(f"⚠️  WARN: Failed to compile {onnx_c_file} - ONNX support disabled")
+                if e.stderr:
+                    print(f"   Error: {e.stderr.decode()}")
+                use_onnx = False
+        
+        return True, use_onnx
     else:
         obj_file = BUILD_DIR / "embedding_lib_c.o"
         gcc = shutil.which("gcc") or shutil.which("clang")
         
+        # Check if ONNX Runtime is available
+        onnx_dir = PROJECT_ROOT / "onnxruntime"
+        onnx_include = onnx_dir / "include"
+        onnx_lib = onnx_dir / "lib"
+        use_onnx = (onnx_lib / "onnxruntime.so").exists() or (onnx_lib / "libonnxruntime.so").exists()
+        
+        # Build compile command with ONNX support if available
         cmd = [
             gcc, "-O2", "-Wall", "-c",
             f"-I{INC_DIR}",
+            "-DFASTEMBED_BUILDING_LIB",
+        ]
+        if use_onnx and onnx_include.exists():
+            cmd.extend([f"-I{onnx_include}", "-DUSE_ONNX_RUNTIME"])
+        cmd.extend([
             str(c_path),
             "-o", str(obj_file)
-        ]
+        ])
         
         print(f"  {c_file} -> {obj_file.name}")
         try:
@@ -182,20 +232,51 @@ def compile_c_files():
         except subprocess.CalledProcessError:
             print(f"❌ ERROR: Failed to compile {c_file}")
             return False
+        
+        # Compile ONNX loader if ONNX Runtime is available
+        if use_onnx:
+            onnx_c_file = "onnx_embedding_loader.c"
+            onnx_c_path = SRC_DIR / onnx_c_file
+            onnx_obj_file = BUILD_DIR / "onnx_embedding_loader.o"
+            
+            onnx_cmd = [
+                gcc, "-O2", "-Wall", "-c",
+                f"-I{INC_DIR}",
+                "-DFASTEMBED_BUILDING_LIB",
+            ]
+            if onnx_include.exists():
+                onnx_cmd.extend([f"-I{onnx_include}", "-DUSE_ONNX_RUNTIME"])
+            onnx_cmd.extend([
+                str(onnx_c_path),
+                "-o", str(onnx_obj_file)
+            ])
+            
+            print(f"  {onnx_c_file} -> {onnx_obj_file.name} (ONNX Runtime support)")
+            try:
+                subprocess.run(onnx_cmd, check=True)
+            except subprocess.CalledProcessError:
+                print(f"⚠️  WARN: Failed to compile {onnx_c_file} - ONNX support disabled")
+                use_onnx = False
     
-    return True
+    return True, use_onnx
 
-def link_library():
+def link_library(use_onnx=False):
     """Link native library"""
     print("Linking native library...")
     
     if IS_WINDOWS:
-        dll_file = BUILD_DIR / "fastembed.dll"
+        dll_file = BUILD_DIR / "fastembed_native.dll"
         obj_files = [
             BUILD_DIR / "embedding_lib.obj",
             BUILD_DIR / "embedding_generator.obj",
             BUILD_DIR / "embedding_lib_c.obj",
         ]
+        
+        # Add ONNX loader object if ONNX Runtime is available
+        if use_onnx:
+            onnx_obj = BUILD_DIR / "onnx_embedding_loader.obj"
+            if onnx_obj.exists():
+                obj_files.append(onnx_obj)
         
         # Find vcvars64.bat
         vs_paths = [
@@ -242,15 +323,50 @@ def link_library():
                 print(f"   Searched: {tools_dir}")
                 return False
         
+        # Check if ONNX Runtime is available for linking
+        onnx_dir = PROJECT_ROOT / "onnxruntime"
+        onnx_lib = onnx_dir / "lib"
+        lib_paths = [f'/LIBPATH:"{lib_path}"']
+        libs = ["msvcrt.lib"]
+        
+        if use_onnx and (onnx_lib / "onnxruntime.lib").exists():
+            lib_paths.append(f'/LIBPATH:"{onnx_lib}"')
+            libs.append("onnxruntime.lib")
+        
         obj_str = " ".join(f'"{obj}"' for obj in obj_files)
-        cmd = f'call "{vcvars}" && link /DLL /OUT:"{dll_file}" {obj_str} /LIBPATH:"{lib_path}" msvcrt.lib'
+        lib_paths_str = " ".join(lib_paths)
+        libs_str = " ".join(libs)
+        
+        # Use .def file if available
+        def_file = SRC_DIR / "fastembed.def"
+        if def_file.exists():
+            cmd = f'call "{vcvars}" && link /DLL /DEF:"{def_file}" /OUT:"{dll_file}" {obj_str} {lib_paths_str} {libs_str}'
+        else:
+            cmd = f'call "{vcvars}" && link /DLL /OUT:"{dll_file}" {obj_str} {lib_paths_str} {libs_str}'
         
         try:
-            subprocess.run(cmd, shell=True, check=True)
+            subprocess.run(cmd, shell=True, check=True, capture_output=True)
             print(f"✅ Built: {dll_file}")
+            
+            # Copy ONNX Runtime DLL if available
+            if use_onnx:
+                onnx_dll = onnx_lib / "onnxruntime.dll"
+                if onnx_dll.exists():
+                    import shutil
+                    shutil.copy2(onnx_dll, BUILD_DIR)
+                    print(f"✅ Copied ONNX Runtime DLL to build directory")
+            
             return True
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             print(f"❌ ERROR: Failed to link DLL")
+            if e.stderr:
+                print(f"   Error: {e.stderr.decode()}")
+            # Try again with verbose output
+            if def_file.exists():
+                cmd_verbose = f'call "{vcvars}" && link /DLL /DEF:"{def_file}" /OUT:"{dll_file}" {obj_str} {lib_paths_str} {libs_str}'
+            else:
+                cmd_verbose = f'call "{vcvars}" && link /DLL /OUT:"{dll_file}" {obj_str} {lib_paths_str} {libs_str}'
+            subprocess.run(cmd_verbose, shell=True)
             return False
     
     elif IS_MACOS:
@@ -329,13 +445,18 @@ def main():
     print()
     
     # Compile C files
-    if not compile_c_files():
+    compile_result = compile_c_files()
+    if not compile_result:
+        return 1
+    
+    success, use_onnx = compile_result
+    if not success:
         return 1
     
     print()
     
     # Link library
-    if not link_library():
+    if not link_library(use_onnx):
         return 1
     
     print()

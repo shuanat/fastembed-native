@@ -7,7 +7,7 @@
 
     <groupId>com.fastembed</groupId>
     <artifactId>fastembed-native</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
 
     <name>FastEmbed Native</name>
@@ -37,8 +37,9 @@
         <maven.compiler.target>11</maven.compiler.target>
         <junit.version>5.9.3</junit.version>
         <maven.native.skip>false</maven.native.skip>
-        <maven.javah.skip>false</maven.javah.skip>
-        <maven.native.javah.phase>generate-sources</maven.native.javah.phase>
+        <maven.javah.skip>true</maven.javah.skip>
+        <maven.native.link.skip>true</maven.native.link.skip>
+        <maven.native.javah.phase>process-classes</maven.native.javah.phase>
         <maven.native.compile.phase>compile</maven.native.compile.phase>
         <maven.native.link.phase>compile</maven.native.link.phase>
     </properties>
@@ -117,6 +118,8 @@
                         <compilerStartOption>-march=native</compilerStartOption>
                         <compilerStartOption>-I${JAVA_HOME}/include</compilerStartOption>
                         <compilerStartOption>-I${JAVA_HOME}/include/linux</compilerStartOption>
+                        <compilerStartOption>-I${JAVA_HOME}/include/darwin</compilerStartOption>
+                        <compilerStartOption>-I${JAVA_HOME}/include/win32</compilerStartOption>
                         <compilerStartOption>-I../../shared/include</compilerStartOption>
                         <compilerStartOption>-I../../onnxruntime/include</compilerStartOption>
                         <compilerStartOption>-DUSE_ONNX_RUNTIME</compilerStartOption>
@@ -134,33 +137,10 @@
                 </configuration>
 
                 <executions>
-                    <execution>
-                        <id>javah</id>
-                        <phase>${maven.native.javah.phase}</phase>
-                        <goals>
-                            <goal>javah</goal>
-                        </goals>
-                        <configuration>
-                            <javahClassNames>
-                                <javahClassName>com.fastembed.FastEmbed</javahClassName>
-                            </javahClassNames>
-                            <javahOutputDirectory>target/native/include</javahOutputDirectory>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>compile</id>
-                        <phase>${maven.native.compile.phase}</phase>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>link</id>
-                        <phase>${maven.native.link.phase}</phase>
-                        <goals>
-                            <goal>link</goal>
-                        </goals>
-                    </execution>
+                    <!-- javah execution removed - JNI headers not needed, JNI built via scripts -->
+                    <!-- compile execution removed - JNI already compiled via scripts -->
+                    <!-- link execution removed - JNI already linked via scripts -->
+                    <!-- JNI libraries are copied from build/ directory via maven-resources-plugin -->
                 </executions>
             </plugin>
 

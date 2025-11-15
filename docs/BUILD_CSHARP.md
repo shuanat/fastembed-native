@@ -1,8 +1,12 @@
 # Building FastEmbed C# Native Module
 
-C# интерфейс для FastEmbed с использованием P/Invoke для прямых вызовов нативных функций.
+**Navigation**: [Documentation Index](README.md) → Build Guides → C#
 
-## Требования
+C# interface for FastEmbed using P/Invoke for direct native function calls.
+
+## Requirements
+
+> **Note**: Common requirements (NASM, compiler) are described in [BUILD_WINDOWS.md](BUILD_WINDOWS.md) (Windows) or [BUILD_CMAKE.md](BUILD_CMAKE.md) (Linux/macOS).
 
 ### Windows
 
@@ -12,8 +16,10 @@ C# интерфейс для FastEmbed с использованием P/Invoke 
    winget install Microsoft.DotNet.SDK.6
    ```
 
-2. **Visual Studio Build Tools 2022** (для сборки нативной библиотеки)
-3. **NASM** (если еще не установлен)
+2. **Visual Studio Build Tools 2022** (for building native library)
+   - See details: [BUILD_WINDOWS.md](BUILD_WINDOWS.md#visual-studio-build-tools)
+3. **NASM** (if not already installed)
+   - See details: [BUILD_WINDOWS.md](BUILD_WINDOWS.md#nasm-installation)
 
 ### Linux/macOS
 
@@ -29,33 +35,39 @@ C# интерфейс для FastEmbed с использованием P/Invoke 
 
 2. **GCC/Clang**
 3. **NASM**
+   - See details: [BUILD_CMAKE.md](BUILD_CMAKE.md#prerequisites)
 
-## Структура файлов
+## File Structure
 
 ```
 FastEmbed/
 ├── csharp/
-│   ├── FastEmbed.cs              # Высокоуровневый API
-│   ├── FastEmbedNative.cs        # P/Invoke декларации
-│   └── FastEmbed.csproj          # .NET проект
-├── test_csharp_native.cs         # Тестовая программа
-└── build/                        # Нативные библиотеки
+│   ├── FastEmbed.cs              # High-level API
+│   ├── FastEmbedNative.cs        # P/Invoke declarations
+│   └── FastEmbed.csproj          # .NET project
+├── tests/                        # xUnit test suite (49+ tests)
+│   ├── FastEmbed.Tests.csproj
+│   ├── FastEmbedClientTests.cs
+│   ├── FastEmbedIntegrationTests.cs
+│   ├── FastEmbedOnnxTests.cs
+│   └── FastEmbedPerformanceTests.cs
+└── build/                        # Native libraries
     ├── fastembed.dll             # Windows
     ├── libfastembed.so           # Linux
     └── libfastembed.dylib        # macOS
 ```
 
-## Сборка
+## Building
 
-### Шаг 1: Соберите нативную библиотеку
+### Step 1: Build Native Library
 
 #### Windows
 
 ```cmd
-REM Соберите DLL
+REM Build DLL
 build_windows.bat
 
-REM Скопируйте в директорию build
+REM Copy to build directory
 mkdir build
 copy fastembed.dll build\
 ```
@@ -63,64 +75,64 @@ copy fastembed.dll build\
 #### Linux/macOS
 
 ```bash
-# Соберите shared library
+# Build shared library
 make shared
 
-# Скопируйте в директорию build
+# Copy to build directory
 mkdir -p build
 cp libfastembed.so build/    # Linux
 cp libfastembed.dylib build/ # macOS
 ```
 
-### Шаг 2: Соберите C# проект
+### Step 2: Build C# Project
 
 ```bash
 cd csharp
 dotnet build
 ```
 
-Или для Release build:
+Or for Release build:
 
 ```bash
 cd csharp
 dotnet build -c Release
 ```
 
-## Запуск тестов
+## Running Tests
 
-### Вариант 1: Прямой запуск тестовой программы
+### Option 1: Direct Test Execution
 
 ```bash
-# Скомпилируйте тест
-dotnet build test_csharp_native.cs /r:csharp/bin/Debug/net6.0/FastEmbed.dll
-
-# Запустите
-dotnet test_csharp_native.dll
+# Run test suite
+cd tests
+dotnet test
 ```
 
-### Вариант 2: Через WSL (если на Windows)
+**Test Suite**: Comprehensive xUnit test suite with 49+ tests covering unit, integration, ONNX, and performance scenarios.
+
+### Option 2: Via WSL (if on Windows)
 
 ```bash
 wsl bash -c "cd /mnt/g/GitHub/KAG-workspace/FastEmbed && \
-  cd csharp && dotnet build && cd .. && \
-  dotnet run --project test_csharp_native.cs"
+  cd bindings/csharp && dotnet build src/FastEmbed.csproj && \
+  cd tests && dotnet test"
 ```
 
-## Использование в своем проекте
+## Using in Your Project
 
-### Вариант 1: Ссылка на DLL
+### Option 1: Reference DLL
 
 ```bash
 dotnet add reference path/to/FastEmbed/csharp/bin/Release/net6.0/FastEmbed.dll
 ```
 
-### Вариант 2: NuGet пакет (после публикации)
+### Option 2: NuGet Package (after publication)
 
 ```bash
 dotnet add package FastEmbed.Native
 ```
 
-### Пример кода
+### Code Example
 
 ```csharp
 using FastEmbed;
@@ -129,17 +141,17 @@ class Program
 {
     static void Main()
     {
-        // Инициализация
+        // Initialization
         var fastembed = new FastEmbedClient(dimension: 768);
         
-        // Генерация эмбеддинга
+        // Generate embedding
         string text = "machine learning example";
         float[] embedding = fastembed.GenerateEmbedding(text);
         
         Console.WriteLine($"Embedding shape: {embedding.Length}");
         Console.WriteLine($"First 5 values: [{string.Join(", ", embedding.Take(5))}]");
         
-        // Векторные операции
+        // Vector operations
         string text2 = "deep learning neural networks";
         float[] embedding2 = fastembed.GenerateEmbedding(text2);
         
@@ -151,17 +163,17 @@ class Program
 
 ## API Reference
 
-### Класс FastEmbedClient
+### FastEmbedClient Class
 
-#### Конструктор
+#### Constructor
 
 ```csharp
 public FastEmbedClient(int dimension = 768)
 ```
 
-Создает новый клиент FastEmbed с указанной размерностью эмбеддингов.
+Creates a new FastEmbed client with the specified embedding dimension.
 
-#### Методы
+#### Methods
 
 **GenerateEmbedding**
 
@@ -169,11 +181,11 @@ public FastEmbedClient(int dimension = 768)
 public float[] GenerateEmbedding(string text)
 ```
 
-Генерирует hash-based эмбеддинг для текста.
+Generates a hash-based embedding for text.
 
-- **Параметры**: `text` - входной текст
-- **Возвращает**: `float[]` - вектор эмбеддинга
-- **Исключения**: `ArgumentNullException`, `FastEmbedException`
+- **Parameters**: `text` - input text
+- **Returns**: `float[]` - embedding vector
+- **Exceptions**: `ArgumentNullException`, `FastEmbedException`
 
 **CosineSimilarity**
 
@@ -181,11 +193,11 @@ public float[] GenerateEmbedding(string text)
 public float CosineSimilarity(float[] vectorA, float[] vectorB)
 ```
 
-Вычисляет косинусное сходство между двумя векторами.
+Calculates cosine similarity between two vectors.
 
-- **Параметры**: два вектора одинаковой размерности
-- **Возвращает**: `float` - косинусное сходство в диапазоне [-1, 1]
-- **Исключения**: `ArgumentException`
+- **Parameters**: two vectors of the same dimension
+- **Returns**: `float` - cosine similarity in range [-1, 1]
+- **Exceptions**: `ArgumentException`
 
 **DotProduct**
 
@@ -193,7 +205,7 @@ public float CosineSimilarity(float[] vectorA, float[] vectorB)
 public float DotProduct(float[] vectorA, float[] vectorB)
 ```
 
-Вычисляет скалярное произведение двух векторов.
+Calculates dot product of two vectors.
 
 **VectorNorm**
 
@@ -201,7 +213,7 @@ public float DotProduct(float[] vectorA, float[] vectorB)
 public float VectorNorm(float[] vector)
 ```
 
-Вычисляет L2 норму вектора.
+Calculates L2 norm of a vector.
 
 **NormalizeVector**
 
@@ -209,7 +221,7 @@ public float VectorNorm(float[] vector)
 public float[] NormalizeVector(float[] vector)
 ```
 
-Нормализует вектор (L2 нормализация). Возвращает новый массив.
+Normalizes a vector (L2 normalization). Returns a new array.
 
 **AddVectors**
 
@@ -217,7 +229,7 @@ public float[] NormalizeVector(float[] vector)
 public float[] AddVectors(float[] vectorA, float[] vectorB)
 ```
 
-Складывает два вектора поэлементно.
+Adds two vectors element-wise.
 
 **TextSimilarity**
 
@@ -225,7 +237,7 @@ public float[] AddVectors(float[] vectorA, float[] vectorB)
 public float TextSimilarity(string text1, string text2)
 ```
 
-Вычисляет семантическую схожесть между двумя текстами (генерирует эмбеддинги и вычисляет косинусное сходство).
+Calculates semantic similarity between two texts (generates embeddings and calculates cosine similarity).
 
 **GenerateEmbeddings**
 
@@ -233,9 +245,9 @@ public float TextSimilarity(string text1, string text2)
 public float[][] GenerateEmbeddings(params string[] texts)
 ```
 
-Генерирует эмбеддинги для множества текстов (batch processing).
+Generates embeddings for multiple texts (batch processing).
 
-## Производительность
+## Performance
 
 **Measured Performance** (Linux/WSL, Nov 2025):
 
@@ -245,21 +257,21 @@ public float[][] GenerateEmbeddings(params string[] texts)
 
 See [BENCHMARK_RESULTS.md](../BENCHMARK_RESULTS.md) for complete benchmark data.
 
-Благодаря:
+Thanks to:
 
 - P/Invoke (direct native calls, minimal overhead)
-- SIMD оптимизации в assembly
-- `-O3 -march=native` компиляция
+- SIMD optimizations in assembly
+- `-O3 -march=native` compilation
 
 ## Troubleshooting
 
 ### "DllNotFoundException: Unable to load DLL 'fastembed'"
 
-**Причина**: Нативная библиотека не найдена в PATH или рядом с .exe/.dll.
+**Cause**: Native library not found in PATH or next to .exe/.dll.
 
-**Решение**:
+**Solution**:
 
-1. Убедитесь, что `fastembed.dll` (Windows) или `libfastembed.so` (Linux) скомпилирована:
+1. Ensure `fastembed.dll` (Windows) or `libfastembed.so` (Linux) is compiled:
 
    ```bash
    # Windows
@@ -269,13 +281,13 @@ See [BENCHMARK_RESULTS.md](../BENCHMARK_RESULTS.md) for complete benchmark data.
    make shared
    ```
 
-2. Скопируйте библиотеку в директорию с исполняемым файлом:
+2. Copy library to the executable directory:
 
    ```bash
    cp build/fastembed.dll csharp/bin/Debug/net6.0/
    ```
 
-3. Или добавьте `build/` в PATH:
+3. Or add `build/` to PATH:
 
    ```bash
    # Windows
@@ -287,12 +299,12 @@ See [BENCHMARK_RESULTS.md](../BENCHMARK_RESULTS.md) for complete benchmark data.
 
 ### "BadImageFormatException: An attempt was made to load a program with an incorrect format"
 
-**Причина**: Несоответствие архитектуры (x86 vs x64).
+**Cause**: Architecture mismatch (x86 vs x64).
 
-**Решение**: Убедитесь, что .NET проект и нативная библиотека собраны для одной архитектуры (обычно x64).
+**Solution**: Ensure .NET project and native library are built for the same architecture (usually x64).
 
 ```xml
-<!-- В .csproj -->
+<!-- In .csproj -->
 <PropertyGroup>
   <PlatformTarget>x64</PlatformTarget>
 </PropertyGroup>
@@ -300,20 +312,20 @@ See [BENCHMARK_RESULTS.md](../BENCHMARK_RESULTS.md) for complete benchmark data.
 
 ### "FileNotFoundException: Could not load file or assembly 'FastEmbed'"
 
-**Причина**: Не найдена сборка FastEmbed.dll (.NET).
+**Cause**: FastEmbed.dll (.NET) assembly not found.
 
-**Решение**:
+**Solution**:
 
 ```bash
 cd csharp
 dotnet build
 ```
 
-Затем добавьте ссылку на сборку в свой проект.
+Then add a reference to the assembly in your project.
 
-## Публикация NuGet пакета
+## Publishing NuGet Package
 
-### Шаг 1: Создайте .nuspec
+### Step 1: Create .nuspec
 
 ```xml
 <?xml version="1.0"?>
@@ -334,7 +346,7 @@ dotnet build
 </package>
 ```
 
-### Шаг 2: Упакуйте и опубликуйте
+### Step 2: Pack and Publish
 
 ```bash
 cd csharp
@@ -342,7 +354,7 @@ dotnet pack -c Release
 dotnet nuget push bin/Release/FastEmbed.Native.1.0.0.nupkg --source https://api.nuget.org/v3/index.json --api-key YOUR_API_KEY
 ```
 
-## Интеграция с ML.NET
+## Integration with ML.NET
 
 ```csharp
 using Microsoft.ML;
@@ -367,7 +379,7 @@ class Program
         var mlContext = new MLContext();
         var fastembed = new FastEmbedClient(768);
 
-        // Создайте данные
+        // Create data
         var data = new[]
         {
             new TextData { Text = "machine learning" },
@@ -376,7 +388,7 @@ class Program
 
         var dataView = mlContext.Data.LoadFromEnumerable(data);
 
-        // Добавьте эмбеддинги
+        // Add embeddings
         var pipeline = mlContext.Transforms.CustomMapping<TextData, EmbeddingData>(
             (input, output) => {
                 output.Embedding = fastembed.GenerateEmbedding(input.Text);
@@ -389,16 +401,39 @@ class Program
 }
 ```
 
-## Следующие шаги
+## Next Steps
 
-1. **Публикация на NuGet**
-2. **CI/CD для автоматической сборки**
-3. **Поддержка .NET Framework 4.x**
+1. **Publish to NuGet**
+2. **CI/CD for automated builds**
+3. **.NET Framework 4.x support**
 4. **Async API** (Task-based)
 5. **GPU acceleration** (CUDA)
 
 ---
 
-**Создано**: 1 ноября 2025  
-**Статус**: ✓ Готово к использованию  
-**Производительность**: ★★★★★ (native P/Invoke speed)
+## See Also
+
+### Related Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and build system details
+- **[API Reference](API.md)** - Complete API documentation for C#
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Other Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Windows](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[Build Native](BUILD_NATIVE.md)** - Node.js N-API module build
+- **[Build Python](BUILD_PYTHON.md)** - Python pybind11 module build
+- **[Build Java](BUILD_JAVA.md)** - Java JNI module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start
+
+---
+
+**Created**: November 1, 2025  
+**Status**: ✓ Ready for use  
+**Performance**: ★★★★★ (native P/Invoke speed)

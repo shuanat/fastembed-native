@@ -2,40 +2,131 @@
 
 Complete documentation for the FastEmbed high-performance embeddings library.
 
+**Last Updated**: 2025-01-14  
+**Version**: 1.0.1
+
 ---
 
 ## 📚 Documentation Index
 
-### Getting Started
+### 🚀 Getting Started
 
-- **[Main README](../README.md)** - Project overview, quick start, installation
-- **[USE_CASES.md](USE_CASES.md)** - Real-world use cases and examples
+**New to FastEmbed? Start here:**
 
-### API Reference
+- **[Main README](../README.md)** - Project overview, quick start, installation guide
+- **[USE_CASES.md](USE_CASES.md)** - Real-world use cases and practical examples
 
-- **[API.md](API.md)** - Complete API reference for all language bindings
-  - C API (shared library)
-  - Node.js API (N-API)
-  - Python API (pybind11)
-  - C# API (P/Invoke)
-  - Java API (JNI)
+**Quick Links:**
 
-### Architecture & Design
+- [Installation Guide](../README.md#installation)
+- [Quick Start Examples](../README.md#quick-start)
+- [Performance Overview](../README.md#-performance)
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture, data flow, design decisions
-  - Layer responsibilities
-  - Build system
-  - Performance characteristics
+---
+
+### 📖 API Reference
+
+**Complete API documentation for all language bindings:**
+
+- **[API.md](API.md)** - Comprehensive API reference
+  - **C API** (shared library) - Core functions, vector operations, ONNX API
+  - **Node.js API** (N-API) - JavaScript/TypeScript bindings
+  - **Python API** (pybind11) - NumPy integration
+  - **C# API** (P/Invoke) - .NET bindings
+  - **Java API** (JNI) - JVM bindings
+
+**Quick Reference:**
+
+- [Hash-Based Embeddings](API.md#core-functions) - `generateEmbedding()`, `batchGenerateEmbedding()`
+- [ONNX Embeddings](API.md#onnx-functions) - `generateOnnxEmbedding()`, `unloadOnnxModel()`
+- [Vector Operations](API.md#vector-operations) - `cosineSimilarity()`, `dotProduct()`, `normalizeVector()`
+
+---
+
+### 🏗️ Architecture & Design
+
+**Deep dive into FastEmbed's internal design:**
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture with Mermaid diagrams
+  - System overview (5-layer architecture)
+  - Data flow diagrams (Hash-based, ONNX, Batch)
+  - Component interactions
+  - Build system flow
   - Memory management
+  - Performance characteristics
   - ABI compliance
 
-### Build Guides
+**Algorithm & Implementation Details:**
+
+- **[ALGORITHM_SPECIFICATION.md](ALGORITHM_SPECIFICATION.md)** - Hash-based embedding algorithm specification
+  - Square Root normalization
+  - Positional hashing
+  - Dimension support
+  - Quality metrics
+
+- **[ALGORITHM_MATH.md](ALGORITHM_MATH.md)** - Mathematical foundation
+  - Algorithm theory
+  - Normalization properties
+  - Quality improvement analysis
+  - Experimental validation
+
+- **[ASSEMBLY_DESIGN.md](ASSEMBLY_DESIGN.md)** - Assembly implementation design
+  - x86-64 SIMD optimization
+  - ABI compliance (System V, Microsoft x64)
+  - Performance optimizations
+
+**Reading Order:**
+
+1. Start with [ARCHITECTURE.md](ARCHITECTURE.md) for system overview
+2. Read [ALGORITHM_SPECIFICATION.md](ALGORITHM_SPECIFICATION.md) for algorithm details
+3. Review [ALGORITHM_MATH.md](ALGORITHM_MATH.md) for mathematical foundation
+4. Study [ASSEMBLY_DESIGN.md](ASSEMBLY_DESIGN.md) for low-level implementation
+
+---
+
+### 🔧 Build Guides
+
+**Platform and language-specific build instructions:**
+
+#### By Language
 
 - **[BUILD_NATIVE.md](BUILD_NATIVE.md)** - Node.js N-API module build guide
 - **[BUILD_PYTHON.md](BUILD_PYTHON.md)** - Python pybind11 module build guide
 - **[BUILD_CSHARP.md](BUILD_CSHARP.md)** - C# P/Invoke module build guide
 - **[BUILD_JAVA.md](BUILD_JAVA.md)** - Java JNI module build guide
+
+#### By Platform
+
 - **[BUILD_WINDOWS.md](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[BUILD_CMAKE.md](BUILD_CMAKE.md)** - CMake build system (cross-platform, recommended)
+
+**Quick Build Reference:**
+
+| Platform    | Language | Build Guide                                                            |
+| ----------- | -------- | ---------------------------------------------------------------------- |
+| Linux/macOS | All      | [BUILD_CMAKE.md](BUILD_CMAKE.md) or [BUILD_NATIVE.md](BUILD_NATIVE.md) |
+| Windows     | All      | [BUILD_WINDOWS.md](BUILD_WINDOWS.md)                                   |
+| Any         | Node.js  | [BUILD_NATIVE.md](BUILD_NATIVE.md)                                     |
+| Any         | Python   | [BUILD_PYTHON.md](BUILD_PYTHON.md)                                     |
+| Any         | C#       | [BUILD_CSHARP.md](BUILD_CSHARP.md)                                     |
+| Any         | Java     | [BUILD_JAVA.md](BUILD_JAVA.md)                                         |
+
+**Prerequisites Checklist:**
+
+- ✅ NASM (x86-64 assembler)
+- ✅ C Compiler (GCC, Clang, or MSVC)
+- ✅ Language-specific tools (Node.js, Python, .NET SDK, JDK)
+- ✅ CMake 3.15+ (optional, for CMake build)
+
+---
+
+### 🔬 Advanced Topics
+
+**For advanced users and contributors:**
+
+- **[BENCHMARKS.md](BENCHMARKS.md)** - How to run performance benchmarks
+- **[RELEASING.md](RELEASING.md)** - Release process and versioning guide
+- **[TESTING_WORKFLOWS.md](TESTING_WORKFLOWS.md)** - Testing GitHub Actions workflows
 
 ---
 
@@ -43,15 +134,32 @@ Complete documentation for the FastEmbed high-performance embeddings library.
 
 ```
 docs/
-├── README.md              # This file (documentation index)
-├── API.md                 # Complete API reference
-├── ARCHITECTURE.md        # System design and architecture
-├── USE_CASES.md           # Real-world use cases
-├── BUILD_NATIVE.md        # Node.js build guide
-├── BUILD_PYTHON.md        # Python build guide
-├── BUILD_CSHARP.md        # C# build guide
-├── BUILD_JAVA.md          # Java build guide
-└── BUILD_WINDOWS.md       # Windows build guide
+├── README.md                      # This file (documentation index)
+│
+├── Getting Started
+│   └── USE_CASES.md               # Real-world use cases
+│
+├── API Reference
+│   └── API.md                     # Complete API reference
+│
+├── Architecture & Design
+│   ├── ARCHITECTURE.md            # System architecture (with Mermaid diagrams)
+│   ├── ALGORITHM_SPECIFICATION.md # Algorithm specification
+│   ├── ALGORITHM_MATH.md          # Mathematical foundation
+│   └── ASSEMBLY_DESIGN.md         # Assembly implementation
+│
+├── Build Guides
+│   ├── BUILD_NATIVE.md            # Node.js build
+│   ├── BUILD_PYTHON.md            # Python build
+│   ├── BUILD_CSHARP.md            # C# build
+│   ├── BUILD_JAVA.md              # Java build
+│   ├── BUILD_WINDOWS.md           # Windows-specific
+│   └── BUILD_CMAKE.md             # CMake build (recommended)
+│
+└── Advanced Topics
+    ├── BENCHMARKS.md              # Performance benchmarks
+    ├── RELEASING.md               # Release process
+    └── TESTING_WORKFLOWS.md       # CI/CD workflows
 ```
 
 ---
@@ -61,55 +169,102 @@ docs/
 ### I want to
 
 **...understand what FastEmbed does**
-→ Read [Main README](../README.md) and [USE_CASES.md](USE_CASES.md)
+→ Start with [Main README](../README.md) and [USE_CASES.md](USE_CASES.md)
 
 **...use FastEmbed in my project**
-→ Check [API.md](API.md) for your language (Node.js, Python, C#, Java)
+→ Check [API.md](API.md) for your language:
+
+- **Node.js**: [Node.js API](API.md#nodejs-api)
+- **Python**: [Python API](API.md#python-api)
+- **C#**: [C# API](API.md#c-api)
+- **Java**: [Java API](API.md#java-api)
 
 **...build FastEmbed from source**
-→ See language-specific build guides:
+→ Choose your build method:
 
-- Node.js: [BUILD_NATIVE.md](BUILD_NATIVE.md)
-- Python: [BUILD_PYTHON.md](BUILD_PYTHON.md)
-- C#: [BUILD_CSHARP.md](BUILD_CSHARP.md)
-- Java: [BUILD_JAVA.md](BUILD_JAVA.md)
-- Windows: [BUILD_WINDOWS.md](BUILD_WINDOWS.md)
+- **CMake** (recommended): [BUILD_CMAKE.md](BUILD_CMAKE.md)
+- **Language-specific**: [BUILD_NATIVE.md](BUILD_NATIVE.md), [BUILD_PYTHON.md](BUILD_PYTHON.md), [BUILD_CSHARP.md](BUILD_CSHARP.md), [BUILD_JAVA.md](BUILD_JAVA.md)
+- **Windows**: [BUILD_WINDOWS.md](BUILD_WINDOWS.md)
 
 **...understand how FastEmbed works internally**
-→ Read [ARCHITECTURE.md](ARCHITECTURE.md)
+→ Read [ARCHITECTURE.md](ARCHITECTURE.md) with visual Mermaid diagrams
+
+**...learn about the algorithm**
+→ Study [ALGORITHM_SPECIFICATION.md](ALGORITHM_SPECIFICATION.md) and [ALGORITHM_MATH.md](ALGORITHM_MATH.md)
 
 **...contribute to FastEmbed**
-→ See [CONTRIBUTING.md](../CONTRIBUTING.md) and [ARCHITECTURE.md](ARCHITECTURE.md)
+→ See [CONTRIBUTING.md](../CONTRIBUTING.md), [ARCHITECTURE.md](ARCHITECTURE.md), and [ASSEMBLY_DESIGN.md](ASSEMBLY_DESIGN.md)
+
+**...run benchmarks**
+→ Follow [BENCHMARKS.md](BENCHMARKS.md) guide
+
+**...create a release**
+→ See [RELEASING.md](RELEASING.md) for release process
 
 ---
 
 ## 📋 Documentation by Role
 
-### For Users
+### 👤 For Users
 
-Start here if you want to **use** FastEmbed in your application:
+**Start here if you want to use FastEmbed in your application:**
 
-1. **[Main README](../README.md)** - Overview and quick start
-2. **[API.md](API.md)** - API reference for your language
-3. **[USE_CASES.md](USE_CASES.md)** - Real-world examples
-4. **Language-specific build guide** - If building from source
+1. **[Main README](../README.md)** - Overview, installation, quick start
+2. **[USE_CASES.md](USE_CASES.md)** - Real-world examples and use cases
+3. **[API.md](API.md)** - API reference for your language (Node.js, Python, C#, Java)
+4. **Language-specific build guide** - If building from source:
+   - Node.js: [BUILD_NATIVE.md](BUILD_NATIVE.md)
+   - Python: [BUILD_PYTHON.md](BUILD_PYTHON.md)
+   - C#: [BUILD_CSHARP.md](BUILD_CSHARP.md)
+   - Java: [BUILD_JAVA.md](BUILD_JAVA.md)
 
-### For Contributors
+**Common Tasks:**
 
-Start here if you want to **contribute** to FastEmbed:
+- [Generate embeddings](API.md#core-functions) - Hash-based or ONNX
+- [Calculate similarity](API.md#vector-operations) - Cosine similarity, dot product
+- [Batch processing](API.md#core-functions) - Process multiple texts efficiently
 
-1. **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribution guidelines
-2. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and internals
+---
+
+### 👨‍💻 For Contributors
+
+**Start here if you want to contribute to FastEmbed:**
+
+1. **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribution guidelines, Git workflow, coding standards
+2. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design, data flow, component interactions
 3. **[API.md](API.md)** - API contracts and specifications
-4. **[Build guides](.)** - How to build and test
+4. **[ASSEMBLY_DESIGN.md](ASSEMBLY_DESIGN.md)** - Assembly implementation details
+5. **Build guides** - How to build and test:
+   - [BUILD_CMAKE.md](BUILD_CMAKE.md) - Recommended CMake build
+   - [BUILD_WINDOWS.md](BUILD_WINDOWS.md) - Windows-specific instructions
+6. **[TESTING_WORKFLOWS.md](TESTING_WORKFLOWS.md)** - CI/CD workflow testing
 
-### For Researchers
+**Key Areas:**
 
-Start here if you want to **understand** FastEmbed's design:
+- [System Architecture](ARCHITECTURE.md#system-overview) - Understand the 5-layer design
+- [Build System](ARCHITECTURE.md#build-system) - How components are built
+- [Memory Management](ARCHITECTURE.md#memory-management) - Allocation strategies
+- [ABI Compliance](ARCHITECTURE.md#abi-compliance-system-v-x86-64) - Assembly requirements
 
-1. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture
-2. **[Main README](../README.md)** - Performance benchmarks
-3. **[API.md](API.md)** - API design rationale
+---
+
+### 🔬 For Researchers
+
+**Start here if you want to understand FastEmbed's design and algorithms:**
+
+1. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture with visual diagrams
+2. **[ALGORITHM_SPECIFICATION.md](ALGORITHM_SPECIFICATION.md)** - Algorithm specification and design
+3. **[ALGORITHM_MATH.md](ALGORITHM_MATH.md)** - Mathematical foundation and theory
+4. **[ASSEMBLY_DESIGN.md](ASSEMBLY_DESIGN.md)** - Low-level implementation details
+5. **[Main README](../README.md#-performance)** - Performance benchmarks and metrics
+6. **[BENCHMARKS.md](BENCHMARKS.md)** - How to run and analyze benchmarks
+
+**Research Topics:**
+
+- [Hash-Based Embeddings](ALGORITHM_SPECIFICATION.md) - Algorithm design and quality metrics
+- [Square Root Normalization](ALGORITHM_MATH.md#square-root-normalization-mathematical-properties) - Mathematical properties
+- [SIMD Optimization](ASSEMBLY_DESIGN.md) - Performance optimizations
+- [Performance Analysis](ARCHITECTURE.md#performance-characteristics) - Detailed performance data
 
 ---
 
@@ -117,7 +272,17 @@ Start here if you want to **understand** FastEmbed's design:
 
 ### Quick Build Reference
 
-**All platforms (using Makefile):**
+**Recommended: CMake (cross-platform)**
+
+```bash
+# CMake build (recommended)
+cmake -B build -S .
+cmake --build build
+```
+
+See [BUILD_CMAKE.md](BUILD_CMAKE.md) for detailed CMake instructions.
+
+**Alternative: Makefile (Linux/macOS)**
 
 ```bash
 make all      # Build everything
@@ -141,7 +306,21 @@ cd bindings/csharp && dotnet build
 cd bindings/java && mvn install
 ```
 
-For detailed instructions, see the appropriate `BUILD_*.md` file.
+**Windows-specific:**
+
+See [BUILD_WINDOWS.md](BUILD_WINDOWS.md) for Windows build instructions.
+
+### Build Guide Selection
+
+| Your Situation          | Recommended Guide                    |
+| ----------------------- | ------------------------------------ |
+| **First time building** | [BUILD_CMAKE.md](BUILD_CMAKE.md)     |
+| **Windows user**        | [BUILD_WINDOWS.md](BUILD_WINDOWS.md) |
+| **Node.js developer**   | [BUILD_NATIVE.md](BUILD_NATIVE.md)   |
+| **Python developer**    | [BUILD_PYTHON.md](BUILD_PYTHON.md)   |
+| **C# developer**        | [BUILD_CSHARP.md](BUILD_CSHARP.md)   |
+| **Java developer**      | [BUILD_JAVA.md](BUILD_JAVA.md)       |
+| **Cross-platform**      | [BUILD_CMAKE.md](BUILD_CMAKE.md)     |
 
 ---
 
@@ -205,4 +384,29 @@ Found a typo or want to improve documentation? See [CONTRIBUTING.md](../CONTRIBU
 
 ---
 
-**Last updated:** November 1, 2024
+---
+
+## 🔍 Search Tips
+
+**Looking for something specific?**
+
+- **API functions**: Search in [API.md](API.md)
+- **Build issues**: Check [BUILD_WINDOWS.md](BUILD_WINDOWS.md) or [BUILD_CMAKE.md](BUILD_CMAKE.md)
+- **Performance**: See [ARCHITECTURE.md#performance-characteristics](ARCHITECTURE.md#performance-characteristics)
+- **Algorithm details**: Read [ALGORITHM_SPECIFICATION.md](ALGORITHM_SPECIFICATION.md)
+- **Use cases**: Browse [USE_CASES.md](USE_CASES.md)
+
+---
+
+## 📊 Documentation Statistics
+
+- **Total Files**: 16 documentation files
+- **Categories**: 5 (Getting Started, API, Architecture, Build, Advanced)
+- **Languages Covered**: 4 (Node.js, Python, C#, Java)
+- **Platforms Covered**: 3 (Linux, Windows, macOS)
+- **Diagrams**: 8 Mermaid diagrams in ARCHITECTURE.md
+
+---
+
+**Last Updated**: 2025-01-14  
+**Documentation Version**: 1.0.1
