@@ -481,26 +481,58 @@ jobs:
           cd bindings/shared
           # Ensure all files are compiled for the same architecture
           ARCH=$(uname -m)
+
+          # Check if running under Rosetta emulation
           if [ "$ARCH" = "arm64" ]; then
+            # Check if process is running under Rosetta
+            if [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = "1" ]; then
+              echo "::warning::Running under Rosetta emulation, forcing native arm64 execution"
+            fi
+            
             export CC="clang -arch arm64"
             export CXX="clang++ -arch arm64"
-            # NASM doesn't support -arch flag, but macho64 format creates files for current architecture
-            # We need to ensure NASM creates arm64 files by using the correct format
-            export NASM_FLAGS="-f macho64"
             export ARCH_FLAGS="-arch arm64"
+            
+            # Force NASM to run in arm64 mode to prevent x86_64 object files
+            # NASM with -f macho64 creates files for the architecture of the running process
+            # Using 'arch -arm64' ensures NASM runs natively on arm64, not through Rosetta
+            NASM_CMD=$(which nasm)
+            if [ -n "$NASM_CMD" ]; then
+              # Check NASM binary architecture
+              NASM_ARCH=$(file "$NASM_CMD" 2>/dev/null | grep -o "arm64\|x86_64" | head -n1 || echo "unknown")
+              echo "::notice::NASM binary architecture: $NASM_ARCH"
+              
+              if [ "$NASM_ARCH" != "arm64" ]; then
+                echo "::warning::NASM is $NASM_ARCH, forcing arm64 execution with 'arch -arm64'"
+                export NASM="arch -arm64 nasm"
+              else
+                export NASM="nasm"
+              fi
+            else
+              export NASM="arch -arm64 nasm"
+            fi
+            
+            export NASM_FLAGS="-f macho64"
           else
             export CC="clang -arch x86_64"
             export CXX="clang++ -arch x86_64"
+            export NASM="nasm"
             export NASM_FLAGS="-f macho64"
             export ARCH_FLAGS="-arch x86_64"
           fi
+
           # Verify architecture consistency
-          echo "::notice::Architecture: $ARCH"
-          echo "::notice::CC: $CC"
-          echo "::notice::NASM_FLAGS: $NASM_FLAGS"
+          echo "::notice::System architecture: $ARCH"
+          echo "::notice::Compiler: $CC"
+          echo "::notice::NASM command: $NASM"
+          echo "::notice::NASM flags: $NASM_FLAGS"
+
           # Force complete clean to remove any old object files with wrong architecture
+          echo "::notice::Cleaning build directory to ensure architecture consistency"
           rm -rf build
           mkdir -p build
+
+          # Build with architecture-consistent tools
           make all
           make shared
 

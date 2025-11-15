@@ -1,7 +1,8 @@
 # Makefile for Embedding Library Assembly Project
 
 # Compiler and flags
-NASM = nasm
+# NASM can be overridden from environment (e.g., "arch -arm64 nasm" on macOS)
+NASM ?= nasm
 CC ?= gcc
 AR = ar
 CFLAGS = -O2 -Wall
@@ -96,6 +97,7 @@ $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,): $(BUILD_DI
 	@echo "Built: $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,)"
 
 # Compile assembly files
+# Use $(NASM) variable which can be overridden from environment (e.g., "arch -arm64 nasm")
 $(BUILD_DIR)/%$(OBJ_EXT): $(SRC_DIR)/%.asm
 	$(NASM) $(NASM_FLAGS) $< -o $@
 

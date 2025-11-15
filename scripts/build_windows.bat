@@ -73,68 +73,142 @@ echo FastEmbed Windows Build Script
 echo ========================================
 echo.
 
+REM ============================================================================
 REM Setup Visual Studio paths
-REM First check if GitHub Actions has already set up MSVC (via microsoft/setup-msbuild@v2)
-REM Check multiple possible environment variables set by setup-msbuild
-if defined VCToolsInstallDir (
-    echo [INFO] Using Visual Studio environment from GitHub Actions
-    echo [INFO] VCToolsInstallDir: !VCToolsInstallDir!
-    REM Verify cl.exe is available
-    where cl >nul 2>&1
-    if !errorlevel! equ 0 (
-        echo [INFO] MSVC compiler found in PATH
-        goto :vs_ready
+REM ============================================================================
+REM This section uses the same method as setup-msbuild@v2 to find Visual Studio:
+REM 1. Check if cl.exe is already in PATH (from setup-msbuild or other setup)
+REM 2. Use vswhere.exe to find Visual Studio (same as setup-msbuild@v2)
+REM 3. Extract path from MSBuild variable if available
+REM 4. Fallback to common installation paths
+REM ============================================================================
+
+REM First, check if cl.exe is already available in PATH
+where cl >nul 2>&1
+if !errorlevel! equ 0 (
+    echo [INFO] MSVC compiler found in PATH
+    echo [INFO] Using existing Visual Studio environment
+    goto :vs_ready
+)
+
+REM Try to use vswhere.exe to find Visual Studio (same method as setup-msbuild@v2)
+REM vswhere.exe is typically in Program Files or installed by Chocolatey
+set "VSWHERE_PATH="
+if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
+    set "VSWHERE_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+) else if exist "%ProgramFiles%\Microsoft Visual Studio\Installer\vswhere.exe" (
+    set "VSWHERE_PATH=%ProgramFiles%\Microsoft Visual Studio\Installer\vswhere.exe"
+) else if exist "C:\ProgramData\Chocolatey\bin\vswhere.exe" (
+    set "VSWHERE_PATH=C:\ProgramData\Chocolatey\bin\vswhere.exe"
+)
+
+if defined VSWHERE_PATH (
+    echo [INFO] Using vswhere.exe to locate Visual Studio...
+    echo [INFO] vswhere.exe path: !VSWHERE_PATH!
+    for /f "usebackq tokens=*" %%I in (`"!VSWHERE_PATH!" -products * -requires Microsoft.Component.MSBuild -property installationPath -latest 2^>nul`) do (
+        set "VS_PATH=%%I"
     )
-    REM Try to add VCToolsInstallDir to PATH if cl.exe not found
+    if defined VS_PATH (
+        echo [INFO] Visual Studio found via vswhere: !VS_PATH!
+        set "VS_VCVARS=!VS_PATH!\VC\Auxiliary\Build\vcvars64.bat"
+        if exist "!VS_VCVARS!" (
+            echo [INFO] Setting up Visual Studio environment from: !VS_PATH!
+            call "!VS_VCVARS!" >nul 2>&1
+            if !errorlevel! equ 0 (
+                where cl >nul 2>&1
+                if !errorlevel! equ 0 (
+                    echo [INFO] MSVC compiler configured successfully
+                    goto :vs_ready
+                )
+            )
+        )
+    )
+)
+
+REM Check for MSBuild environment variable (set by setup-msbuild@v2)
+if defined MSBUILD (
+    echo [INFO] MSBuild found: !MSBUILD!
+    REM Extract VS path from MSBuild path (MSBuild is typically in VS\MSBuild\Current\Bin\MSBuild.exe)
+    for %%I in ("!MSBUILD!") do (
+        REM MSBuild path: VS\MSBuild\Current\Bin\MSBuild.exe -> VS\VC\Auxiliary\Build\vcvars64.bat
+        set "VS_PATH=%%~dpI..\..\.."
+    )
+    if defined VS_PATH (
+        set "VS_VCVARS=!VS_PATH!\VC\Auxiliary\Build\vcvars64.bat"
+        if exist "!VS_VCVARS!" (
+            echo [INFO] Found Visual Studio via MSBuild path: !VS_PATH!
+            call "!VS_VCVARS!" >nul 2>&1
+            if !errorlevel! equ 0 (
+                where cl >nul 2>&1
+                if !errorlevel! equ 0 (
+                    echo [INFO] MSVC compiler configured successfully
+                    goto :vs_ready
+                )
+            )
+        )
+    )
+)
+
+REM Check for VCToolsInstallDir (if set by other tools)
+if defined VCToolsInstallDir (
+    echo [INFO] VCToolsInstallDir found: !VCToolsInstallDir!
+    REM Try to add VCToolsInstallDir to PATH
     if exist "!VCToolsInstallDir!\bin\Hostx64\x64\cl.exe" (
         set "PATH=!VCToolsInstallDir!\bin\Hostx64\x64;!PATH!"
         echo [INFO] Added VCToolsInstallDir to PATH
         where cl >nul 2>&1
         if !errorlevel! equ 0 (
-            echo [INFO] MSVC compiler found after PATH update
+            echo [INFO] MSVC compiler found via VCToolsInstallDir
             goto :vs_ready
         )
     )
 )
-REM Also check for MSBuild environment variables
-if defined MSBUILD (
-    echo [INFO] MSBuild found: !MSBUILD!
-    REM Extract VS path from MSBuild path
-    for %%I in ("!MSBUILD!") do set "VS_PATH=%%~dpI..\..\.."
-    if exist "!VS_PATH!\VC\Auxiliary\Build\vcvars64.bat" (
-        echo [INFO] Found Visual Studio at: !VS_PATH!
-        call "!VS_PATH!\VC\Auxiliary\Build\vcvars64.bat"
-        goto :vs_ready
+
+REM Fallback: Try common installation paths
+echo [INFO] Trying common Visual Studio installation paths...
+set "VS_PATHS[0]=%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise"
+set "VS_PATHS[1]=%ProgramFiles%\Microsoft Visual Studio\2022\Professional"
+set "VS_PATHS[2]=%ProgramFiles%\Microsoft Visual Studio\2022\Community"
+set "VS_PATHS[3]=%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools"
+set "VS_PATHS[4]=%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Enterprise"
+set "VS_PATHS[5]=%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Professional"
+set "VS_PATHS[6]=%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Community"
+
+for /L %%I in (0,1,6) do (
+    call set "VS_PATH=%%VS_PATHS[%%I]%%"
+    if defined VS_PATH (
+        set "VS_VCVARS=!VS_PATH!\VC\Auxiliary\Build\vcvars64.bat"
+        if exist "!VS_VCVARS!" (
+            echo [INFO] Found Visual Studio at: !VS_PATH!
+            call "!VS_VCVARS!" >nul 2>&1
+            if !errorlevel! equ 0 (
+                where cl >nul 2>&1
+                if !errorlevel! equ 0 (
+                    echo [INFO] MSVC compiler configured successfully
+                    goto :vs_ready
+                )
+            )
+        )
     )
 )
 
-REM Try to find Visual Studio Build Tools manually
-if defined ProgramFiles^(x86^) (
-    set "VS_PATH=!ProgramFiles(x86)!\Microsoft Visual Studio\2022\BuildTools"
-) else (
-    set "VS_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"
-)
-
-set "VS_VCVARS=!VS_PATH!\VC\Auxiliary\Build\vcvars64.bat"
-
-if not exist "!VS_VCVARS!" (
-    echo [ERROR] Visual Studio Build Tools not found at:
-    echo [ERROR] "!VS_PATH!"
-    echo.
-    echo [ERROR] Please install Visual Studio Build Tools from:
-    echo [ERROR] https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022
-    echo.
-    echo [ERROR] Make sure to install "Desktop development with C++" workload.
-    exit /b 1
-)
-
-echo [INFO] Setting up Visual Studio environment...
-call "!VS_VCVARS!" >nul 2>&1
-if !errorlevel! neq 0 (
-    echo [ERROR] Failed to setup Visual Studio environment
-    echo [ERROR] Please verify Visual Studio Build Tools installation
-    exit /b 1
-)
+REM If we get here, Visual Studio was not found
+echo [ERROR] ============================================================================
+echo [ERROR] Visual Studio Build Tools not found
+echo [ERROR] ============================================================================
+echo [ERROR] Searched locations:
+echo [ERROR]   - Via vswhere.exe (same as setup-msbuild@v2)
+echo [ERROR]   - Via MSBuild environment variable
+echo [ERROR]   - Via VCToolsInstallDir
+echo [ERROR]   - Common installation paths (Enterprise, Professional, Community, BuildTools)
+echo [ERROR]
+echo [ERROR] Please ensure Visual Studio 2022 is installed with:
+echo [ERROR]   - "Desktop development with C++" workload
+echo [ERROR]   - MSBuild component
+echo [ERROR]
+echo [ERROR] Download from: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022
+echo [ERROR] ============================================================================
+exit /b 1
 
 :vs_ready
 REM Verify cl.exe is available
