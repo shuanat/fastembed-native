@@ -204,11 +204,20 @@ jobs:
           mkdir -p artifacts/linux
           cp bindings/shared/build/*.so artifacts/linux/ || true
           cp bindings/shared/build/*.a artifacts/linux/ || true
-          cp bindings/shared/include/*.h artifacts/linux/
+          cp bindings/shared/include/*.h artifacts/linux/ || true
           cp bindings/nodejs/*.tgz artifacts/linux/ 2>/dev/null || true
           cp bindings/python/dist/*.whl artifacts/linux/ 2>/dev/null || true
           cp bindings/csharp/nupkg/*.nupkg artifacts/linux/ 2>/dev/null || true
           cp bindings/java/java/target/*.jar artifacts/linux/ 2>/dev/null || true
+
+          # Verify we have at least some files
+          FILE_COUNT=$(ls -1 artifacts/linux/ 2>/dev/null | wc -l)
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::No artifacts found to package"
+            exit 1
+          fi
+          echo "::notice::Packaging $FILE_COUNT files"
+
           cd artifacts
           tar -czf fastembed-linux-x64-${{ github.ref_name }}.tar.gz linux/
 
@@ -322,7 +331,8 @@ jobs:
           }
 
           # Verify file sizes
-          foreach ($file in $dllFiles + $libFiles) {
+          $allFiles = @($dllFiles) + @($libFiles)
+          foreach ($file in $allFiles) {
             $fileSize = $file.Length
             Write-Host "::notice::Artifact: $($file.Name) - Size: $fileSize bytes"
             
@@ -645,11 +655,20 @@ jobs:
           mkdir -p artifacts/macos
           cp bindings/shared/build/*.dylib artifacts/macos/ || true
           cp bindings/shared/build/*.a artifacts/macos/ || true
-          cp bindings/shared/include/*.h artifacts/macos/
+          cp bindings/shared/include/*.h artifacts/macos/ || true
           cp bindings/nodejs/*.tgz artifacts/macos/ 2>/dev/null || true
           cp bindings/python/dist/*.whl artifacts/macos/ 2>/dev/null || true
           cp bindings/csharp/nupkg/*.nupkg artifacts/macos/ 2>/dev/null || true
           cp bindings/java/java/target/*.jar artifacts/macos/ 2>/dev/null || true
+          
+          # Verify we have at least some files
+          FILE_COUNT=$(ls -1 artifacts/macos/ 2>/dev/null | wc -l)
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "::error::No artifacts found to package"
+            exit 1
+          fi
+          echo "::notice::Packaging $FILE_COUNT files"
+          
           cd artifacts
           ARCH=$(uname -m)
           ARCHIVE_NAME="fastembed-macos-${ARCH}-${{ github.ref_name }}.tar.gz"
