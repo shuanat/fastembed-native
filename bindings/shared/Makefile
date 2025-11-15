@@ -43,6 +43,23 @@ ifeq ($(OS),Windows_NT)
     BUILD_SHARED = yes
 endif
 
+# ============================================================================
+# Phase 1, Task 1.3: macOS arm64 C-only implementation
+# ============================================================================
+# Skip assembly on macOS arm64 due to persistent NASM architecture mismatch
+# issues (Rosetta emulation, x86_64 vs arm64 object file conflicts).
+# C-only implementation is stable and performance impact is acceptable.
+ifeq ($(UNAME_S),Darwin)
+    ARCH := $(shell uname -m)
+    ifeq ($(ARCH),arm64)
+        $(info ========================================)
+        $(info macOS arm64 detected - Building C-only)
+        $(info Assembly disabled due to NASM/Rosetta)
+        $(info ========================================)
+        USE_ONLY_C = 1
+    endif
+endif
+
 # Directories
 SRC_DIR = src
 INC_DIR = include
@@ -52,9 +69,16 @@ BUILD_DIR = build
 $(shell mkdir -p $(BUILD_DIR))
 
 # Source files
-ASM_SOURCES = $(SRC_DIR)/embedding_lib.asm $(SRC_DIR)/embedding_generator.asm
+# Conditional assembly sources (disabled for macOS arm64 - see Phase 1, Task 1.3)
+ifndef USE_ONLY_C
+    ASM_SOURCES = $(SRC_DIR)/embedding_lib.asm $(SRC_DIR)/embedding_generator.asm
+    OBJECTS = $(BUILD_DIR)/embedding_lib$(OBJ_EXT) $(BUILD_DIR)/embedding_generator$(OBJ_EXT) $(BUILD_DIR)/embedding_lib_c.o
+else
+    # C-only mode (macOS arm64)
+    ASM_SOURCES =
+    OBJECTS = $(BUILD_DIR)/embedding_lib_c.o
+endif
 C_SOURCES = $(SRC_DIR)/embedding_lib_c.c
-OBJECTS = $(BUILD_DIR)/embedding_lib$(OBJ_EXT) $(BUILD_DIR)/embedding_generator$(OBJ_EXT) $(BUILD_DIR)/embedding_lib_c.o
 CLI_SOURCES = $(SRC_DIR)/vector_ops_cli.c $(SRC_DIR)/embedding_gen_cli.c
 CLI_OBJECTS = $(BUILD_DIR)/vector_ops_cli.o $(BUILD_DIR)/embedding_gen_cli.o
 CLI_TARGETS = $(BUILD_DIR)/vector_ops_cli$(if $(filter Windows_NT,$(OS)),.exe,) $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,)
@@ -96,10 +120,12 @@ $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,): $(BUILD_DI
 	$(CC) $(CFLAGS) $(BUILD_DIR)/embedding_gen_cli.o $(BUILD_DIR)/$(TARGET_LIB) -o $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,) -lm
 	@echo "Built: $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,)"
 
-# Compile assembly files
+# Compile assembly files (skipped if USE_ONLY_C=1)
 # Use $(NASM) variable which can be overridden from environment (e.g., "arch -arm64 nasm")
+ifndef USE_ONLY_C
 $(BUILD_DIR)/%$(OBJ_EXT): $(SRC_DIR)/%.asm
 	$(NASM) $(NASM_FLAGS) $< -o $@
+endif
 
 # Compile C files
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
