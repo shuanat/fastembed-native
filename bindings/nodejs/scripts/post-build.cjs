@@ -43,7 +43,7 @@ if (platform === 'darwin') {
     dylibFiles.forEach(file => {
       const src = path.join(onnxLibDir, file);
       const dest = path.join(buildDir, file);
-      
+
       try {
         fs.copyFileSync(src, dest);
         console.log('[Post-Build] ✓ Copied:', file);
@@ -51,14 +51,14 @@ if (platform === 'darwin') {
         console.error('[Post-Build] ✗ Failed to copy', file, ':', err.message);
       }
     });
-    
+
     // Fix rpath references in .node file using install_name_tool
     const nodeFile = path.join(buildDir, 'fastembed_native.node');
     if (fs.existsSync(nodeFile)) {
       console.log('[Post-Build] Fixing rpath references in .node file...');
-      
+
       const { execSync } = require('child_process');
-      
+
       dylibFiles.forEach(file => {
         try {
           // Change @rpath reference to @loader_path (same directory)
@@ -72,7 +72,7 @@ if (platform === 'darwin') {
     } else {
       console.log('[Post-Build] Warning: fastembed_native.node not found');
     }
-    
+
     console.log('[Post-Build] ✓ Post-build complete for macOS');
   } catch (err) {
     console.error('[Post-Build] Error:', err.message);

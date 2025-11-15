@@ -80,9 +80,10 @@
         }],
         ["OS=='mac'", {
           "sources": [
-            "../shared/src/embedding_lib.asm",
-            "../shared/src/embedding_generator.asm"
+            # macOS arm64: Use C-only implementation (no assembly)
+            # Assembly is x86_64 only and causes segfaults on arm64
           ],
+          "defines": ["USE_ONLY_C"],
           "include_dirs": [
             "<(module_root_dir)/../../bindings/onnxruntime/include"
           ],
@@ -92,24 +93,6 @@
           "ldflags": [
             "-Wl,-rpath,<(module_root_dir)/../../bindings/onnxruntime/lib",
             "-Wl,-rpath,@loader_path/../../../../onnxruntime/lib"
-          ],
-          "rules": [
-            {
-              "rule_name": "asm_to_o",
-              "extension": "asm",
-              "inputs": ["<(RULE_INPUT_PATH)"],
-              "outputs": ["<(INTERMEDIATE_DIR)/<(RULE_INPUT_ROOT).o"],
-              "action": [
-                "nasm",
-                "-f",
-                "macho64",
-                "<(RULE_INPUT_PATH)",
-                "-o",
-                "<(INTERMEDIATE_DIR)/<(RULE_INPUT_ROOT).o"
-              ],
-              "process_outputs_as_sources": 1,
-              "message": "Assembling <(RULE_INPUT_PATH)"
-            }
           ]
         }]
       ]
