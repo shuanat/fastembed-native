@@ -106,6 +106,9 @@ $(BUILD_DIR)/$(TARGET_LIB): $(OBJECTS)
 
 # Build shared library (optional)
 shared: $(BUILD_DIR)/$(TARGET_DLL)
+	@mkdir -p lib
+	@cp -f $(BUILD_DIR)/$(TARGET_DLL) lib/$(TARGET_DLL)
+	@echo "Installed: lib/$(TARGET_DLL)"
 
 $(BUILD_DIR)/$(TARGET_DLL): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(BUILD_DIR)/$(TARGET_DLL) -lm
