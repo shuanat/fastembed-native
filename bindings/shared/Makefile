@@ -212,6 +212,21 @@ clean:
 	rm -f test_onnx_dimension test_onnx_dimension.exe
 	rm -f benchmark_improved benchmark_improved.exe
 
+# Install target: copy libraries to lib/ directory for language bindings
+install: all
+	@echo "==================================="
+	@echo "Installing Libraries"
+	@echo "==================================="
+	@mkdir -p lib
+ifdef BUILD_SHARED
+	@echo "Installing shared library: $(TARGET_DLL)"
+	@cp $(BUILD_DIR)/$(TARGET_DLL) lib/
+endif
+	@echo "Installing static library: $(TARGET_LIB)"
+	@cp $(BUILD_DIR)/$(TARGET_LIB) lib/
+	@echo "Installation complete!"
+	@echo "Libraries installed to: lib/"
+
 # Test targets
 TEST_SOURCES = tests/test_basic.c tests/test_hash_functions.c tests/test_embedding_generation.c tests/test_quality_improvement.c tests/test_onnx_dimension.c
 TEST_TARGET = $(BUILD_DIR)/test_basic$(if $(filter Windows_NT,$(OS)),.exe,)
@@ -391,5 +406,5 @@ setup: setup-onnx setup-model
 	@echo "   ONNX Runtime: onnxruntime/"
 	@echo "   Model: models/nomic-embed-text.onnx"
 
-.PHONY: all clean test test-build benchmark benchmark-build setup setup-onnx setup-model
+.PHONY: all clean test test-build benchmark benchmark-build setup setup-onnx setup-model install
 

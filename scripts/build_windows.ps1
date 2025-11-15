@@ -470,11 +470,23 @@ function Invoke-Linking {
         Write-BuildLog "  - $(Split-Path $obj -Leaf)" -Level DEBUG
     }
     
+    # Check if ONNX Runtime is available
+    $onnxLib = Join-Path (Join-Path $RepoRoot 'bindings\onnxruntime\lib') 'onnxruntime.lib'
+    $useOnnx = Test-Path $onnxLib
+    
     $linkArgs = @(
         '/DLL',                    # Create DLL
         '/NOLOGO',                 # Suppress copyright
         "/OUT:$OutputDll"          # Output file
     ) + $objFiles
+    
+    # Add ONNX Runtime library if available
+    if ($useOnnx) {
+        $linkArgs += $onnxLib
+        Write-BuildLog "Linking with ONNX Runtime: $onnxLib" -Level INFO
+    } else {
+        Write-BuildLog 'ONNX Runtime library not found, building without ONNX support' -Level WARNING
+    }
     
     $startTime = Get-Date
     link @linkArgs 2>&1 | ForEach-Object {
@@ -572,7 +584,7 @@ try {
     }
     
     $finalDll = Join-Path $libDir 'fastembed_native.dll'
-    Write-BuildLog "Copying DLL to lib directory..." -Level INFO
+    Write-BuildLog 'Copying DLL to lib directory...' -Level INFO
     Copy-Item -Path $outputDll -Destination $finalDll -Force
     Write-BuildLog "DLL copied to: $finalDll" -Level SUCCESS
     
@@ -583,7 +595,7 @@ try {
         Copy-Item -Path $onnxDll -Destination $onnxDest -Force
         Write-BuildLog "ONNX Runtime DLL copied to: $onnxDest" -Level SUCCESS
     } else {
-        Write-BuildLog "ONNX Runtime DLL not found, skipping copy" -Level WARNING
+        Write-BuildLog 'ONNX Runtime DLL not found, skipping copy' -Level WARNING
     }
     
     # Build summary
