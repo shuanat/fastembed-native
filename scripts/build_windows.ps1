@@ -258,7 +258,9 @@ function Find-MSVC {
     }
     
     # All strategies failed
-    Write-BuildLog 'Visual Studio Build Tools not found' -Level ERROR
+    Write-Host '::error::[Windows] [MSVC] Error: Visual Studio Build Tools not found'
+    Write-Host '::error::Details: Required for C/C++ compilation on Windows'
+    Write-Host "::error::Solution: Install Visual Studio 2022 with 'Desktop development with C++' workload"
     Write-BuildLog 'Searched locations:' -Level ERROR
     Write-BuildLog '  1. PATH (setup-msbuild@v2)' -Level ERROR
     Write-BuildLog '  2. vswhere.exe' -Level ERROR
@@ -294,8 +296,9 @@ function Find-NASM {
         }
     }
     
-    Write-BuildLog 'NASM not found in PATH or standard locations' -Level ERROR
-    Write-BuildLog 'Please install NASM: https://www.nasm.us/' -Level ERROR
+    Write-Host '::error::[Windows] [NASM] Error: NASM not found in PATH'
+    Write-Host '::error::Details: Required for assembly compilation'
+    Write-Host "::error::Solution: Install NASM from https://www.nasm.us/ or run 'choco install nasm'"
     throw 'NASM assembler not found'
 }
 
@@ -543,7 +546,10 @@ try {
     
     # Detect MSVC
     if (-not (Find-MSVC)) {
-        throw "Visual Studio Build Tools not found. Please install Visual Studio 2022 with 'Desktop development with C++' workload."
+        Write-Host '::error::[Windows] [MSVC] Error: Visual Studio Build Tools not found'
+        Write-Host '::error::Details: Required for native library compilation'
+        Write-Host "::error::Solution: Install Visual Studio 2022 with 'Desktop development with C++' workload"
+        throw 'Visual Studio Build Tools not found'
     }
     
     # Detect NASM
@@ -567,7 +573,9 @@ try {
     
     exit 0
 } catch {
-    Write-BuildLog "Build failed: $_" -Level ERROR
+    Write-Host '::error::[Windows] [Build] Error: Build failed'
+    Write-Host "::error::Details: $_"
+    Write-Host '::error::Solution: Check error details above and verify all dependencies are installed'
     Write-BuildLog "Stack trace: $($_.ScriptStackTrace)" -Level DEBUG
     exit 1
 }
