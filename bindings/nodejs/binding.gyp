@@ -10,7 +10,7 @@
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
         "../shared/include",
-        "<!@(node -p \"require('path').resolve(process.cwd(),'..','..','bindings','onnxruntime','include')\")"
+        "<(module_root_dir)/../../bindings/onnxruntime/include"
       ],
       "defines": ["NAPI_DISABLE_CPP_EXCEPTIONS", "USE_ONNX_RUNTIME"],
       "conditions": [
@@ -21,10 +21,10 @@
             "../shared/src/embedding_generator.asm"
           ],
           "include_dirs": [
-            "<!@(node -p \"require('path').resolve(process.cwd(),'..','..','bindings','onnxruntime','include')\")"
+            "<(module_root_dir)/../../bindings/onnxruntime/include"
           ],
           "libraries": [
-            "<!@(node -p \"require('path').resolve(process.cwd(),'..','..','bindings','onnxruntime','lib','onnxruntime.lib').replace(/\\\\/g,'/')\")"
+            "<(module_root_dir)/../../bindings/onnxruntime/lib/onnxruntime.lib"
           ],
           "msvs_settings": {
             "VCCLCompilerTool": {
