@@ -495,22 +495,11 @@ jobs:
             
             # Force NASM to run in arm64 mode to prevent x86_64 object files
             # NASM with -f macho64 creates files for the architecture of the running process
+            # Even if NASM binary is arm64, the process may run under Rosetta emulation
             # Using 'arch -arm64' ensures NASM runs natively on arm64, not through Rosetta
-            NASM_CMD=$(which nasm)
-            if [ -n "$NASM_CMD" ]; then
-              # Check NASM binary architecture
-              NASM_ARCH=$(file "$NASM_CMD" 2>/dev/null | grep -o "arm64\|x86_64" | head -n1 || echo "unknown")
-              echo "::notice::NASM binary architecture: $NASM_ARCH"
-              
-              if [ "$NASM_ARCH" != "arm64" ]; then
-                echo "::warning::NASM is $NASM_ARCH, forcing arm64 execution with 'arch -arm64'"
-                export NASM="arch -arm64 nasm"
-              else
-                export NASM="nasm"
-              fi
-            else
-              export NASM="arch -arm64 nasm"
-            fi
+            # ALWAYS use 'arch -arm64 nasm' on arm64 systems to guarantee correct architecture
+            echo "::notice::Forcing arm64 execution for NASM to prevent Rosetta emulation issues"
+            export NASM="arch -arm64 nasm"
             
             export NASM_FLAGS="-f macho64"
           else

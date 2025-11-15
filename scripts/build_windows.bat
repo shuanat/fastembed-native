@@ -213,7 +213,7 @@ exit /b 1
 :vs_ready
 REM Verify cl.exe is available
 where cl >nul 2>&1
-if !errorlevel! neq 0 (
+if errorlevel 1 (
     echo [ERROR] MSVC compiler (cl.exe) not found in PATH
     echo [ERROR] Visual Studio environment setup may have failed
     exit /b 1
@@ -222,8 +222,8 @@ if !errorlevel! neq 0 (
 REM Check for NASM
 set "NASM_EXE="
 where nasm >nul 2>&1
-if !errorlevel! equ 0 (
-    for /f "delims=" %%i in ('where nasm') do set "NASM_EXE=%%i"
+if not errorlevel 1 (
+    for /f "delims=" %%i in ('where nasm 2^>nul') do set "NASM_EXE=%%i"
 ) else (
     REM Try to find NASM in common installation locations
     if exist "%LOCALAPPDATA%\bin\NASM\nasm.exe" (
