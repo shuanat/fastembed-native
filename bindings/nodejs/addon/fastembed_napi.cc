@@ -112,13 +112,46 @@ static napi_value GenerateEmbedding(napi_env env, napi_callback_info info) {
     return nullptr;
   }
 
+  // Validate text argument is not null/undefined
+  napi_valuetype valuetype;
+  napi_typeof(env, args[0], &valuetype);
+  if (valuetype == napi_null || valuetype == napi_undefined) {
+    napi_throw_error(env, nullptr, "Text argument cannot be null or undefined");
+    return nullptr;
+  }
+  if (valuetype != napi_string) {
+    napi_throw_error(env, nullptr, "Text argument must be a string");
+    return nullptr;
+  }
+
   // Get text argument
   char *text = GetStringFromValue(env, args[0]);
+
+  // Validate text is not empty
+  if (text && strlen(text) == 0) {
+    free(text);
+    napi_throw_error(env, nullptr, "Text argument cannot be empty");
+    return nullptr;
+  }
+
+  // Validate text length (max 8192 chars)
+  if (text && strlen(text) > 8192) {
+    free(text);
+    napi_throw_error(env, nullptr, "Text argument too long (max 8192 characters)");
+    return nullptr;
+  }
 
   // Get dimension argument (default: 768)
   int dimension = 768;
   if (argc >= 2) {
     napi_get_value_int32(env, args[1], &dimension);
+  }
+
+  // Validate dimension
+  if (dimension != 768 && dimension != 384 && dimension != 512 && dimension != 1024) {
+    free(text);
+    napi_throw_error(env, nullptr, "Invalid dimension (supported: 384, 512, 768, 1024)");
+    return nullptr;
   }
 
   // Allocate output buffer
