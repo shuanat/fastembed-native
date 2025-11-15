@@ -1,3 +1,50 @@
+# ============================================================================
+# Build Release Artifacts Workflow
+# ============================================================================
+#
+# Purpose:
+#   Build cross-platform native libraries for FastEmbed releases
+#   Creates GitHub Release with artifacts for Linux, Windows, and macOS
+#
+# Trigger:
+#   - Push of version tag (v*.*.*) - e.g., v1.0.1
+#   - Manual trigger via workflow_dispatch
+#
+# Platforms:
+#   - Linux (x64) - Ubuntu latest
+#   - Windows (x64) - Windows latest
+#   - macOS (x64/arm64) - macOS latest
+#
+# Build Process:
+#   1. Checkout code at tag
+#   2. Setup platform-specific build tools (NASM, GCC/MSVC, Make)
+#   3. Download ONNX Runtime 1.23.2
+#   4. Build shared native library (C/Assembly)
+#   5. Validate build artifacts
+#   6. Package artifacts (tar.gz for Linux/macOS, zip for Windows)
+#   7. Create GitHub Release with artifacts
+#
+# Expected Build Times:
+#   - Linux: ~3-5 minutes
+#   - Windows: ~5-8 minutes
+#   - macOS: ~4-6 minutes
+#   - Total: ~12-19 minutes
+#
+# Troubleshooting:
+#   - Build failures: Check compiler version, NASM version (>= 2.14)
+#   - Path errors: Verify working directory (should be repository root)
+#   - Type errors: Check header file consistency (const float* vs float*)
+#   - Assembly errors: Verify format support (elf64, win64, macho64)
+#   - Artifact validation failures: Check file sizes and types
+#
+# Dependencies:
+#   - NASM >= 2.14 (assembly compiler)
+#   - GCC/Clang/MSVC (C compiler)
+#   - Make (build system)
+#   - ONNX Runtime 1.23.2 (downloaded automatically)
+#
+# ============================================================================
+
 name: Build Release Artifacts
 
 on:
@@ -31,11 +78,67 @@ jobs:
 
       - name: Build shared library
         run: |
+          START_TIME=$(date +%s)
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Starting Linux build"
+          echo "::notice::Platform: Linux (Ubuntu)"
+          echo "::notice::Compiler: $(gcc --version | head -n1)"
+          echo "::notice::NASM: $(nasm --version | head -n1)"
+
           cd bindings/shared
           make all
 
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Build completed in ${DURATION} seconds"
+
+          if [ $DURATION -gt 600 ]; then
+            echo "::warning::Build time (${DURATION}s) exceeds expected threshold (600s)"
+          fi
+        continue-on-error: false
+
+      - name: Validate Linux artifacts
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Validating Linux build artifacts"
+
+          # Check shared library exists
+          if [ ! -f "bindings/shared/build/fastembed.so" ] && [ ! -f "bindings/shared/build/libfastembed.so" ]; then
+            echo "::error::Linux shared library not found"
+            echo "::error::Expected: bindings/shared/build/*.so"
+            echo "::error::Found files:"
+            ls -la bindings/shared/build/ || echo "Build directory not found"
+            exit 1
+          fi
+
+          # Check static library exists
+          if [ ! -f "bindings/shared/build/fastembed.a" ] && [ ! -f "bindings/shared/build/libfastembed.a" ]; then
+            echo "::warning::Linux static library not found (optional)"
+          fi
+
+          # Verify file types
+          for file in bindings/shared/build/*.so bindings/shared/build/*.a; do
+            if [ -f "$file" ]; then
+              FILE_TYPE=$(file "$file")
+              FILE_SIZE=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "unknown")
+              echo "::notice::Artifact: $(basename $file) - Type: $FILE_TYPE - Size: $FILE_SIZE bytes"
+              
+              if [ "$FILE_SIZE" != "unknown" ] && [ "$FILE_SIZE" -eq 0 ]; then
+                echo "::error::Artifact $(basename $file) has zero size"
+                exit 1
+              fi
+            fi
+          done
+
+          # Verify headers exist
+          if [ ! -f "bindings/shared/include/fastembed.h" ]; then
+            echo "::error::Header file not found: bindings/shared/include/fastembed.h"
+            exit 1
+          fi
+
+          echo "::notice::All Linux artifacts validated successfully"
+
       - name: Package Linux artifacts
         run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Packaging Linux artifacts"
           mkdir -p artifacts/linux
           cp bindings/shared/build/*.so artifacts/linux/ || true
           cp bindings/shared/build/*.a artifacts/linux/ || true
@@ -43,12 +146,37 @@ jobs:
           cd artifacts
           tar -czf fastembed-linux-x64-${{ github.ref_name }}.tar.gz linux/
 
+          # Verify archive was created
+          if [ ! -f "fastembed-linux-x64-${{ github.ref_name }}.tar.gz" ]; then
+            echo "::error::Failed to create Linux artifact archive"
+            exit 1
+          fi
+
+          ARCHIVE_SIZE=$(stat -f%z "fastembed-linux-x64-${{ github.ref_name }}.tar.gz" 2>/dev/null || stat -c%s "fastembed-linux-x64-${{ github.ref_name }}.tar.gz" 2>/dev/null || echo "unknown")
+          echo "::notice::Linux archive created: fastembed-linux-x64-${{ github.ref_name }}.tar.gz (${ARCHIVE_SIZE} bytes)"
+
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
           name: fastembed-linux-x64
           path: artifacts/fastembed-linux-x64-*.tar.gz
           retention-days: 90
+
+      - name: Log build failure
+        if: failure()
+        run: |
+          echo "::error::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Linux build failed"
+          echo "::error::Platform: Linux (Ubuntu)"
+          echo "::error::Job: ${{ job.name }}"
+          echo "::error::Workflow: ${{ github.workflow }}"
+          echo "::error::Tag: ${{ github.ref_name }}"
+          echo "::error::Commit: ${{ github.sha }}"
+          echo "::error::Check workflow logs for detailed error information"
+          echo "::error::Common issues:"
+          echo "::error::  - Compiler version mismatch"
+          echo "::error::  - NASM version < 2.14"
+          echo "::error::  - Missing dependencies"
+          echo "::error::  - Type conflicts in header files"
 
   build-windows:
     name: Build Windows Artifacts
@@ -73,18 +201,85 @@ jobs:
 
       - name: Build shared library
         run: |
-          cd bindings\shared
+          set START_TIME=%time%
+          echo ::notice::[%date% %time%] Starting Windows build
+          echo ::notice::Platform: Windows
+          echo ::notice::Compiler: MSVC (Visual Studio Build Tools)
+
+          REM Verify we're in repository root
+          if not exist "bindings\shared\src\embedding_lib.asm" (
+            echo ::error::Repository structure not found. Expected bindings\shared\src\embedding_lib.asm
+            echo ::error::Current directory: %CD%
+            exit /b 1
+          )
+
+          REM Call build script (script will find repository root automatically)
           call scripts\build_windows.bat
+
+          set END_TIME=%time%
+          echo ::notice::[%date% %time%] Build completed
         shell: cmd
+        working-directory: ${{ github.workspace }}
+        continue-on-error: false
+
+      - name: Validate Windows artifacts
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Validating Windows build artifacts"
+
+          # Check DLL exists
+          $dllFiles = Get-ChildItem -Path "bindings\shared\build\*.dll" -ErrorAction SilentlyContinue
+          if (-not $dllFiles) {
+            Write-Host "::error::Windows DLL not found"
+            Write-Host "::error::Expected: bindings\shared\build\*.dll"
+            Write-Host "::error::Found files:"
+            Get-ChildItem -Path "bindings\shared\build\" -ErrorAction SilentlyContinue | Select-Object Name, Length
+            exit 1
+          }
+
+          # Check LIB exists
+          $libFiles = Get-ChildItem -Path "bindings\shared\build\*.lib" -ErrorAction SilentlyContinue
+          if (-not $libFiles) {
+            Write-Host "::warning::Windows LIB not found (optional)"
+          }
+
+          # Verify file sizes
+          foreach ($file in $dllFiles + $libFiles) {
+            $fileSize = $file.Length
+            Write-Host "::notice::Artifact: $($file.Name) - Size: $fileSize bytes"
+            
+            if ($fileSize -eq 0) {
+              Write-Host "::error::Artifact $($file.Name) has zero size"
+              exit 1
+            }
+          }
+
+          # Verify headers exist
+          if (-not (Test-Path "bindings\shared\include\fastembed.h")) {
+            Write-Host "::error::Header file not found: bindings\shared\include\fastembed.h"
+            exit 1
+          }
+
+          Write-Host "::notice::All Windows artifacts validated successfully"
+        shell: powershell
 
       - name: Package Windows artifacts
         run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Packaging Windows artifacts"
           New-Item -ItemType Directory -Force -Path artifacts\windows
           Copy-Item -Path bindings\shared\build\*.dll -Destination artifacts\windows\ -ErrorAction SilentlyContinue
           Copy-Item -Path bindings\shared\build\*.lib -Destination artifacts\windows\ -ErrorAction SilentlyContinue
           Copy-Item -Path bindings\shared\include\*.h -Destination artifacts\windows\
           cd artifacts
           Compress-Archive -Path windows\* -DestinationPath fastembed-windows-x64-${{ github.ref_name }}.zip
+
+          # Verify archive was created
+          if (-not (Test-Path "fastembed-windows-x64-${{ github.ref_name }}.zip")) {
+            Write-Host "::error::Failed to create Windows artifact archive"
+            exit 1
+          }
+
+          $archiveSize = (Get-Item "fastembed-windows-x64-${{ github.ref_name }}.zip").Length
+          Write-Host "::notice::Windows archive created: fastembed-windows-x64-${{ github.ref_name }}.zip ($archiveSize bytes)"
         shell: powershell
 
       - name: Upload Windows artifacts
@@ -93,6 +288,23 @@ jobs:
           name: fastembed-windows-x64
           path: artifacts/fastembed-windows-x64-*.zip
           retention-days: 90
+
+      - name: Log build failure
+        if: failure()
+        run: |
+          echo ::error::[%date% %time%] Windows build failed
+          echo ::error::Platform: Windows
+          echo ::error::Job: ${{ job.name }}
+          echo ::error::Workflow: ${{ github.workflow }}
+          echo ::error::Tag: ${{ github.ref_name }}
+          echo ::error::Commit: ${{ github.sha }}
+          echo ::error::Check workflow logs for detailed error information
+          echo ::error::Common issues:
+          echo ::error::  - Visual Studio Build Tools not found
+          echo ::error::  - NASM not in PATH
+          echo ::error::  - Path resolution errors
+          echo ::error::  - Missing ONNX Runtime
+        shell: cmd
 
   build-macos:
     name: Build macOS Artifacts
@@ -113,17 +325,82 @@ jobs:
 
       - name: Build shared library
         run: |
+          START_TIME=$(date +%s)
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Starting macOS build"
+          echo "::notice::Platform: macOS ($(uname -m))"
+          echo "::notice::Compiler: $(clang --version | head -n1)"
+          echo "::notice::NASM: $(nasm --version | head -n1)"
+
           cd bindings/shared
           make all
 
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Build completed in ${DURATION} seconds"
+
+          if [ $DURATION -gt 600 ]; then
+            echo "::warning::Build time (${DURATION}s) exceeds expected threshold (600s)"
+          fi
+        continue-on-error: false
+
+      - name: Validate macOS artifacts
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Validating macOS build artifacts"
+
+          # Check dynamic library exists
+          if [ ! -f "bindings/shared/build/fastembed.dylib" ] && [ ! -f "bindings/shared/build/libfastembed.dylib" ]; then
+            echo "::error::macOS dynamic library not found"
+            echo "::error::Expected: bindings/shared/build/*.dylib"
+            echo "::error::Found files:"
+            ls -la bindings/shared/build/ || echo "Build directory not found"
+            exit 1
+          fi
+
+          # Check static library exists
+          if [ ! -f "bindings/shared/build/fastembed.a" ] && [ ! -f "bindings/shared/build/libfastembed.a" ]; then
+            echo "::warning::macOS static library not found (optional)"
+          fi
+
+          # Verify file types
+          for file in bindings/shared/build/*.dylib bindings/shared/build/*.a; do
+            if [ -f "$file" ]; then
+              FILE_TYPE=$(file "$file")
+              FILE_SIZE=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "unknown")
+              echo "::notice::Artifact: $(basename $file) - Type: $FILE_TYPE - Size: $FILE_SIZE bytes"
+              
+              if [ "$FILE_SIZE" != "unknown" ] && [ "$FILE_SIZE" -eq 0 ]; then
+                echo "::error::Artifact $(basename $file) has zero size"
+                exit 1
+              fi
+            fi
+          done
+
+          # Verify headers exist
+          if [ ! -f "bindings/shared/include/fastembed.h" ]; then
+            echo "::error::Header file not found: bindings/shared/include/fastembed.h"
+            exit 1
+          fi
+
+          echo "::notice::All macOS artifacts validated successfully"
+
       - name: Package macOS artifacts
         run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Packaging macOS artifacts"
           mkdir -p artifacts/macos
           cp bindings/shared/build/*.dylib artifacts/macos/ || true
           cp bindings/shared/build/*.a artifacts/macos/ || true
           cp bindings/shared/include/*.h artifacts/macos/
           cd artifacts
           tar -czf fastembed-macos-x64-${{ github.ref_name }}.tar.gz macos/
+
+          # Verify archive was created
+          if [ ! -f "fastembed-macos-x64-${{ github.ref_name }}.tar.gz" ]; then
+            echo "::error::Failed to create macOS artifact archive"
+            exit 1
+          fi
+
+          ARCHIVE_SIZE=$(stat -f%z "fastembed-macos-x64-${{ github.ref_name }}.tar.gz" 2>/dev/null || stat -c%s "fastembed-macos-x64-${{ github.ref_name }}.tar.gz" 2>/dev/null || echo "unknown")
+          echo "::notice::macOS archive created: fastembed-macos-x64-${{ github.ref_name }}.tar.gz (${ARCHIVE_SIZE} bytes)"
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -132,13 +409,46 @@ jobs:
           path: artifacts/fastembed-macos-x64-*.tar.gz
           retention-days: 90
 
+      - name: Log build failure
+        if: failure()
+        run: |
+          echo "::error::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] macOS build failed"
+          echo "::error::Platform: macOS ($(uname -m))"
+          echo "::error::Job: ${{ job.name }}"
+          echo "::error::Workflow: ${{ github.workflow }}"
+          echo "::error::Tag: ${{ github.ref_name }}"
+          echo "::error::Commit: ${{ github.sha }}"
+          echo "::error::Check workflow logs for detailed error information"
+          echo "::error::Common issues:"
+          echo "::error::  - NASM version < 2.14"
+          echo "::error::  - Missing macho64 format support"
+          echo "::error::  - ABI compatibility issues"
+          echo "::error::  - Missing dependencies"
+
   create-release:
     name: Create GitHub Release
     needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') && always()
 
     steps:
+      - name: Check build status
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Checking build status"
+          echo "Linux build: ${{ needs.build-linux.result }}"
+          echo "Windows build: ${{ needs.build-windows.result }}"
+          echo "macOS build: ${{ needs.build-macos.result }}"
+
+          if [ "${{ needs.build-linux.result }}" != "success" ] || \
+             [ "${{ needs.build-windows.result }}" != "success" ] || \
+             [ "${{ needs.build-macos.result }}" != "success" ]; then
+            echo "::error::One or more builds failed. Cannot create release."
+            echo "::error::Linux: ${{ needs.build-linux.result }}"
+            echo "::error::Windows: ${{ needs.build-windows.result }}"
+            echo "::error::macOS: ${{ needs.build-macos.result }}"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - name: Download all artifacts

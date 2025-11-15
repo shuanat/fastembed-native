@@ -483,7 +483,7 @@ int generate_embedding(const char *text, float *output, int dimension) {
  * @brief Legacy API: Calculate dot product
  * @deprecated Use fastembed_dot_product() instead
  */
-float dot_product(float *vector_a, float *vector_b, int dimension) {
+float dot_product(const float *vector_a, const float *vector_b, int dimension) {
   return fastembed_dot_product(vector_a, vector_b, dimension);
 }
 
@@ -491,7 +491,8 @@ float dot_product(float *vector_a, float *vector_b, int dimension) {
  * @brief Legacy API: Calculate cosine similarity
  * @deprecated Use fastembed_cosine_similarity() instead
  */
-float cosine_similarity(float *vector_a, float *vector_b, int dimension) {
+float cosine_similarity(const float *vector_a, const float *vector_b,
+                        int dimension) {
   return fastembed_cosine_similarity(vector_a, vector_b, dimension);
 }
 
@@ -499,7 +500,7 @@ float cosine_similarity(float *vector_a, float *vector_b, int dimension) {
  * @brief Legacy API: Calculate vector norm
  * @deprecated Use fastembed_vector_norm() instead
  */
-float vector_norm(float *vector, int dimension) {
+float vector_norm(const float *vector, int dimension) {
   return fastembed_vector_norm(vector, dimension);
 }
 

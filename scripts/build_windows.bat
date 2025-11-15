@@ -30,14 +30,41 @@ setlocal enabledelayedexpansion
 
 set "EXIT_CODE=0"
 
-REM Get script directory and project root
+REM Get script directory and find repository root
 set "SCRIPT_DIR=%~dp0"
-set "PROJECT_ROOT=%SCRIPT_DIR%.."
-cd /d "%PROJECT_ROOT%"
+REM Remove trailing backslash
+set "SCRIPT_DIR=!SCRIPT_DIR:~0,-1!"
 
+REM Find repository root by looking for .git directory or bindings\shared\src\embedding_lib.asm
+set "REPO_ROOT=%CD%"
+:find_root
+if exist "!REPO_ROOT!\.git" goto :found_root
+if exist "!REPO_ROOT!\bindings\shared\src\embedding_lib.asm" goto :found_root
+if "!REPO_ROOT!"=="!REPO_ROOT:~-1!" goto :not_found
+set "REPO_ROOT=!REPO_ROOT!\.."
+goto :find_root
+
+:not_found
+echo [ERROR] Cannot find repository root directory
+echo [ERROR] Current directory: %CD%
+echo [ERROR] Script directory: %SCRIPT_DIR%
+echo [ERROR] Please run this script from the repository root or bindings\shared directory
+exit /b 1
+
+:found_root
+REM Change to repository root
+cd /d "!REPO_ROOT!"
 if !errorlevel! neq 0 (
-    echo [ERROR] Failed to change to project root directory
-    echo [ERROR] Path: %PROJECT_ROOT%
+    echo [ERROR] Failed to change to repository root directory
+    echo [ERROR] Path: !REPO_ROOT!
+    exit /b 1
+)
+
+REM Verify we're in the right place
+if not exist "bindings\shared\src\embedding_lib.asm" (
+    echo [ERROR] Repository structure not found
+    echo [ERROR] Expected: bindings\shared\src\embedding_lib.asm
+    echo [ERROR] Current directory: %CD%
     exit /b 1
 )
 

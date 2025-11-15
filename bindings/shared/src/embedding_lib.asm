@@ -10,6 +10,7 @@
 ;   gcc embedding_lib.o embedding_lib_c.c -o embedding_lib.so (Linux shared)
 
 %ifidn __OUTPUT_FORMAT__,elf64
+    ; Linux System V ABI
     %define PARAM1 rdi
     %define PARAM2 rsi
     %define PARAM3 rdx
@@ -18,6 +19,7 @@
     %define PARAM6 r9
     %define SHADOW_SPACE 0
 %elifidn __OUTPUT_FORMAT__,win64
+    ; Windows x64 calling convention
     %define PARAM1 rcx
     %define PARAM2 rdx
     %define PARAM3 r8
@@ -25,8 +27,17 @@
     %define PARAM5 rsp+32
     %define PARAM6 rsp+40
     %define SHADOW_SPACE 32
+%elifidn __OUTPUT_FORMAT__,macho64
+    ; macOS System V ABI (same as Linux)
+    %define PARAM1 rdi
+    %define PARAM2 rsi
+    %define PARAM3 rdx
+    %define PARAM4 rcx
+    %define PARAM5 r8
+    %define PARAM6 r9
+    %define SHADOW_SPACE 0
 %else
-    %error "Unsupported output format"
+    %error "Unsupported output format. Supported: elf64 (Linux), win64 (Windows), macho64 (macOS)"
 %endif
 
 section .data
