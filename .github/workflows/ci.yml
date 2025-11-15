@@ -484,8 +484,7 @@ jobs:
 
   benchmark-aggregate:
     name: Aggregate Benchmark Results
-    needs:
-      [build-shared-linux, test-nodejs, test-python, test-windows, test-macos]
+    needs: [build-shared-linux, test-nodejs, test-python]
     runs-on: ubuntu-latest
     if: always()
 
