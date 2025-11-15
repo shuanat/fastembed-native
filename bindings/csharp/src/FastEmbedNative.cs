@@ -17,7 +17,7 @@ namespace FastEmbed
 #elif LINUX
         private const string DllName = "fastembed.so";
 #elif OSX
-        private const string DllName = "libfastembed.dylib";
+        private const string DllName = "libfastembed_native.dylib";
 #else
         private const string DllName = "fastembed_native";
 #endif
