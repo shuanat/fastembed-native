@@ -23,7 +23,7 @@ extern "C"
     float fastembed_cosine_similarity(const float *vector_a, const float *vector_b, int dimension);
     float fastembed_dot_product(const float *vector_a, const float *vector_b, int dimension);
     float fastembed_vector_norm(const float *vector, int dimension);
-    void normalize_vector_asm(float *vector, int dimension);
+    void fastembed_normalize(float *vector, int dimension);
     void fastembed_add_vectors(const float *vector_a, const float *vector_b, float *result, int dimension);
 }
 
@@ -194,7 +194,7 @@ py::array_t<float> normalize_vector(py::array_t<float> vector)
     std::copy(input_ptr, input_ptr + dimension, result_ptr);
 
     // Normalize in-place
-    normalize_vector_asm(result_ptr, dimension);
+    fastembed_normalize(result_ptr, dimension);
 
     return result;
 }
