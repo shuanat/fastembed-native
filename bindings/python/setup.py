@@ -218,6 +218,31 @@ class CMakeBuild(build_ext):
                         os.remove(current_dir_ext)
                     shutil.copy2(built_ext, current_dir_ext)
                     print(f"Copied extension module to {current_dir_ext} for tests")
+                    
+                    # macOS: Fix rpath references using install_name_tool
+                    if IS_MACOS:
+                        import subprocess
+                        onnx_dylibs = ['libonnxruntime.1.23.2.dylib', 'libonnxruntime.dylib']
+                        for dylib in onnx_dylibs:
+                            try:
+                                # Change @rpath reference to @loader_path (same directory)
+                                cmd = ['install_name_tool', '-change', f'@rpath/{dylib}', f'@loader_path/{dylib}', current_dir_ext]
+                                subprocess.run(cmd, check=True, capture_output=True)
+                                print(f"Fixed rpath for {dylib} in extension module")
+                            except subprocess.CalledProcessError:
+                                # Ignore if reference doesn't exist
+                                pass
+                        
+                        # Copy ONNX Runtime dylibs to current directory
+                        onnx_lib_dir = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib"))
+                        for dylib in onnx_dylibs:
+                            dylib_src = os.path.join(onnx_lib_dir, dylib)
+                            dylib_dst = os.path.join(os.getcwd(), dylib)
+                            if os.path.exists(dylib_src):
+                                if os.path.exists(dylib_dst):
+                                    os.remove(dylib_dst)
+                                shutil.copy2(dylib_src, dylib_dst)
+                                print(f"Copied {dylib} to test directory")
                 else:
                     print(f"Warning: Could not find built extension at {built_ext}")
         
