@@ -137,7 +137,8 @@ static napi_value GenerateEmbedding(napi_env env, napi_callback_info info) {
   // Validate text length (max 8192 chars)
   if (text && strlen(text) > 8192) {
     free(text);
-    napi_throw_error(env, nullptr, "Text argument too long (max 8192 characters)");
+    napi_throw_error(env, nullptr,
+                     "Text argument too long (max 8192 characters)");
     return nullptr;
   }
 
@@ -148,9 +149,11 @@ static napi_value GenerateEmbedding(napi_env env, napi_callback_info info) {
   }
 
   // Validate dimension
-  if (dimension != 768 && dimension != 384 && dimension != 512 && dimension != 1024) {
+  if (dimension != 768 && dimension != 384 && dimension != 512 &&
+      dimension != 1024) {
     free(text);
-    napi_throw_error(env, nullptr, "Invalid dimension (supported: 384, 512, 768, 1024)");
+    napi_throw_error(env, nullptr,
+                     "Invalid dimension (supported: 384, 512, 768, 1024)");
     return nullptr;
   }
 

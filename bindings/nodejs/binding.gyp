@@ -89,7 +89,10 @@
           "cflags": ["-fPIC"],
           "cflags_cc": ["-fPIC", "-std=c++17"],
           "libraries": ["-lm", "-L<(module_root_dir)/../../bindings/onnxruntime/lib", "-lonnxruntime"],
-          "ldflags": ["-Wl,-rpath,<(module_root_dir)/../../bindings/onnxruntime/lib"],
+          "ldflags": [
+            "-Wl,-rpath,<(module_root_dir)/../../bindings/onnxruntime/lib",
+            "-Wl,-rpath,@loader_path/../../../../onnxruntime/lib"
+          ],
           "rules": [
             {
               "rule_name": "asm_to_o",
