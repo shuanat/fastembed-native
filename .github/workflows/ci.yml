@@ -301,9 +301,9 @@ jobs:
 
       - name: Build shared library (Windows)
         run: |
-          cd bindings/shared
-          call scripts/build_windows.bat
-        shell: cmd
+          # Use PowerShell build script (Phase 1, Task 1.2)
+          pwsh -File scripts\build_windows.ps1
+        shell: powershell
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

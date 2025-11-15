@@ -275,12 +275,11 @@ jobs:
             exit /b 1
           )
 
-          REM Call build script (script will find repository root automatically)
-          call scripts\build_windows.bat
+          # Call PowerShell build script (replaces fragile batch script)
+          pwsh -File scripts\build_windows.ps1 -ErrorAction Stop
 
-          set END_TIME=%time%
-          echo ::notice::[%date% %time%] Build completed
-        shell: cmd
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Build completed"
+        shell: powershell
         working-directory: ${{ github.workspace }}
         continue-on-error: false
 
