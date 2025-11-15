@@ -96,43 +96,57 @@ class CMakeBuild(build_ext):
             self.onnx_dll_dst = None  # Will be set after build
         
         elif IS_LINUX or IS_MACOS:
-            # Linux/macOS: Compile assembly files with NASM
-            import os
-            obj_dir = os.path.join(os.getcwd(), "build", "temp")
-            os.makedirs(obj_dir, exist_ok=True)
+            # Check if we're on macOS arm64 (Apple Silicon)
+            import platform
+            is_macos_arm64 = IS_MACOS and platform.machine() == 'arm64'
             
-            # Compile assembly files
-            import subprocess
+            if is_macos_arm64:
+                # macOS arm64: Use C-only implementation (no assembly)
+                # Assembly is x86_64 only and will cause linking issues on arm64
+                extra_objects = []
+                print("macOS arm64 detected - using C-only implementation (no assembly)")
+            else:
+                # Linux or macOS x86_64: Compile assembly files with NASM
+                import os
+                obj_dir = os.path.join(os.getcwd(), "build", "temp")
+                os.makedirs(obj_dir, exist_ok=True)
+                
+                # Compile assembly files
+                import subprocess
+                
+                asm_files = [
+                    ("../shared/src/embedding_lib.asm", os.path.join(obj_dir, "embedding_lib.o")),
+                    ("../shared/src/embedding_generator.asm", os.path.join(obj_dir, "embedding_generator.o"))
+                ]
+                
+                for asm_src, asm_obj in asm_files:
+                    if not os.path.exists(asm_obj):
+                        nasm_format = "elf64" if IS_LINUX else "macho64"
+                        cmd = ["nasm", "-f", nasm_format, asm_src, "-o", asm_obj]
+                        
+                        try:
+                            subprocess.run(cmd, check=True)
+                        except subprocess.CalledProcessError:
+                            raise RuntimeError(f"Failed to compile {asm_src}")
+                        except FileNotFoundError:
+                            raise RuntimeError(
+                                "NASM not found. Please install NASM:\n"
+                                "  Ubuntu/Debian: sudo apt install nasm\n"
+                                "  macOS: brew install nasm"
+                            )
+                
+                extra_objects = [obj for _, obj in asm_files]
             
-            asm_files = [
-                ("../shared/src/embedding_lib.asm", os.path.join(obj_dir, "embedding_lib.o")),
-                ("../shared/src/embedding_generator.asm", os.path.join(obj_dir, "embedding_generator.o"))
-            ]
-            
-            for asm_src, asm_obj in asm_files:
-                if not os.path.exists(asm_obj):
-                    nasm_format = "elf64" if IS_LINUX else "macho64"
-                    cmd = ["nasm", "-f", nasm_format, asm_src, "-o", asm_obj]
-                    
-                    try:
-                        subprocess.run(cmd, check=True)
-                    except subprocess.CalledProcessError:
-                        raise RuntimeError(f"Failed to compile {asm_src}")
-                    except FileNotFoundError:
-                        raise RuntimeError(
-                            "NASM not found. Please install NASM:\n"
-                            "  Ubuntu/Debian: sudo apt install nasm\n"
-                            "  macOS: brew install nasm"
-                        )
-            
-            extra_objects = [obj for _, obj in asm_files]
-            
-            # Compile flags for macOS
+            # Compile flags for Linux/macOS
             # Note: -march=native doesn't work on Apple Silicon (M1/M2/M3)
             extra_compile_args = [
                 "-O3",
                 "-fPIC"
             ]
+            
+            # Use C-only implementation on macOS arm64
+            if is_macos_arm64:
+                extra_compile_args.append("-DUSE_ONLY_C")
             
             if use_onnx:
                 extra_compile_args.append("-DUSE_ONNX_RUNTIME")
