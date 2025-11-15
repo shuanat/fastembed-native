@@ -191,33 +191,35 @@ class CMakeBuild(build_ext):
         # Build using parent class
         build_ext.build_extensions(self)
         
-        # Post-build: Copy extension module to current directory if --inplace
+        # Post-build: Copy extension module to current directory
         # This ensures the module is available for direct import in tests
-        if self.inplace:
-            import shutil
-            import glob
-            for ext in self.extensions:
-                # Find the built extension
-                build_lib = self.build_lib
-                if build_lib:
-                    ext_filename = self.get_ext_filename(ext.name)
-                    built_ext = os.path.join(build_lib, ext_filename)
-                    
-                    # Also check for versioned extensions (e.g., .cpython-312-x86_64-linux-gnu.so)
-                    if not os.path.exists(built_ext):
-                        # Try to find any matching extension file
-                        ext_pattern = os.path.join(build_lib, f"{ext.name}.*")
-                        matches = glob.glob(ext_pattern)
-                        if matches:
-                            built_ext = matches[0]
-                    
-                    if os.path.exists(built_ext):
-                        # Copy to current directory
-                        current_dir_ext = os.path.join(os.getcwd(), os.path.basename(built_ext))
-                        if os.path.exists(current_dir_ext):
-                            os.remove(current_dir_ext)
-                        shutil.copy2(built_ext, current_dir_ext)
-                        print(f"Copied extension module to {current_dir_ext}")
+        # setuptools copies to src/, but tests run from bindings/python/
+        import shutil
+        import glob
+        for ext in self.extensions:
+            # Find the built extension in build_lib
+            build_lib = self.build_lib
+            if build_lib:
+                ext_filename = self.get_ext_filename(ext.name)
+                built_ext = os.path.join(build_lib, ext_filename)
+                
+                # Also check for versioned extensions (e.g., .cpython-311-darwin.so)
+                if not os.path.exists(built_ext):
+                    # Try to find any matching extension file
+                    ext_pattern = os.path.join(build_lib, f"{ext.name}.*")
+                    matches = glob.glob(ext_pattern)
+                    if matches:
+                        built_ext = matches[0]
+                
+                if os.path.exists(built_ext):
+                    # Copy to current directory (where tests run)
+                    current_dir_ext = os.path.join(os.getcwd(), os.path.basename(built_ext))
+                    if os.path.exists(current_dir_ext):
+                        os.remove(current_dir_ext)
+                    shutil.copy2(built_ext, current_dir_ext)
+                    print(f"Copied extension module to {current_dir_ext} for tests")
+                else:
+                    print(f"Warning: Could not find built extension at {built_ext}")
         
         # Post-build: Copy ONNX Runtime DLL/SO to build output
         if IS_WINDOWS and hasattr(self, 'post_build_onnx_dll') and self.post_build_onnx_dll:
