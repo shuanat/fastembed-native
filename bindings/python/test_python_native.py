@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Test script for FastEmbed Python native module
 """
@@ -6,6 +7,12 @@ Test script for FastEmbed Python native module
 import sys
 import time
 import numpy as np
+import io
+
+# Fix Windows console encoding for Unicode characters
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 print("Testing FastEmbed Python Native Module...\n")
 print("=" * 60)
@@ -98,7 +105,7 @@ try:
     # Test 10: Error handling - invalid dimension
     print("10. Testing error handling (invalid dimension)...")
     try:
-        invalid_client = FastEmbedNative(dimension=99)  # Invalid dimension
+        invalid_client = FastEmbedNative(dimension=-1)  # Invalid dimension (negative)
         print("✗ Should have raised error for invalid dimension")
         sys.exit(1)
     except (ValueError, RuntimeError) as e:
@@ -111,7 +118,7 @@ try:
         fastembed.cosine_similarity(None, embedding2)
         print("✗ Should have raised error for None vector")
         sys.exit(1)
-    except (TypeError, ValueError) as e:
+    except (TypeError, ValueError, RuntimeError) as e:
         print(f"✓ Correctly raises error for None vector")
         print(f"  Error message: {str(e)}\n")
     

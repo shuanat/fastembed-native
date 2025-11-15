@@ -5,10 +5,11 @@
     "type": "module",
     "main": "lib/fastembed-native.js",
     "scripts": {
-        "build": "node-gyp rebuild",
+        "build": "node-gyp rebuild && node scripts/post-build.cjs",
         "build:debug": "node-gyp rebuild --debug",
         "clean": "node-gyp clean",
         "install": "node-gyp rebuild || echo 'Native build failed, CLI fallback available'",
+        "postinstall": "node scripts/post-build.cjs || true",
         "test:integration": "vitest run tests/integration",
         "test:integration:watch": "vitest watch tests/integration",
         "test:integration:ui": "vitest --ui tests/integration"

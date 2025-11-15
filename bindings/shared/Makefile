@@ -26,37 +26,36 @@ endif
 # Set platform-specific variables
 ifeq ($(UNAME_S),Linux)
     TARGET_LIB = fastembed.a
-    TARGET_DLL = fastembed.so
+    TARGET_DLL = libfastembed_native.so
     OBJ_EXT = .o
     BUILD_SHARED = yes
 endif
 ifeq ($(UNAME_S),Darwin)
-    TARGET_LIB = fastembed.a
-    TARGET_DLL = fastembed.dylib
-    OBJ_EXT = .o
-    BUILD_SHARED = yes
+	TARGET_LIB = fastembed.a
+	TARGET_DLL = libfastembed_native.dylib
+	OBJ_EXT = .o
+	BUILD_SHARED = yes
 endif
 ifeq ($(OS),Windows_NT)
     TARGET_LIB = fastembed.lib
-    TARGET_DLL = fastembed.dll
+    TARGET_DLL = fastembed_native.dll
     OBJ_EXT = .obj
     BUILD_SHARED = yes
 endif
 
 # ============================================================================
-# Phase 1, Task 1.3: macOS arm64 C-only implementation
+# Phase 1, Task 1.3: macOS arm64 NEON assembly implementation
 # ============================================================================
-# Skip assembly on macOS arm64 due to persistent NASM architecture mismatch
-# issues (Rosetta emulation, x86_64 vs arm64 object file conflicts).
-# C-only implementation is stable and performance impact is acceptable.
+# Use native ARM64 NEON assembly on Apple Silicon for optimal performance
+# Replaces previous C-only fallback with proper ARM64 SIMD support
 ifeq ($(UNAME_S),Darwin)
     ARCH := $(shell uname -m)
     ifeq ($(ARCH),arm64)
         $(info ========================================)
-        $(info macOS arm64 detected - Building C-only)
-        $(info Assembly disabled due to NASM/Rosetta)
+        $(info macOS arm64 detected - Building with ARM64 NEON)
+        $(info Using native ARM64 assembly for maximum performance)
         $(info ========================================)
-        USE_ONLY_C = 1
+        USE_ARM64_ASM = 1
     endif
 endif
 
@@ -69,14 +68,19 @@ BUILD_DIR = build
 $(shell mkdir -p $(BUILD_DIR))
 
 # Source files
-# Conditional assembly sources (disabled for macOS arm64 - see Phase 1, Task 1.3)
-ifndef USE_ONLY_C
+# Conditional assembly sources based on architecture
+ifdef USE_ARM64_ASM
+    # ARM64 NEON assembly (macOS Apple Silicon)
+    ASM_SOURCES = $(SRC_DIR)/embedding_lib_arm64.s $(SRC_DIR)/embedding_generator_arm64.s
+    OBJECTS = $(BUILD_DIR)/embedding_lib_arm64.o $(BUILD_DIR)/embedding_generator_arm64.o $(BUILD_DIR)/embedding_lib_c.o
+    ASM_COMPILER = as
+    ASM_FLAGS = -arch arm64
+else
+    # x86_64 assembly (Linux/Windows/macOS Intel)
     ASM_SOURCES = $(SRC_DIR)/embedding_lib.asm $(SRC_DIR)/embedding_generator.asm
     OBJECTS = $(BUILD_DIR)/embedding_lib$(OBJ_EXT) $(BUILD_DIR)/embedding_generator$(OBJ_EXT) $(BUILD_DIR)/embedding_lib_c.o
-else
-    # C-only mode (macOS arm64)
-    ASM_SOURCES =
-    OBJECTS = $(BUILD_DIR)/embedding_lib_c.o
+    ASM_COMPILER = $(NASM)
+    ASM_FLAGS = $(NASM_FLAGS)
 endif
 C_SOURCES = $(SRC_DIR)/embedding_lib_c.c
 CLI_SOURCES = $(SRC_DIR)/vector_ops_cli.c $(SRC_DIR)/embedding_gen_cli.c
@@ -106,6 +110,9 @@ $(BUILD_DIR)/$(TARGET_LIB): $(OBJECTS)
 
 # Build shared library (optional)
 shared: $(BUILD_DIR)/$(TARGET_DLL)
+	@mkdir -p lib
+	@cp -f $(BUILD_DIR)/$(TARGET_DLL) lib/$(TARGET_DLL)
+	@echo "Installed: lib/$(TARGET_DLL)"
 
 $(BUILD_DIR)/$(TARGET_DLL): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(BUILD_DIR)/$(TARGET_DLL) -lm
@@ -120,11 +127,16 @@ $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,): $(BUILD_DI
 	$(CC) $(CFLAGS) $(BUILD_DIR)/embedding_gen_cli.o $(BUILD_DIR)/$(TARGET_LIB) -o $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,) -lm
 	@echo "Built: $(BUILD_DIR)/embedding_gen_cli$(if $(filter Windows_NT,$(OS)),.exe,)"
 
-# Compile assembly files (skipped if USE_ONLY_C=1)
-# Use $(NASM) variable which can be overridden from environment (e.g., "arch -arm64 nasm")
-ifndef USE_ONLY_C
+# Compile assembly files
+# ARM64 NEON (.s) or x86_64 NASM (.asm) based on architecture
+ifdef USE_ARM64_ASM
+# ARM64 NEON assembly (macOS Apple Silicon)
+$(BUILD_DIR)/%_arm64.o: $(SRC_DIR)/%_arm64.s
+	$(ASM_COMPILER) $(ASM_FLAGS) $< -o $@
+else
+# x86_64 assembly (Linux/Windows/macOS Intel)
 $(BUILD_DIR)/%$(OBJ_EXT): $(SRC_DIR)/%.asm
-	$(NASM) $(NASM_FLAGS) $< -o $@
+	$(ASM_COMPILER) $(ASM_FLAGS) $< -o $@
 endif
 
 # Compile C files
@@ -199,6 +211,21 @@ clean:
 	rm -f test_quality_improvement test_quality_improvement.exe
 	rm -f test_onnx_dimension test_onnx_dimension.exe
 	rm -f benchmark_improved benchmark_improved.exe
+
+# Install target: copy libraries to lib/ directory for language bindings
+install: all
+	@echo "==================================="
+	@echo "Installing Libraries"
+	@echo "==================================="
+	@mkdir -p lib
+ifdef BUILD_SHARED
+	@echo "Installing shared library: $(TARGET_DLL)"
+	@cp $(BUILD_DIR)/$(TARGET_DLL) lib/
+endif
+	@echo "Installing static library: $(TARGET_LIB)"
+	@cp $(BUILD_DIR)/$(TARGET_LIB) lib/
+	@echo "Installation complete!"
+	@echo "Libraries installed to: lib/"
 
 # Test targets
 TEST_SOURCES = tests/test_basic.c tests/test_hash_functions.c tests/test_embedding_generation.c tests/test_quality_improvement.c tests/test_onnx_dimension.c
@@ -379,5 +406,5 @@ setup: setup-onnx setup-model
 	@echo "   ONNX Runtime: onnxruntime/"
 	@echo "   Model: models/nomic-embed-text.onnx"
 
-.PHONY: all clean test test-build benchmark benchmark-build setup setup-onnx setup-model
+.PHONY: all clean test test-build benchmark benchmark-build setup setup-onnx setup-model install
 

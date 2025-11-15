@@ -95,6 +95,238 @@ See [docs/BUILD_NATIVE.md](docs/BUILD_NATIVE.md) for detailed build instructions
 
 ---
 
+## Build Scripts
+
+FastEmbed uses several build scripts to support different platforms and workflows:
+
+### `build_windows.ps1` (Windows)
+
+PowerShell build script for Windows with enterprise-grade features:
+
+```powershell
+# Basic build
+.\scripts\build_windows.ps1
+
+# Clean build
+.\scripts\build_windows.ps1 -Clean
+```
+
+**Features**:
+
+- Automatic Visual Studio Build Tools detection
+- NASM assembler validation
+- Structured logging (INFO, SUCCESS, WARNING, ERROR, DEBUG)
+- Standardized error messages with solutions
+- ONNX Runtime integration
+
+**Requirements**:
+
+- Visual Studio Build Tools 2022 (with "Desktop development with C++")
+- NASM (≥ 2.14)
+
+### `build_native.py` (Cross-platform)
+
+Python build script supporting Windows, Linux, and macOS:
+
+```bash
+# Build native library
+python scripts/build_native.py
+
+# Verbose output
+python scripts/build_native.py -v
+```
+
+**Features**:
+
+- Cross-platform compilation
+- Automatic ONNX Runtime detection
+- macOS arm64 C-only fallback (no assembly)
+- Comprehensive error messages
+
+### `docker-test.ps1` / `docker-test.sh` (Local Docker Testing)
+
+Test builds in Docker containers matching CI environment:
+
+```powershell
+# Windows
+.\scripts\docker-test.ps1 all      # Test all platforms
+.\scripts\docker-test.ps1 ubuntu   # Test Ubuntu only
+.\scripts\docker-test.ps1 clean    # Clean containers
+
+# Linux/macOS
+./scripts/docker-test.sh all
+./scripts/docker-test.sh ubuntu
+./scripts/docker-test.sh clean
+```
+
+**Features**:
+
+- Matches GitHub Actions environment
+- Auto-detects `docker compose` vs `docker-compose`
+- Pre-pulls images to avoid credential issues
+
+---
+
+## Local Testing
+
+### Quick Test Workflow
+
+```bash
+# 1. Clean previous builds
+make clean
+
+# 2. Build all bindings
+make all
+
+# 3. Run tests
+make test
+
+# 4. (Optional) Test in Docker
+./scripts/docker-test.sh all
+```
+
+### Platform-Specific Testing
+
+**Windows**:
+
+```powershell
+# Build
+.\scripts\build_windows.ps1 -Clean
+
+# Test Node.js binding
+cd bindings\nodejs
+npm test
+
+# Test Python binding
+cd bindings\python
+python test_python_native.py
+```
+
+**Linux/macOS**:
+
+```bash
+# Build
+make clean && make shared
+
+# Test Node.js binding
+cd bindings/nodejs && npm test
+
+# Test Python binding
+cd bindings/python && python test_python_native.py
+```
+
+### CI Testing
+
+GitHub Actions runs comprehensive tests on every push:
+
+- **Platforms**: Linux, Windows, macOS
+- **Language Bindings**: Node.js (16/18/20), Python (3.8-3.13), C# (6.0/7.0/8.0), Java (11/17/21)
+- **Workflows**: `.github/workflows/ci.yml`
+
+Trigger manual workflow run:
+
+```bash
+gh workflow run ci.yml --ref your-branch
+```
+
+---
+
+## Troubleshooting
+
+### Common Build Errors
+
+#### Error: `NASM not found in PATH` (Windows)
+
+**Problem**: NASM assembler not installed or not in PATH
+
+**Solution**:
+
+```powershell
+# Option 1: Install via Chocolatey
+choco install nasm
+
+# Option 2: Download from https://www.nasm.us/
+# Then add to PATH: C:\Program Files\NASM
+```
+
+#### Error: `Visual Studio Build Tools not found` (Windows)
+
+**Problem**: MSVC compiler not installed
+
+**Solution**:
+
+1. Install [Visual Studio 2022 Build Tools](https://visualstudio.microsoft.com/downloads/)
+2. Select "Desktop development with C++" workload
+3. Restart terminal to refresh environment variables
+
+#### Error: `error C2491: 'fastembed_generate': definition of dllimport function not allowed`
+
+**Problem**: Missing `FASTEMBED_BUILDING_LIB` preprocessor definition during compilation
+
+**Solution**: This should be handled automatically by build scripts. If it persists:
+
+- For `build_windows.ps1`: Ensure latest version (v2.0+)
+- For `build_native.py`: Ensure latest version with `/DFASTEMBED_BUILDING_LIB` flag
+- For manual builds: Add `-DFASTEMBED_BUILDING_LIB` to compiler flags
+
+#### Error: `Undefined symbols for architecture arm64` (macOS)
+
+**Problem**: Assembly functions not available for macOS arm64
+
+**Solution**: Build system automatically uses C-only fallback for macOS arm64. Ensure you're using latest Makefile:
+
+```bash
+cd bindings/shared
+make clean && make
+```
+
+The Makefile detects arm64 and compiles native ARM64 NEON assembly using `as -arch arm64` for optimal performance.
+
+#### Error: `docker: command not found` (Local Docker Testing)
+
+**Problem**: Docker not installed or not in PATH
+
+**Solution**:
+
+- **Windows**: Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- **Linux**: Install Docker Engine: `sudo apt-get install docker.io docker-compose`
+- **macOS**: Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+After installation, restart terminal and verify: `docker --version`
+
+#### Error: `Cannot find module './build/Release/fastembed_native.node'` (Node.js)
+
+**Problem**: Node.js addon not built correctly
+
+**Solution**:
+
+```bash
+cd bindings/nodejs
+npm install  # Automatically runs node-gyp rebuild
+node test-native.js
+```
+
+If still failing, rebuild manually:
+
+```bash
+npx node-gyp rebuild --verbose
+```
+
+### Getting Help
+
+If you encounter an error not listed here:
+
+1. **Check Build Logs**: Look for `::error::` messages with details and solutions
+2. **Search Issues**: [GitHub Issues](https://github.com/shuanat/fastembed-native/issues)
+3. **Ask in Discussions**: [GitHub Discussions](https://github.com/shuanat/fastembed-native/discussions)
+4. **Open an Issue**: Include:
+   - OS and version
+   - Compiler and version
+   - Full error message and stack trace
+   - Build command used
+
+---
+
 ## Pull Request Process
 
 ### Before Submitting

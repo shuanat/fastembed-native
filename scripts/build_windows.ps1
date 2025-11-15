@@ -258,7 +258,9 @@ function Find-MSVC {
     }
     
     # All strategies failed
-    Write-BuildLog 'Visual Studio Build Tools not found' -Level ERROR
+    Write-Host '::error::[Windows] [MSVC] Error: Visual Studio Build Tools not found'
+    Write-Host '::error::Details: Required for C/C++ compilation on Windows'
+    Write-Host "::error::Solution: Install Visual Studio 2022 with 'Desktop development with C++' workload"
     Write-BuildLog 'Searched locations:' -Level ERROR
     Write-BuildLog '  1. PATH (setup-msbuild@v2)' -Level ERROR
     Write-BuildLog '  2. vswhere.exe' -Level ERROR
@@ -294,8 +296,9 @@ function Find-NASM {
         }
     }
     
-    Write-BuildLog 'NASM not found in PATH or standard locations' -Level ERROR
-    Write-BuildLog 'Please install NASM: https://www.nasm.us/' -Level ERROR
+    Write-Host '::error::[Windows] [NASM] Error: NASM not found in PATH'
+    Write-Host '::error::Details: Required for assembly compilation'
+    Write-Host "::error::Solution: Install NASM from https://www.nasm.us/ or run 'choco install nasm'"
     throw 'NASM assembler not found'
 }
 
@@ -400,15 +403,26 @@ function Invoke-CCompilation {
         
         Write-BuildLog "Compiling: $file -> $objFile" -Level INFO
         
+        # Check if ONNX Runtime is available
+        $onnxInclude = Join-Path (Join-Path $RepoRoot 'bindings') 'onnxruntime\include'
+        $useOnnx = Test-Path $onnxInclude
+        
         $clArgs = @(
             '/c',           # Compile only
             '/O2',          # Optimize for speed
             '/W3',          # Warning level 3
             '/nologo',      # Suppress copyright message
             "/I$IncludeDir", # Include directory
+            '/DFASTEMBED_BUILDING_LIB', # Define for building library (not importing)
             "/Fo:$objPath",  # Output object file
             $srcPath
         )
+        
+        # Add ONNX Runtime support if available
+        if ($useOnnx -and $file -eq 'onnx_embedding_loader.c') {
+            $clArgs += "/I$onnxInclude"
+            $clArgs += '/DUSE_ONNX_RUNTIME'
+        }
         
         $startTime = Get-Date
         cl @clArgs 2>&1 | ForEach-Object {
@@ -456,11 +470,23 @@ function Invoke-Linking {
         Write-BuildLog "  - $(Split-Path $obj -Leaf)" -Level DEBUG
     }
     
+    # Check if ONNX Runtime is available
+    $onnxLib = Join-Path (Join-Path $RepoRoot 'bindings\onnxruntime\lib') 'onnxruntime.lib'
+    $useOnnx = Test-Path $onnxLib
+    
     $linkArgs = @(
         '/DLL',                    # Create DLL
         '/NOLOGO',                 # Suppress copyright
         "/OUT:$OutputDll"          # Output file
     ) + $objFiles
+    
+    # Add ONNX Runtime library if available
+    if ($useOnnx) {
+        $linkArgs += $onnxLib
+        Write-BuildLog "Linking with ONNX Runtime: $onnxLib" -Level INFO
+    } else {
+        Write-BuildLog 'ONNX Runtime library not found, building without ONNX support' -Level WARNING
+    }
     
     $startTime = Get-Date
     link @linkArgs 2>&1 | ForEach-Object {
@@ -532,7 +558,10 @@ try {
     
     # Detect MSVC
     if (-not (Find-MSVC)) {
-        throw "Visual Studio Build Tools not found. Please install Visual Studio 2022 with 'Desktop development with C++' workload."
+        Write-Host '::error::[Windows] [MSVC] Error: Visual Studio Build Tools not found'
+        Write-Host '::error::Details: Required for native library compilation'
+        Write-Host "::error::Solution: Install Visual Studio 2022 with 'Desktop development with C++' workload"
+        throw 'Visual Studio Build Tools not found'
     }
     
     # Detect NASM
@@ -547,16 +576,41 @@ try {
     # Link DLL
     Invoke-Linking -BuildDir $buildDir -OutputDll $outputDll
     
+    # Copy DLL to lib directory (for C# and other bindings)
+    $libDir = Join-Path $sharedDir 'lib'
+    if (-not (Test-Path $libDir)) {
+        New-Item -ItemType Directory -Path $libDir | Out-Null
+        Write-BuildLog "Created lib directory: $libDir" -Level DEBUG
+    }
+    
+    $finalDll = Join-Path $libDir 'fastembed_native.dll'
+    Write-BuildLog 'Copying DLL to lib directory...' -Level INFO
+    Copy-Item -Path $outputDll -Destination $finalDll -Force
+    Write-BuildLog "DLL copied to: $finalDll" -Level SUCCESS
+    
+    # Copy ONNX Runtime DLL if available
+    $onnxDll = Join-Path (Join-Path $repoRoot 'bindings\onnxruntime\lib') 'onnxruntime.dll'
+    if (Test-Path $onnxDll) {
+        $onnxDest = Join-Path $libDir 'onnxruntime.dll'
+        Copy-Item -Path $onnxDll -Destination $onnxDest -Force
+        Write-BuildLog "ONNX Runtime DLL copied to: $onnxDest" -Level SUCCESS
+    } else {
+        Write-BuildLog 'ONNX Runtime DLL not found, skipping copy' -Level WARNING
+    }
+    
     # Build summary
     $buildDuration = (Get-Date) - $buildStartTime
     Write-SectionHeader 'Build Completed Successfully'
     Write-BuildLog "Total build time: $($buildDuration.TotalSeconds)s" -Level SUCCESS
-    Write-BuildLog "Output: $outputDll" -Level SUCCESS
+    Write-BuildLog "Build output: $outputDll" -Level SUCCESS
+    Write-BuildLog "Final output: $finalDll" -Level SUCCESS
     Write-BuildLog "Size: $([math]::Round((Get-Item $outputDll).Length/1KB, 2)) KB" -Level SUCCESS
     
     exit 0
 } catch {
-    Write-BuildLog "Build failed: $_" -Level ERROR
+    Write-Host '::error::[Windows] [Build] Error: Build failed'
+    Write-Host "::error::Details: $_"
+    Write-Host '::error::Solution: Check error details above and verify all dependencies are installed'
     Write-BuildLog "Stack trace: $($_.ScriptStackTrace)" -Level DEBUG
     exit 1
 }

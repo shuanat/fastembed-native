@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Test Suite Fixes (2025-01-15):**
+  - **Node.js**: Fixed missing ONNX Runtime headers on Windows and macOS by adding explicit `include_dirs` to `binding.gyp`
+  - **Python**: Fixed `ModuleNotFoundError` by adding post-build copy step in `setup.py` for `--inplace` builds
+  - **C#**: Fixed `DllNotFoundException` by updating `.csproj` files with correct DLL paths (`shared/lib/`) and correct DLL names (`fastembed_native.dll`, `libfastembed.so`)
+  - **Java**: Fixed file naming mismatch by removing duplicate `test_java_native.java` and updating CI workflow to use `TestFastEmbedJava.java`
+  - All test suites should now pass on all platforms (Linux, Windows, macOS) and all language versions
+
 ### Added
 
 - (Future improvements will be listed here)

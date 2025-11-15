@@ -33,28 +33,60 @@ print_status() {
     fi
 }
 
+# Detect Docker and Docker Compose
+detect_docker_compose() {
+    # Check if docker command exists
+    if ! command -v docker &> /dev/null; then
+        print_status "error" "Docker is not installed or not in PATH"
+        print_status "error" "Please install Docker Desktop from: https://www.docker.com/products/docker-desktop"
+        print_status "info" "Alternatively, you can test builds in GitHub Actions (push to test branch)"
+        exit 1
+    fi
+    
+    # Try new format first (docker compose - integrated in Docker CLI v2.0+)
+    if docker compose version &> /dev/null; then
+        echo "docker compose"
+        return 0
+    fi
+    
+    # Try old format (docker-compose - standalone)
+    if command -v docker-compose &> /dev/null; then
+        echo "docker-compose"
+        return 0
+    fi
+    
+    print_status "error" "Docker Compose is not available"
+    print_status "error" "Please ensure Docker Desktop is installed and running"
+    print_status "info" "Docker Desktop includes Docker Compose"
+    exit 1
+}
+
+# Get Docker Compose command
+DOCKER_COMPOSE=$(detect_docker_compose)
+print_status "info" "Using: $DOCKER_COMPOSE"
+
 # Parse command line arguments
 TEST_TYPE=${1:-"all"}
 
 case $TEST_TYPE in
     "linux")
         print_status "info" "Building Linux artifacts..."
-        docker-compose build linux-build
-        docker-compose run --rm linux-build
+        $DOCKER_COMPOSE build linux-build
+        $DOCKER_COMPOSE run --rm linux-build
         print_status "success" "Linux build completed!"
         ;;
     
     "python")
         print_status "info" "Building Python wheel..."
-        docker-compose build python-build
-        docker-compose run --rm python-build
+        $DOCKER_COMPOSE build python-build
+        $DOCKER_COMPOSE run --rm python-build
         print_status "success" "Python wheel build completed!"
         ;;
     
     "shell")
         print_status "info" "Starting interactive shell..."
-        docker-compose build linux-shell
-        docker-compose run --rm linux-shell
+        $DOCKER_COMPOSE build linux-shell
+        $DOCKER_COMPOSE run --rm linux-shell
         ;;
     
     "all")
@@ -62,8 +94,8 @@ case $TEST_TYPE in
         
         # Linux build
         print_status "info" "1/2 - Building Linux artifacts..."
-        docker-compose build linux-build
-        if docker-compose run --rm linux-build; then
+        $DOCKER_COMPOSE build linux-build
+        if $DOCKER_COMPOSE run --rm linux-build; then
             print_status "success" "Linux build: PASSED"
         else
             print_status "error" "Linux build: FAILED"
@@ -72,8 +104,8 @@ case $TEST_TYPE in
         
         # Python build
         print_status "info" "2/2 - Building Python wheel..."
-        docker-compose build python-build
-        if docker-compose run --rm python-build; then
+        $DOCKER_COMPOSE build python-build
+        if $DOCKER_COMPOSE run --rm python-build; then
             print_status "success" "Python build: PASSED"
         else
             print_status "error" "Python build: FAILED"
@@ -85,7 +117,7 @@ case $TEST_TYPE in
     
     "clean")
         print_status "info" "Cleaning Docker artifacts..."
-        docker-compose down -v
+        $DOCKER_COMPOSE down -v
         docker system prune -f
         print_status "success" "Cleanup completed!"
         ;;

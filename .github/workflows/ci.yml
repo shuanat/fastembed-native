@@ -42,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         node-version: [16, 18, 20]
 
@@ -81,6 +82,10 @@ jobs:
           cd bindings/nodejs
           node test-native.js
 
+      - name: Download ONNX model
+        continue-on-error: true
+        run: python scripts/download_model.py
+
       - name: Run ONNX tests (conditional)
         continue-on-error: true
         run: |
@@ -93,6 +98,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
@@ -133,6 +139,10 @@ jobs:
           cd bindings/python
           python test_python_native.py
 
+      - name: Download ONNX model
+        continue-on-error: true
+        run: python scripts/download_model.py
+
       - name: Run ONNX tests (conditional)
         continue-on-error: true
         run: |
@@ -145,6 +155,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         dotnet-version: ["6.0.x", "7.0.x", "8.0.x"]
 
@@ -210,6 +221,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         java-version: ["11", "17", "21"]
 
@@ -273,11 +285,15 @@ jobs:
 
       - name: Run tests
         run: |
-          cd bindings/java/java
-          javac -cp target/classes test_java_native.java && \
-          java -Djava.library.path=build -cp target/classes:. test_java_native || \
-          (cd .. && javac -cp java/target/classes test_java_native.java && \
-           java -Djava.library.path=java/build -cp java/target/classes:. test_java_native)
+          cd bindings/java
+          javac -cp java/target/classes com/fastembed/test/TestFastEmbedJava.java && \
+          java -Djava.library.path=java/build -cp java/target/classes:. com.fastembed.test.TestFastEmbedJava || \
+          (cd java && javac -cp target/classes ../com/fastembed/test/TestFastEmbedJava.java && \
+           java -Djava.library.path=build -cp target/classes:.. com.fastembed.test.TestFastEmbedJava)
+
+      - name: Download ONNX model
+        continue-on-error: true
+        run: python scripts/download_model.py
 
       - name: Run ONNX tests (conditional)
         continue-on-error: true
@@ -304,6 +320,15 @@ jobs:
           # Use PowerShell build script (Phase 1, Task 1.2)
           pwsh -File scripts\build_windows.ps1
         shell: powershell
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          curl -fL -o onnxruntime.zip https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-win-x64-${{ env.ONNX_VERSION }}.zip
+          powershell -Command "Expand-Archive -Path onnxruntime.zip -DestinationPath . -Force"
+          mv onnxruntime-win-x64-${{ env.ONNX_VERSION }} onnxruntime
+          rm onnxruntime.zip
+        shell: bash
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -341,6 +366,7 @@ jobs:
           dotnet build src/FastEmbed.csproj
           cd tests
           dotnet test
+        shell: bash
 
   test-macos:
     name: Test on macOS
@@ -357,6 +383,16 @@ jobs:
         run: |
           cd bindings/shared
           make all
+          make shared
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          # GitHub Actions macOS runners are ARM64 (M1/M2)
+          curl -fL -o onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-arm64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime.tgz
+          mv onnxruntime-osx-arm64-${{ env.ONNX_VERSION }} onnxruntime
+          rm onnxruntime.tgz
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

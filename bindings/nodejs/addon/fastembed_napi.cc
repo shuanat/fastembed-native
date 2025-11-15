@@ -26,7 +26,7 @@ float fastembed_cosine_similarity(const float *vector_a, const float *vector_b,
 float fastembed_dot_product(const float *vector_a, const float *vector_b,
                             int dimension);
 float fastembed_vector_norm(const float *vector, int dimension);
-void normalize_vector_asm(float *vector, int dimension);
+void fastembed_normalize(float *vector, int dimension);
 void fastembed_add_vectors(const float *vector_a, const float *vector_b,
                            float *result, int dimension);
 }
@@ -112,13 +112,49 @@ static napi_value GenerateEmbedding(napi_env env, napi_callback_info info) {
     return nullptr;
   }
 
+  // Validate text argument is not null/undefined
+  napi_valuetype valuetype;
+  napi_typeof(env, args[0], &valuetype);
+  if (valuetype == napi_null || valuetype == napi_undefined) {
+    napi_throw_error(env, nullptr, "Text argument cannot be null or undefined");
+    return nullptr;
+  }
+  if (valuetype != napi_string) {
+    napi_throw_error(env, nullptr, "Text argument must be a string");
+    return nullptr;
+  }
+
   // Get text argument
   char *text = GetStringFromValue(env, args[0]);
+
+  // Validate text is not empty
+  if (text && strlen(text) == 0) {
+    free(text);
+    napi_throw_error(env, nullptr, "Text argument cannot be empty");
+    return nullptr;
+  }
+
+  // Validate text length (max 8192 chars)
+  if (text && strlen(text) > 8192) {
+    free(text);
+    napi_throw_error(env, nullptr,
+                     "Text argument too long (max 8192 characters)");
+    return nullptr;
+  }
 
   // Get dimension argument (default: 768)
   int dimension = 768;
   if (argc >= 2) {
     napi_get_value_int32(env, args[1], &dimension);
+  }
+
+  // Validate dimension
+  if (dimension != 768 && dimension != 384 && dimension != 512 &&
+      dimension != 1024) {
+    free(text);
+    napi_throw_error(env, nullptr,
+                     "Invalid dimension (supported: 384, 512, 768, 1024)");
+    return nullptr;
   }
 
   // Allocate output buffer
@@ -197,16 +233,17 @@ static napi_value GenerateOnnxEmbedding(napi_env env, napi_callback_info info) {
       error_message = error_buffer;
     }
 
-    free(model_path);
-    free(text);
-    free(output);
-
-    // Create detailed error message with diagnostic info
+    // Create detailed error message with diagnostic info BEFORE freeing memory
     char detailed_error[1024];
     snprintf(detailed_error, sizeof(detailed_error),
              "Failed to generate ONNX embedding: %s (model_path: %s, "
              "text_length: %zu, dimension: %d)",
              error_message, model_path, strlen(text), dimension);
+
+    // Free memory AFTER using pointers in snprintf
+    free(model_path);
+    free(text);
+    free(output);
 
     napi_throw_error(env, nullptr, detailed_error);
     return nullptr;
@@ -419,7 +456,7 @@ static napi_value NormalizeVector(napi_env env, napi_callback_info info) {
     return nullptr;
   }
 
-  normalize_vector_asm(vector, (int)length);
+  fastembed_normalize(vector, (int)length);
 
   // Create Float32Array with normalized values
   napi_value arraybuffer;

@@ -96,45 +96,76 @@ class CMakeBuild(build_ext):
             self.onnx_dll_dst = None  # Will be set after build
         
         elif IS_LINUX or IS_MACOS:
-            # Linux/macOS: Compile assembly files with NASM
+            # Check if we're on macOS arm64 (Apple Silicon)
+            import platform
+            is_macos_arm64 = IS_MACOS and platform.machine() == 'arm64'
+            
             import os
+            import subprocess
             obj_dir = os.path.join(os.getcwd(), "build", "temp")
             os.makedirs(obj_dir, exist_ok=True)
             
-            # Compile assembly files
-            import subprocess
+            if is_macos_arm64:
+                # macOS arm64: Use native ARM64 NEON assembly
+                print("macOS arm64 detected - using ARM64 NEON assembly")
+                
+                asm_files = [
+                    ("../shared/src/embedding_lib_arm64.s", os.path.join(obj_dir, "embedding_lib_arm64.o")),
+                    ("../shared/src/embedding_generator_arm64.s", os.path.join(obj_dir, "embedding_generator_arm64.o"))
+                ]
+                
+                for asm_src, asm_obj in asm_files:
+                    if not os.path.exists(asm_obj):
+                        cmd = ["as", "-arch", "arm64", asm_src, "-o", asm_obj]
+                        
+                        try:
+                            subprocess.run(cmd, check=True)
+                        except subprocess.CalledProcessError:
+                            raise RuntimeError(f"Failed to compile {asm_src}")
+                        except FileNotFoundError:
+                            raise RuntimeError(
+                                "ARM64 assembler (as) not found. Please install Xcode Command Line Tools:\n"
+                                "  xcode-select --install"
+                            )
+                
+                extra_objects = [obj for _, obj in asm_files]
+            else:
+                # Linux or macOS x86_64: Compile assembly files with NASM
+                asm_files = [
+                    ("../shared/src/embedding_lib.asm", os.path.join(obj_dir, "embedding_lib.o")),
+                    ("../shared/src/embedding_generator.asm", os.path.join(obj_dir, "embedding_generator.o"))
+                ]
+                
+                for asm_src, asm_obj in asm_files:
+                    if not os.path.exists(asm_obj):
+                        nasm_format = "elf64" if IS_LINUX else "macho64"
+                        cmd = ["nasm", "-f", nasm_format, asm_src, "-o", asm_obj]
+                        
+                        try:
+                            subprocess.run(cmd, check=True)
+                        except subprocess.CalledProcessError:
+                            raise RuntimeError(f"Failed to compile {asm_src}")
+                        except FileNotFoundError:
+                            raise RuntimeError(
+                                "NASM not found. Please install NASM:\n"
+                                "  Ubuntu/Debian: sudo apt install nasm\n"
+                                "  macOS: brew install nasm"
+                            )
+                
+                extra_objects = [obj for _, obj in asm_files]
             
-            asm_files = [
-                ("../shared/src/embedding_lib.asm", os.path.join(obj_dir, "embedding_lib.o")),
-                ("../shared/src/embedding_generator.asm", os.path.join(obj_dir, "embedding_generator.o"))
-            ]
-            
-            for asm_src, asm_obj in asm_files:
-                if not os.path.exists(asm_obj):
-                    nasm_format = "elf64" if IS_LINUX else "macho64"
-                    cmd = ["nasm", "-f", nasm_format, asm_src, "-o", asm_obj]
-                    
-                    try:
-                        subprocess.run(cmd, check=True)
-                    except subprocess.CalledProcessError:
-                        raise RuntimeError(f"Failed to compile {asm_src}")
-                    except FileNotFoundError:
-                        raise RuntimeError(
-                            "NASM not found. Please install NASM:\n"
-                            "  Ubuntu/Debian: sudo apt install nasm\n"
-                            "  macOS: brew install nasm"
-                        )
-            
-            extra_objects = [obj for _, obj in asm_files]
-            
+            # Compile flags for Linux/macOS
+            # Note: -march=native doesn't work on Apple Silicon (M1/M2/M3)
             extra_compile_args = [
-                "-std=c++17",
                 "-O3",
-                "-fPIC",
-                "-march=native",
-                "-DUSE_ONNX_RUNTIME"
+                "-fPIC"
             ]
-            # Note: C files will show warning about -std=c++17, but compile correctly
+            
+            # macOS arm64: Use ARM64 NEON assembly (already compiled above)
+            # DO NOT add -DUSE_ONLY_C - we want to use ARM64 assembly, not C-only fallback!
+            
+            if use_onnx:
+                extra_compile_args.append("-DUSE_ONNX_RUNTIME")
             
             # ONNX Runtime library
             onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib"))
@@ -165,13 +196,71 @@ class CMakeBuild(build_ext):
         for ext in self.extensions:
             ext.sources = sources
             ext.include_dirs = include_dirs
-            ext.extra_compile_args = extra_compile_args
             ext.extra_link_args = extra_link_args
             ext.extra_objects = extra_objects
             ext.language = "c++"
+            
+            # Set compile args per source file to avoid C++17 flag on C files
+            # setuptools will handle this automatically based on file extension
+            ext.extra_compile_args = extra_compile_args
         
         # Build using parent class
         build_ext.build_extensions(self)
+        
+        # Post-build: Copy extension module to current directory
+        # This ensures the module is available for direct import in tests
+        # setuptools copies to src/, but tests run from bindings/python/
+        import shutil
+        import glob
+        for ext in self.extensions:
+            # Find the built extension in build_lib
+            build_lib = self.build_lib
+            if build_lib:
+                ext_filename = self.get_ext_filename(ext.name)
+                built_ext = os.path.join(build_lib, ext_filename)
+                
+                # Also check for versioned extensions (e.g., .cpython-311-darwin.so)
+                if not os.path.exists(built_ext):
+                    # Try to find any matching extension file
+                    ext_pattern = os.path.join(build_lib, f"{ext.name}.*")
+                    matches = glob.glob(ext_pattern)
+                    if matches:
+                        built_ext = matches[0]
+                
+                if os.path.exists(built_ext):
+                    # Copy to current directory (where tests run)
+                    current_dir_ext = os.path.join(os.getcwd(), os.path.basename(built_ext))
+                    if os.path.exists(current_dir_ext):
+                        os.remove(current_dir_ext)
+                    shutil.copy2(built_ext, current_dir_ext)
+                    print(f"Copied extension module to {current_dir_ext} for tests")
+                    
+                    # macOS: Fix rpath references using install_name_tool
+                    if IS_MACOS:
+                        import subprocess
+                        onnx_dylibs = ['libonnxruntime.1.23.2.dylib', 'libonnxruntime.dylib']
+                        for dylib in onnx_dylibs:
+                            try:
+                                # Change @rpath reference to @loader_path (same directory)
+                                cmd = ['install_name_tool', '-change', f'@rpath/{dylib}', f'@loader_path/{dylib}', current_dir_ext]
+                                subprocess.run(cmd, check=True, capture_output=True)
+                                print(f"Fixed rpath for {dylib} in extension module")
+                            except subprocess.CalledProcessError:
+                                # Ignore if reference doesn't exist
+                                pass
+                        
+                        # Copy ONNX Runtime dylibs to current directory
+                        onnx_lib_dir = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib"))
+                        for dylib in onnx_dylibs:
+                            dylib_src = os.path.join(onnx_lib_dir, dylib)
+                            dylib_dst = os.path.join(os.getcwd(), dylib)
+                            if os.path.exists(dylib_src):
+                                if os.path.exists(dylib_dst):
+                                    os.remove(dylib_dst)
+                                shutil.copy2(dylib_src, dylib_dst)
+                                print(f"Copied {dylib} to test directory")
+                else:
+                    print(f"Warning: Could not find built extension at {built_ext}")
         
         # Post-build: Copy ONNX Runtime DLL/SO to build output
         if IS_WINDOWS and hasattr(self, 'post_build_onnx_dll') and self.post_build_onnx_dll:
