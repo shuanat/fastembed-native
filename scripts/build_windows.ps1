@@ -564,11 +564,34 @@ try {
     # Link DLL
     Invoke-Linking -BuildDir $buildDir -OutputDll $outputDll
     
+    # Copy DLL to lib directory (for C# and other bindings)
+    $libDir = Join-Path $sharedDir 'lib'
+    if (-not (Test-Path $libDir)) {
+        New-Item -ItemType Directory -Path $libDir | Out-Null
+        Write-BuildLog "Created lib directory: $libDir" -Level DEBUG
+    }
+    
+    $finalDll = Join-Path $libDir 'fastembed_native.dll'
+    Write-BuildLog "Copying DLL to lib directory..." -Level INFO
+    Copy-Item -Path $outputDll -Destination $finalDll -Force
+    Write-BuildLog "DLL copied to: $finalDll" -Level SUCCESS
+    
+    # Copy ONNX Runtime DLL if available
+    $onnxDll = Join-Path (Join-Path $repoRoot 'bindings\onnxruntime\lib') 'onnxruntime.dll'
+    if (Test-Path $onnxDll) {
+        $onnxDest = Join-Path $libDir 'onnxruntime.dll'
+        Copy-Item -Path $onnxDll -Destination $onnxDest -Force
+        Write-BuildLog "ONNX Runtime DLL copied to: $onnxDest" -Level SUCCESS
+    } else {
+        Write-BuildLog "ONNX Runtime DLL not found, skipping copy" -Level WARNING
+    }
+    
     # Build summary
     $buildDuration = (Get-Date) - $buildStartTime
     Write-SectionHeader 'Build Completed Successfully'
     Write-BuildLog "Total build time: $($buildDuration.TotalSeconds)s" -Level SUCCESS
-    Write-BuildLog "Output: $outputDll" -Level SUCCESS
+    Write-BuildLog "Build output: $outputDll" -Level SUCCESS
+    Write-BuildLog "Final output: $finalDll" -Level SUCCESS
     Write-BuildLog "Size: $([math]::Round((Get-Item $outputDll).Length/1KB, 2)) KB" -Level SUCCESS
     
     exit 0
