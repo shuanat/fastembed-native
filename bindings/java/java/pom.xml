@@ -137,37 +137,10 @@
                 </configuration>
 
                 <executions>
-                    <execution>
-                        <id>javah</id>
-                        <phase>${maven.native.javah.phase}</phase>
-                        <goals>
-                            <goal>javah</goal>
-                        </goals>
-                        <configuration>
-                            <skip>${maven.javah.skip}</skip>
-                            <javahClassNames>
-                                <javahClassName>com.fastembed.FastEmbed</javahClassName>
-                            </javahClassNames>
-                            <javahOutputDirectory>target/native/include</javahOutputDirectory>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>compile</id>
-                        <phase>${maven.native.compile.phase}</phase>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>link</id>
-                        <phase>${maven.native.link.phase}</phase>
-                        <goals>
-                            <goal>link</goal>
-                        </goals>
-                        <configuration>
-                            <skip>${maven.native.link.skip}</skip>
-                        </configuration>
-                    </execution>
+                    <!-- javah execution removed - JNI headers not needed, JNI built via scripts -->
+                    <!-- compile execution removed - JNI already compiled via scripts -->
+                    <!-- link execution removed - JNI already linked via scripts -->
+                    <!-- JNI libraries are copied from build/ directory via maven-resources-plugin -->
                 </executions>
             </plugin>
 
