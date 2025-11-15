@@ -38,7 +38,7 @@ ifeq ($(UNAME_S),Darwin)
 endif
 ifeq ($(OS),Windows_NT)
     TARGET_LIB = fastembed.lib
-    TARGET_DLL = fastembed.dll
+    TARGET_DLL = fastembed_native.dll
     OBJ_EXT = .obj
     BUILD_SHARED = yes
 endif

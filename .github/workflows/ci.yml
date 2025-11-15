@@ -274,9 +274,9 @@ jobs:
       - name: Run tests
         run: |
           cd bindings/java
-          javac -cp java/target/classes TestFastEmbedJava.java && \
+          javac -cp java/target/classes com/fastembed/test/TestFastEmbedJava.java && \
           java -Djava.library.path=java/build -cp java/target/classes:. com.fastembed.test.TestFastEmbedJava || \
-          (cd java && javac -cp target/classes ../TestFastEmbedJava.java && \
+          (cd java && javac -cp target/classes ../com/fastembed/test/TestFastEmbedJava.java && \
            java -Djava.library.path=build -cp target/classes:.. com.fastembed.test.TestFastEmbedJava)
 
       - name: Run ONNX tests (conditional)
