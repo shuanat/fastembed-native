@@ -73,9 +73,10 @@ jobs:
       - name: Setup ONNX Runtime
         run: |
           cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          curl -fL -o onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime.tgz
           mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
+          rm onnxruntime.tgz
 
       - name: Build shared library
         run: |
@@ -88,6 +89,8 @@ jobs:
           cd bindings/shared
           make all
           make shared
+          # Install to lib/ directory (for language bindings)
+          make install || echo "::warning::make install failed (may not be needed)"
 
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
@@ -102,10 +105,10 @@ jobs:
         run: |
           echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Validating Linux build artifacts"
 
-          # Check shared library exists
-          if [ ! -f "bindings/shared/build/fastembed.so" ] && [ ! -f "bindings/shared/build/libfastembed.so" ]; then
+          # Check shared library exists (updated to match Makefile: libfastembed_native.so)
+          if [ ! -f "bindings/shared/build/libfastembed_native.so" ]; then
             echo "::error::Linux shared library not found"
-            echo "::error::Expected: bindings/shared/build/*.so"
+            echo "::error::Expected: bindings/shared/build/libfastembed_native.so"
             echo "::error::Found files:"
             ls -la bindings/shared/build/ || echo "Build directory not found"
             exit 1
@@ -453,20 +456,29 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: brew install nasm
+        run: |
+          ARCH=$(uname -m)
+          if [ "$ARCH" != "arm64" ]; then
+            # Only install NASM for x86_64 (ARM64 uses native as compiler)
+            brew install nasm
+          else
+            echo "::notice::ARM64 detected - using native as compiler (no NASM needed)"
+          fi
 
       - name: Setup ONNX Runtime
         run: |
           cd bindings
           ARCH=$(uname -m)
           if [ "$ARCH" = "arm64" ]; then
-            wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-arm64-${{ env.ONNX_VERSION }}.tgz
-            tar -xzf onnxruntime-osx-arm64-${{ env.ONNX_VERSION }}.tgz
+            curl -fL -o onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-arm64-${{ env.ONNX_VERSION }}.tgz
+            tar -xzf onnxruntime.tgz
             mv onnxruntime-osx-arm64-${{ env.ONNX_VERSION }} onnxruntime
+            rm onnxruntime.tgz
           else
-            wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }}.tgz
-            tar -xzf onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }}.tgz
+            curl -fL -o onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }}.tgz
+            tar -xzf onnxruntime.tgz
             mv onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }} onnxruntime
+            rm onnxruntime.tgz
           fi
 
       - name: Build shared library
@@ -475,43 +487,49 @@ jobs:
           echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Starting macOS build"
           echo "::notice::Platform: macOS ($(uname -m))"
           echo "::notice::Compiler: $(clang --version | head -n1)"
-          echo "::notice::NASM: $(nasm --version | head -n1)"
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            echo "::notice::Assembly: ARM64 NEON (native as compiler)"
+          else
+            echo "::notice::NASM: $(nasm --version | head -n1)"
+          fi
 
           cd bindings/shared
           # Ensure all files are compiled for the same architecture
           ARCH=$(uname -m)
 
-          # CRITICAL FIX: Build shared library only (skip static library for macOS)
-          # Static library has architecture mismatch issues on Apple Silicon
-          echo "::notice::Building shared library only for macOS"
+          # macOS ARM64: Use native ARM64 NEON assembly (as -arch arm64)
+          # macOS x86_64: Use NASM for x86_64 assembly
+          echo "::notice::Building shared library for macOS ($ARCH)"
 
           if [ "$ARCH" = "arm64" ]; then
-            export CC="clang -arch arm64"
-            export CXX="clang++ -arch arm64"
-            export NASM="arch -arm64 nasm"
-            export NASM_FLAGS="-f macho64"
-            export ARCH_FLAGS="-arch arm64"
+            # ARM64: Makefile automatically detects arm64 and uses as -arch arm64
+            # No need to set NASM - Makefile uses native ARM64 NEON assembly
+            echo "::notice::Using ARM64 NEON assembly (native as compiler)"
+            echo "::notice::Makefile will automatically detect arm64 and use ARM64 assembly"
           else
+            # x86_64: Use NASM for x86_64 assembly
             export CC="clang -arch x86_64"
             export CXX="clang++ -arch x86_64"
             export NASM="nasm"
             export NASM_FLAGS="-f macho64"
-            export ARCH_FLAGS="-arch x86_64"
+            echo "::notice::Using x86_64 NASM assembly"
           fi
 
           # Verify architecture consistency
           echo "::notice::System architecture: $ARCH"
-          echo "::notice::Compiler: $CC"
-          echo "::notice::NASM command: $NASM"
-          echo "::notice::NASM flags: $NASM_FLAGS"
+          echo "::notice::Compiler: $(which clang)"
 
           # Force complete clean to remove any old object files with wrong architecture
           echo "::notice::Cleaning build directory to ensure architecture consistency"
-          rm -rf build
-          mkdir -p build
+          rm -rf build lib
+          mkdir -p build lib
 
-          # Build ONLY shared library (skip static library to avoid architecture issues)
+          # Build shared library (Makefile handles ARM64 vs x86_64 automatically)
           make shared
+
+          # Install to lib/ directory (for language bindings)
+          make install || echo "::warning::make install failed (may not be needed)"
 
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
@@ -526,10 +544,10 @@ jobs:
         run: |
           echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Validating macOS build artifacts"
 
-          # Check dynamic library exists
-          if [ ! -f "bindings/shared/build/fastembed.dylib" ] && [ ! -f "bindings/shared/build/libfastembed.dylib" ]; then
+          # Check dynamic library exists (updated to match Makefile: libfastembed_native.dylib)
+          if [ ! -f "bindings/shared/build/libfastembed_native.dylib" ]; then
             echo "::error::macOS dynamic library not found"
-            echo "::error::Expected: bindings/shared/build/*.dylib"
+            echo "::error::Expected: bindings/shared/build/libfastembed_native.dylib"
             echo "::error::Found files:"
             ls -la bindings/shared/build/ || echo "Build directory not found"
             exit 1
@@ -630,22 +648,24 @@ jobs:
           cp bindings/csharp/nupkg/*.nupkg artifacts/macos/ 2>/dev/null || true
           cp bindings/java/java/target/*.jar artifacts/macos/ 2>/dev/null || true
           cd artifacts
-          tar -czf fastembed-macos-x64-${{ github.ref_name }}.tar.gz macos/
+          ARCH=$(uname -m)
+          ARCHIVE_NAME="fastembed-macos-${ARCH}-${{ github.ref_name }}.tar.gz"
+          tar -czf "$ARCHIVE_NAME" macos/
 
           # Verify archive was created
-          if [ ! -f "fastembed-macos-x64-${{ github.ref_name }}.tar.gz" ]; then
+          if [ ! -f "$ARCHIVE_NAME" ]; then
             echo "::error::Failed to create macOS artifact archive"
             exit 1
           fi
 
-          ARCHIVE_SIZE=$(stat -f%z "fastembed-macos-x64-${{ github.ref_name }}.tar.gz" 2>/dev/null || stat -c%s "fastembed-macos-x64-${{ github.ref_name }}.tar.gz" 2>/dev/null || echo "unknown")
-          echo "::notice::macOS archive created: fastembed-macos-x64-${{ github.ref_name }}.tar.gz (${ARCHIVE_SIZE} bytes)"
+          ARCHIVE_SIZE=$(stat -f%z "$ARCHIVE_NAME" 2>/dev/null || stat -c%s "$ARCHIVE_NAME" 2>/dev/null || echo "unknown")
+          echo "::notice::macOS archive created: $ARCHIVE_NAME (${ARCHIVE_SIZE} bytes)"
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: fastembed-macos-x64
-          path: artifacts/fastembed-macos-x64-*.tar.gz
+          name: fastembed-macos-${{ runner.arch }}
+          path: artifacts/fastembed-macos-*.tar.gz
           retention-days: 90
 
       - name: Log build failure
@@ -713,7 +733,7 @@ jobs:
           files: |
             artifacts/fastembed-linux-x64/*.tar.gz
             artifacts/fastembed-windows-x64/*.zip
-            artifacts/fastembed-macos-x64/*.tar.gz
+            artifacts/fastembed-macos-*/*.tar.gz
           draft: false
           prerelease: false
         env:
