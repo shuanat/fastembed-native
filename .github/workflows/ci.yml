@@ -366,6 +366,7 @@ jobs:
         run: |
           cd bindings/shared
           make all
+          make shared
 
       - name: Setup ONNX Runtime
         run: |
