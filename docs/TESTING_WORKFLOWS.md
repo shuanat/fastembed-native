@@ -9,49 +9,49 @@
 
 ### Method 1: Manual Workflow Dispatch (Recommended)
 
-**Преимущества**:
+**Advantages**:
 
-- ✅ Не создаёт тег
-- ✅ Не создаёт release
-- ✅ Можно выбрать платформу для теста
-- ✅ Артефакты хранятся 7 дней
+- ✅ Does not create a tag
+- ✅ Does not create a release
+- ✅ Can select platform for testing
+- ✅ Artifacts stored for 7 days
 
-**Шаги**:
+**Steps**:
 
-1. **Commit и push тестовый workflow**:
+1. **Commit and push test workflow**:
 
 ```bash
 cd G:\GitHub\KAG-workspace\FastEmbed
 
-# Убедись, что файлы добавлены
+# Ensure files are added
 git add .github/workflows/test-build-artifacts.yml
 git add docs/TESTING_WORKFLOWS.md
 git commit -m "Add test build artifacts workflow"
 git push origin release/1.0.1
 ```
 
-2. **Запусти через GitHub UI**:
-   - Зайди: `https://github.com/YOUR_USERNAME/FastEmbed/actions`
-   - Выбери workflow: **"Test Build Artifacts (No Release)"**
-   - Нажми: **"Run workflow"**
-   - Выбери платформу:
-     - `all` - все платформы (Linux, Windows, macOS)
-     - `linux` - только Linux
-     - `windows` - только Windows
-     - `macos` - только macOS
-   - Нажми: **"Run workflow"** (зелёная кнопка)
+2. **Run via GitHub UI**:
+   - Go to: `https://github.com/YOUR_USERNAME/FastEmbed/actions`
+   - Select workflow: **"Test Build Artifacts (No Release)"**
+   - Click: **"Run workflow"**
+   - Select platform:
+     - `all` - all platforms (Linux, Windows, macOS)
+     - `linux` - Linux only
+     - `windows` - Windows only
+     - `macos` - macOS only
+   - Click: **"Run workflow"** (green button)
 
-3. **Наблюдай за прогрессом**:
-   - Workflow запустится немедленно
-   - Увидишь:
+3. **Monitor progress**:
+   - Workflow will start immediately
+   - You'll see:
      - ✅ Test Build Linux
      - ✅ Test Build Windows
      - ✅ Test Build macOS
      - ✅ Test Summary
 
-4. **Проверь артефакты**:
-   - Внизу страницы workflow run увидишь **"Artifacts"**
-   - Скачай:
+4. **Check artifacts**:
+   - At the bottom of the workflow run page, you'll see **"Artifacts"**
+   - Download:
      - `test-fastembed-linux-x64` (Linux .tar.gz)
      - `test-fastembed-windows-x64` (Windows .zip)
      - `test-fastembed-macos-x64` (macOS .tar.gz)
@@ -60,52 +60,52 @@ git push origin release/1.0.1
 
 ### Method 2: Test with Temporary Tag
 
-**Преимущества**:
+**Advantages**:
 
-- ✅ Полная проверка production workflow
-- ✅ Создаёт release (можно удалить потом)
+- ✅ Full production workflow verification
+- ✅ Creates release (can be deleted later)
 
-**Недостатки**:
+**Disadvantages**:
 
-- ⚠️ Создаёт реальный GitHub Release
-- ⚠️ Нужно удалять тег и release после теста
+- ⚠️ Creates a real GitHub Release
+- ⚠️ Need to delete tag and release after testing
 
-**Шаги**:
+**Steps**:
 
-1. **Создай тестовый тег**:
+1. **Create test tag**:
 
 ```bash
 cd G:\GitHub\KAG-workspace\FastEmbed
 
-# Создай тег с суффиксом -test
+# Create tag with -test suffix
 git tag -a v1.0.1-test -m "Test build artifacts workflow"
 
-# Push тег
+# Push tag
 git push origin v1.0.1-test
 ```
 
-2. **Проверь GitHub Actions**:
-   - Зайди: `https://github.com/YOUR_USERNAME/FastEmbed/actions`
-   - Увидишь workflow: **"Build Release Artifacts"**
-   - Он запустится автоматически
+2. **Check GitHub Actions**:
+   - Go to: `https://github.com/YOUR_USERNAME/FastEmbed/actions`
+   - You'll see workflow: **"Build Release Artifacts"**
+   - It will start automatically
 
-3. **Проверь GitHub Release**:
-   - Зайди: `https://github.com/YOUR_USERNAME/FastEmbed/releases`
-   - Увидишь draft release: **"FastEmbed 1.0.1-test"**
-   - Проверь артефакты прикреплены
+3. **Check GitHub Release**:
+   - Go to: `https://github.com/YOUR_USERNAME/FastEmbed/releases`
+   - You'll see draft release: **"FastEmbed 1.0.1-test"**
+   - Verify artifacts are attached
 
-4. **Удали тестовый release и тег**:
+4. **Delete test release and tag**:
 
 ```bash
-# Удали release через GitHub UI:
-# 1. Зайди в Releases
-# 2. Нажми на release "FastEmbed 1.0.1-test"
-# 3. Нажми "Delete"
+# Delete release via GitHub UI:
+# 1. Go to Releases
+# 2. Click on release "FastEmbed 1.0.1-test"
+# 3. Click "Delete"
 
-# Удали локальный тег
+# Delete local tag
 git tag -d v1.0.1-test
 
-# Удали удалённый тег
+# Delete remote tag
 git push origin :refs/tags/v1.0.1-test
 ```
 
@@ -113,18 +113,18 @@ git push origin :refs/tags/v1.0.1-test
 
 ### Method 3: Local Build Test (Fastest)
 
-**Преимущества**:
+**Advantages**:
 
-- ✅ Быстрый локальный тест
-- ✅ Не требует GitHub Actions
-- ✅ Полный контроль
+- ✅ Fast local test
+- ✅ Does not require GitHub Actions
+- ✅ Full control
 
-**Недостатки**:
+**Disadvantages**:
 
-- ⚠️ Только для твоей платформы (Windows)
-- ⚠️ Не проверяет CI/CD integration
+- ⚠️ Only for your platform (Windows)
+- ⚠️ Does not verify CI/CD integration
 
-**Шаги для Windows**:
+**Steps for Windows**:
 
 ```powershell
 cd G:\GitHub\KAG-workspace\FastEmbed
@@ -136,7 +136,7 @@ cd bindings\shared
 # 2. Verify outputs
 dir build\
 
-# Должен увидеть:
+# Should see:
 # - fastembed_native.dll
 # - fastembed_native.lib
 
@@ -153,7 +153,7 @@ Compress-Archive -Path windows\* -DestinationPath fastembed-windows-x64-test.zip
 dir fastembed-windows-x64-test.zip
 ```
 
-**Проверка архива**:
+**Archive Verification**:
 
 ```powershell
 # Extract and inspect
@@ -233,9 +233,9 @@ nm -gU macos/libfastembed.dylib | grep fastembed_generate
 
 ### Issue 1: "Workflow not found"
 
-**Причина**: Workflow файл не был pushed в репозиторий
+**Cause**: Workflow file was not pushed to repository
 
-**Решение**:
+**Solution**:
 
 ```bash
 git add .github/workflows/test-build-artifacts.yml
@@ -243,76 +243,76 @@ git commit -m "Add test workflow"
 git push origin release/1.0.1
 ```
 
-Подожди 1-2 минуты, затем обнови страницу Actions.
+Wait 1-2 minutes, then refresh the Actions page.
 
 ---
 
 ### Issue 2: "ONNX Runtime download fails"
 
-**Причина**: Сетевые проблемы или версия не существует
+**Cause**: Network issues or version does not exist
 
-**Решение**: Проверь доступные версии:
+**Solution**: Check available versions:
 
 - <https://github.com/microsoft/onnxruntime/releases>
 
-Обнови `ONNX_VERSION` в workflow если нужно.
+Update `ONNX_VERSION` in workflow if needed.
 
 ---
 
 ### Issue 3: "Build fails - NASM not found"
 
-**Причина**: NASM не установлен в runner
+**Cause**: NASM not installed in runner
 
-**Решение**: Проверь шаг "Install dependencies" или "Setup NASM" в workflow.
+**Solution**: Check "Install dependencies" or "Setup NASM" step in workflow.
 
 ---
 
 ### Issue 4: "Artifacts empty or missing"
 
-**Причина**: Build failed или files не скопировались
+**Cause**: Build failed or files were not copied
 
-**Решение**: Проверь шаг "Verify build outputs" в логах workflow.
+**Solution**: Check "Verify build outputs" step in workflow logs.
 
 ---
 
 ### Issue 5: "Permission denied in Windows build"
 
-**Причина**: MSVC не найден или неправильные права
+**Cause**: MSVC not found or incorrect permissions
 
-**Решение**: Проверь шаг "Setup MSVC" в workflow.
+**Solution**: Check "Setup MSVC" step in workflow.
 
 ---
 
 ## ✅ Pre-Release Checklist
 
-После успешного тестирования:
+After successful testing:
 
-- [ ] **Test workflow пройден** (все платформы ✅)
-- [ ] **Артефакты скачаны и проверены**:
-  - [ ] Linux: .so файл корректный
-  - [ ] Windows: .dll файл корректный
-  - [ ] macOS: .dylib файл корректный
-- [ ] **Размеры файлов разумные** (~100-500 KB)
-- [ ] **Exports проверены** (функции видны)
-- [ ] **Headers включены** (fastembed.h)
+- [ ] **Test workflow passed** (all platforms ✅)
+- [ ] **Artifacts downloaded and verified**:
+  - [ ] Linux: .so file is correct
+  - [ ] Windows: .dll file is correct
+  - [ ] macOS: .dylib file is correct
+- [ ] **File sizes are reasonable** (~100-500 KB)
+- [ ] **Exports verified** (functions visible)
+- [ ] **Headers included** (fastembed.h)
 
-**Теперь готов к production release!**
+**Now ready for production release!**
 
 ---
 
 ## 🚀 Production Release
 
-После успешного тестирования:
+After successful testing:
 
 ```bash
-# 1. Создай production тег
+# 1. Create production tag
 git tag -a v1.0.1 -m "Release 1.0.1"
 
-# 2. Push production тег
+# 2. Push production tag
 git push origin v1.0.1
 
-# 3. Workflow запустится автоматически
-# 4. GitHub Release будет создан с артефактами
+# 3. Workflow will start automatically
+# 4. GitHub Release will be created with artifacts
 ```
 
 ---
