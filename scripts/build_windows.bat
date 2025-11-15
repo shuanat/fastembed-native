@@ -235,7 +235,7 @@ if not errorlevel 1 (
     )
 )
 
-if "!NASM_EXE!"=="" (
+if not defined NASM_EXE (
     echo [ERROR] NASM not found in PATH or standard locations.
     echo.
     echo [ERROR] Please install NASM from: https://www.nasm.us/

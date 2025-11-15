@@ -481,7 +481,7 @@ jobs:
           cd bindings/shared
           # Ensure all files are compiled for the same architecture
           ARCH=$(uname -m)
-
+          
           # Check if running under Rosetta emulation
           if [ "$ARCH" = "arm64" ]; then
             # Check if process is running under Rosetta
@@ -494,14 +494,19 @@ jobs:
             export ARCH_FLAGS="-arch arm64"
             
             # Force NASM to run in arm64 mode to prevent x86_64 object files
-            # NASM with -f macho64 creates files for the architecture of the running process
-            # Even if NASM binary is arm64, the process may run under Rosetta emulation
-            # Using 'arch -arm64' ensures NASM runs natively on arm64, not through Rosetta
-            # ALWAYS use 'arch -arm64 nasm' on arm64 systems to guarantee correct architecture
-            echo "::notice::Forcing arm64 execution for NASM to prevent Rosetta emulation issues"
-            export NASM="arch -arm64 nasm"
-            
+            # CRITICAL: On Apple Silicon, NASM with -f macho64 produces x86_64 by default
+            # We need to explicitly tell NASM to generate arm64 code
+            # The solution is to create a wrapper script that forces arm64 execution
+            echo "::notice::Creating NASM wrapper for arm64 architecture"
+            echo '#!/bin/bash' > /tmp/nasm_arm64
+            echo 'exec arch -arm64 /opt/homebrew/bin/nasm "$@"' >> /tmp/nasm_arm64
+            chmod +x /tmp/nasm_arm64
+            export NASM="/tmp/nasm_arm64"
             export NASM_FLAGS="-f macho64"
+            
+            # Verify NASM wrapper
+            echo "::notice::Testing NASM wrapper"
+            $NASM --version
           else
             export CC="clang -arch x86_64"
             export CXX="clang++ -arch x86_64"
