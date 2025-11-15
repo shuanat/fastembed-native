@@ -1,5 +1,7 @@
 # Building FastEmbed on Windows
 
+**Navigation**: [Documentation Index](README.md) → Build Guides → Windows
+
 This guide describes the current, supported build and testing process for FastEmbed on Windows for all bindings: Node.js (N-API), Python (pybind11), C# (P/Invoke), Java (JNI).
 
 ## Prerequisites
@@ -105,3 +107,26 @@ scripts\clean_windows.bat
 - "nasm not found": Install NASM and add the path to `nasm.exe` to PATH, or use `bindings\nodejs\nasm_wrapper.bat` (it's called automatically from `binding.gyp`).
 - Python build error: Ensure the shared library build step is completed and `.obj` files are present in `bindings\shared\build`.
 - Issues with `make clean` on Windows: Use `scripts\clean_windows.bat` directly.
+
+---
+
+## See Also
+
+### Related Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and build system details
+- **[API Reference](API.md)** - Complete API documentation
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Other Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Native](BUILD_NATIVE.md)** - Node.js N-API module build
+- **[Build Python](BUILD_PYTHON.md)** - Python pybind11 module build
+- **[Build C#](BUILD_CSHARP.md)** - C# P/Invoke module build
+- **[Build Java](BUILD_JAVA.md)** - Java JNI module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start

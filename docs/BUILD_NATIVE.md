@@ -1,5 +1,7 @@
 # Building FastEmbed Native N-API Module
 
+**Navigation**: [Documentation Index](README.md) → Build Guides → Node.js
+
 FastEmbed now uses a native N-API module instead of FFI for maximum performance and reliability on Windows.
 
 ## Requirements
@@ -229,3 +231,26 @@ FastEmbed automatically uses the best available method:
 2. **CLI mode** (fallback) ← if N-API is not available
 
 FFI is no longer used due to issues on Windows.
+
+---
+
+## See Also
+
+### Related Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and build system details
+- **[API Reference](API.md)** - Complete API documentation for Node.js
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Other Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Windows](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[Build Python](BUILD_PYTHON.md)** - Python pybind11 module build
+- **[Build C#](BUILD_CSHARP.md)** - C# P/Invoke module build
+- **[Build Java](BUILD_JAVA.md)** - Java JNI module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start

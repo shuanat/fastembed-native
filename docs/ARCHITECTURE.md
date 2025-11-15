@@ -1,5 +1,7 @@
 # FastEmbed Architecture
 
+**Navigation**: [Documentation Index](README.md) → Architecture
+
 This document describes the internal architecture and design of FastEmbed.
 
 ## Table of Contents
@@ -50,6 +52,9 @@ This document describes the internal architecture and design of FastEmbed.
     - [Phase 4: Additional Languages](#phase-4-additional-languages)
   - [References](#references)
   - [See Also](#see-also)
+    - [Related Documentation](#related-documentation)
+    - [Build Guides](#build-guides)
+    - [Additional Resources](#additional-resources)
 
 ## System Overview
 
@@ -880,6 +885,25 @@ graph TB
 
 ## See Also
 
-- [API Reference](API.md)
-- [Build Instructions](BUILD_NATIVE.md)
-- [Use Cases](USE_CASES.md)
+### Related Documentation
+
+- **[API Reference](API.md)** - Complete API documentation for all language bindings
+- **[Algorithm Specification](ALGORITHM_SPECIFICATION.md)** - Hash-based embedding algorithm details
+- **[Algorithm Math](ALGORITHM_MATH.md)** - Mathematical foundation and theory
+- **[Assembly Design](ASSEMBLY_DESIGN.md)** - Low-level SIMD implementation details
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Windows](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[Build Native](BUILD_NATIVE.md)** - Node.js N-API module build
+- **[Build Python](BUILD_PYTHON.md)** - Python pybind11 module build
+- **[Build C#](BUILD_CSHARP.md)** - C# P/Invoke module build
+- **[Build Java](BUILD_JAVA.md)** - Java JNI module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Benchmarks](BENCHMARKS.md)** - Performance testing guide
+- **[Main README](../README.md)** - Project overview and quick start

@@ -1,5 +1,7 @@
 # Building FastEmbed with CMake
 
+**Navigation**: [Documentation Index](README.md) → Build Guides → CMake
+
 CMake provides a modern, cross-platform build system for FastEmbed. This is the **recommended** build method for all platforms.
 
 ## Why CMake?
@@ -285,3 +287,28 @@ cmake .. -DCMAKE_EXE_LINKER_FLAGS="-lm"
 - [Testing Guide](../tests/README_TESTING.md)
 - [Benchmarking](BENCHMARKS.md)
 - [Contributing](../CONTRIBUTING.md)
+
+---
+
+## See Also
+
+### Related Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and build system details
+- **[API Reference](API.md)** - Complete API documentation
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Other Build Guides
+
+- **[Build Windows](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[Build Native](BUILD_NATIVE.md)** - Node.js N-API module build
+- **[Build Python](BUILD_PYTHON.md)** - Python pybind11 module build
+- **[Build C#](BUILD_CSHARP.md)** - C# P/Invoke module build
+- **[Build Java](BUILD_JAVA.md)** - Java JNI module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start
+- **[Contributing](../CONTRIBUTING.md)** - Contribution guidelines
+- **[Testing Guide](../tests/README_TESTING.md)** - Testing instructions

@@ -1,5 +1,7 @@
 # Building FastEmbed Python Native Module
 
+**Navigation**: [Documentation Index](README.md) → Build Guides → Python
+
 Python extension module for FastEmbed using pybind11 for maximum performance.
 
 ## Requirements
@@ -345,3 +347,26 @@ similarity_matrix = cosine_similarity(embeddings)
 2. GPU acceleration support (CUDA)
 3. Batch processing for multiple texts
 4. ONNX model support
+
+---
+
+## See Also
+
+### Related Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and build system details
+- **[API Reference](API.md)** - Complete API documentation for Python
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Other Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Windows](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[Build Native](BUILD_NATIVE.md)** - Node.js N-API module build
+- **[Build C#](BUILD_CSHARP.md)** - C# P/Invoke module build
+- **[Build Java](BUILD_JAVA.md)** - Java JNI module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start

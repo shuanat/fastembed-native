@@ -1,5 +1,7 @@
 # Building FastEmbed Java Native Module
 
+**Navigation**: [Documentation Index](README.md) → Build Guides → Java
+
 Java interface for FastEmbed using JNI (Java Native Interface) for maximum performance.
 
 ## Requirements
@@ -585,6 +587,29 @@ compileJava.dependsOn compileJNI
 3. **Android support** (ARM64)
 4. **Async API** (CompletableFuture)
 5. **GPU acceleration** (CUDA/JCuda)
+
+---
+
+## See Also
+
+### Related Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and build system details
+- **[API Reference](API.md)** - Complete API documentation for Java
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Other Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Windows](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[Build Native](BUILD_NATIVE.md)** - Node.js N-API module build
+- **[Build Python](BUILD_PYTHON.md)** - Python pybind11 module build
+- **[Build C#](BUILD_CSHARP.md)** - C# P/Invoke module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start
 
 ---
 

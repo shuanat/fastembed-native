@@ -1,5 +1,7 @@
 # FastEmbed Use Cases
 
+**Navigation**: [Documentation Index](README.md) → Use Cases
+
 This document describes real-world scenarios where FastEmbed provides significant advantages over traditional embedding solutions.
 
 ## Table of Contents
@@ -877,3 +879,28 @@ FastEmbed excels in scenarios where:
 - Real-time applications where <1ms matters and exact matching is sufficient
 
 For most production use cases requiring fast, lightweight embeddings, FastEmbed provides the best balance of speed, cost, and simplicity.
+
+---
+
+## See Also
+
+### Related Documentation
+
+- **[API Reference](API.md)** - Complete API documentation for all language bindings
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and design details
+- **[Algorithm Specification](ALGORITHM_SPECIFICATION.md)** - Hash-based embedding algorithm
+- **[Benchmarks](BENCHMARKS.md)** - Performance testing and analysis
+
+### Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Windows](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[Build Native](BUILD_NATIVE.md)** - Node.js N-API module build
+- **[Build Python](BUILD_PYTHON.md)** - Python pybind11 module build
+- **[Build C#](BUILD_CSHARP.md)** - C# P/Invoke module build
+- **[Build Java](BUILD_JAVA.md)** - Java JNI module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start

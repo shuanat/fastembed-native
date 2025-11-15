@@ -1,5 +1,7 @@
 # Building FastEmbed C# Native Module
 
+**Navigation**: [Documentation Index](README.md) → Build Guides → C#
+
 C# interface for FastEmbed using P/Invoke for direct native function calls.
 
 ## Requirements
@@ -406,6 +408,29 @@ class Program
 3. **.NET Framework 4.x support**
 4. **Async API** (Task-based)
 5. **GPU acceleration** (CUDA)
+
+---
+
+## See Also
+
+### Related Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture and build system details
+- **[API Reference](API.md)** - Complete API documentation for C#
+- **[Use Cases](USE_CASES.md)** - Real-world scenarios and applications
+
+### Other Build Guides
+
+- **[Build CMake](BUILD_CMAKE.md)** - Cross-platform CMake build (recommended)
+- **[Build Windows](BUILD_WINDOWS.md)** - Windows-specific build instructions
+- **[Build Native](BUILD_NATIVE.md)** - Node.js N-API module build
+- **[Build Python](BUILD_PYTHON.md)** - Python pybind11 module build
+- **[Build Java](BUILD_JAVA.md)** - Java JNI module build
+
+### Additional Resources
+
+- **[Documentation Index](README.md)** - Complete documentation overview
+- **[Main README](../README.md)** - Project overview and quick start
 
 ---
 
