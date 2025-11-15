@@ -81,6 +81,10 @@ jobs:
           cd bindings/nodejs
           node test-native.js
 
+      - name: Download ONNX model
+        continue-on-error: true
+        run: python scripts/download_model.py
+
       - name: Run ONNX tests (conditional)
         continue-on-error: true
         run: |
