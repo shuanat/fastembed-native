@@ -105,7 +105,7 @@ try:
     # Test 10: Error handling - invalid dimension
     print("10. Testing error handling (invalid dimension)...")
     try:
-        invalid_client = FastEmbedNative(dimension=99)  # Invalid dimension
+        invalid_client = FastEmbedNative(dimension=-1)  # Invalid dimension (negative)
         print("✗ Should have raised error for invalid dimension")
         sys.exit(1)
     except (ValueError, RuntimeError) as e:
