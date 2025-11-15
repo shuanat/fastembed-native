@@ -65,16 +65,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download shared library artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fastembed-shared-linux
+          path: bindings/shared/build
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y nasm gcc make
-
-      - name: Build shared library
-        run: |
-          cd bindings/shared
-          make all
-          make shared
 
       - name: Build C tests
         run: |
@@ -125,17 +125,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y nasm gcc make wget
 
+      - name: Download shared library artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fastembed-shared-linux
+          path: bindings/shared/build
+
       - name: Setup ONNX Runtime
         run: |
           cd bindings
           wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
           tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
           mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
-
-      - name: Build shared library
-        run: |
-          cd bindings/shared
-          make all
 
       - name: Build Node.js binding
         run: |
@@ -198,17 +199,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install setuptools wheel pybind11 numpy
 
+      - name: Download shared library artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fastembed-shared-linux
+          path: bindings/shared/build
+
       - name: Setup ONNX Runtime
         run: |
           cd bindings
           wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
           tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
           mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
-
-      - name: Build shared library
-        run: |
-          cd bindings/shared
-          make all
 
       - name: Build Python binding
         run: |
@@ -269,18 +271,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y nasm gcc make wget
 
+      - name: Download shared library artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fastembed-shared-linux
+          path: bindings/shared/build
+
       - name: Setup ONNX Runtime
         run: |
           cd bindings
           wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
           tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
           mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
-
-      - name: Build shared library
-        run: |
-          cd bindings/shared
-          make all
-          make shared
 
       - name: Verify native library exists
         run: |
@@ -336,17 +338,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y nasm gcc make maven wget
 
+      - name: Download shared library artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fastembed-shared-linux
+          path: bindings/shared/build
+
       - name: Setup ONNX Runtime
         run: |
           cd bindings
           wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
           tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
           mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
-
-      - name: Build shared library
-        run: |
-          cd bindings/shared
-          make all
 
       - name: Compile JNI wrapper
         run: |
@@ -433,32 +436,7 @@ jobs:
         with:
           node-version: 20
 
-      - name: Test Node.js binding
-        run: |
-          cd bindings/nodejs
-          npm install
-          npm run build
-          node test-native.js
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Test Python binding
-        continue-on-error: true
-        run: |
-          cd bindings/python
-          pip install numpy pybind11
-          python setup.py build_ext --inplace
-          python test_python_native.py
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
-
-      - name: Test C# binding
+      - name: Test C# binding (Windows-specific)
         run: |
           cd bindings/csharp
           dotnet build src/FastEmbed.csproj
@@ -498,31 +476,7 @@ jobs:
         with:
           node-version: 20
 
-      - name: Test Node.js binding
-        run: |
-          cd bindings/nodejs
-          npm install
-          npm run build
-          node test-native.js
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Test Python binding
-        run: |
-          cd bindings/python
-          pip install numpy pybind11
-          python setup.py build_ext --inplace
-          python test_python_native.py
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
-
-      - name: Test C# binding
+      - name: Test C# binding (macOS-specific)
         run: |
           cd bindings/csharp
           dotnet build src/FastEmbed.csproj
