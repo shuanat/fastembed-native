@@ -370,9 +370,10 @@ jobs:
       - name: Setup ONNX Runtime
         run: |
           cd bindings
-          curl -fL -o onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }}.tgz
+          # GitHub Actions macOS runners are ARM64 (M1/M2)
+          curl -fL -o onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-arm64-${{ env.ONNX_VERSION }}.tgz
           tar -xzf onnxruntime.tgz
-          mv onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }} onnxruntime
+          mv onnxruntime-osx-arm64-${{ env.ONNX_VERSION }} onnxruntime
           rm onnxruntime.tgz
 
       - name: Setup Node.js
