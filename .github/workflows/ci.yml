@@ -133,6 +133,10 @@ jobs:
           cd bindings/python
           python test_python_native.py
 
+      - name: Download ONNX model
+        continue-on-error: true
+        run: python scripts/download_model.py
+
       - name: Run ONNX tests (conditional)
         continue-on-error: true
         run: |
@@ -278,6 +282,10 @@ jobs:
           java -Djava.library.path=java/build -cp java/target/classes:. com.fastembed.test.TestFastEmbedJava || \
           (cd java && javac -cp target/classes ../com/fastembed/test/TestFastEmbedJava.java && \
            java -Djava.library.path=build -cp target/classes:.. com.fastembed.test.TestFastEmbedJava)
+
+      - name: Download ONNX model
+        continue-on-error: true
+        run: python scripts/download_model.py
 
       - name: Run ONNX tests (conditional)
         continue-on-error: true
