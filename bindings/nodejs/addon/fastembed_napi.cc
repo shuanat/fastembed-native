@@ -26,7 +26,7 @@ float fastembed_cosine_similarity(const float *vector_a, const float *vector_b,
 float fastembed_dot_product(const float *vector_a, const float *vector_b,
                             int dimension);
 float fastembed_vector_norm(const float *vector, int dimension);
-void normalize_vector_asm(float *vector, int dimension);
+void fastembed_normalize_vector(float *vector, int dimension);
 void fastembed_add_vectors(const float *vector_a, const float *vector_b,
                            float *result, int dimension);
 }
@@ -455,7 +455,7 @@ static napi_value NormalizeVector(napi_env env, napi_callback_info info) {
     return nullptr;
   }
 
-  normalize_vector_asm(vector, (int)length);
+  fastembed_normalize_vector(vector, (int)length);
 
   // Create Float32Array with normalized values
   napi_value arraybuffer;
