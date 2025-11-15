@@ -10,7 +10,7 @@
 //
 // ARM64 (Apple Silicon) port of embedding_generator.asm (x86_64)
 
-    .section .rodata
+    .const
     .align 4
 embedding_dim:
     .word 768
@@ -27,12 +27,12 @@ scale_2_31:
 scale_2_31_int:
     .quad 2147483648         // 2^31 as integer
 
-    .section .bss
+    .bss
     .align 4
 embedding_buffer:
     .skip 3072               // 768 floats = 3072 bytes
 
-    .section .text
+    .text
     .align 4
 
 // External functions from embedding_lib_arm64.s

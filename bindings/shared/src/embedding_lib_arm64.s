@@ -11,7 +11,7 @@
 //   gcc embedding_lib_arm64.o embedding_lib_c.c -o libfastembed.dylib (macOS)
 //   gcc embedding_lib_arm64.o embedding_lib_c.c -o libfastembed.so (Linux)
 
-    .section .rodata
+    .const
     .align 4
 float_one:
     .float 1.0
@@ -22,12 +22,12 @@ pi_constant:
 embedding_dim:
     .word 768
 
-    .section .bss
+    .bss
     .align 4
 temp_vector:
     .skip 3072    // 768 floats = 3072 bytes
 
-    .section .text
+    .text
     .align 4
 
 // ============================================
