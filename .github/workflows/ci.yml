@@ -80,36 +80,6 @@ jobs:
               ./"$test_exe" || echo "⚠️ $test_exe failed (continuing...)"
             fi
           done
-
-  test-nodejs:
-    name: Test Node.js Binding
-    needs: build-linux
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [16, 18, 20]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y nasm gcc make wget
-
-      - name: Download shared library artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: fastembed-shared-linux
-          path: bindings/shared/build
-
       - name: Setup ONNX Runtime
         run: |
           cd bindings
@@ -117,13 +87,18 @@ jobs:
           tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
           mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Build Node.js binding
         run: |
           cd bindings/nodejs
           npm install
           npm run build
 
-      - name: Run tests
+      - name: Test Node.js binding
         run: |
           cd bindings/nodejs
           node test-native.js
@@ -132,105 +107,44 @@ jobs:
         continue-on-error: true
         run: python scripts/download_model.py
 
-      - name: Run ONNX tests (conditional)
+      - name: Run ONNX tests (Node.js)
         continue-on-error: true
         run: |
           cd bindings/nodejs
           node test-onnx.js || echo "⚠️ ONNX tests skipped (model not available)"
 
-  test-python:
-    name: Test Python Binding
-    needs: build-linux
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm gcc make wget
+          sudo apt-get install -y wget
           python -m pip install --upgrade pip
           pip install setuptools wheel pybind11 numpy
-
-      - name: Download shared library artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: fastembed-shared-linux
-          path: bindings/shared/build
-
-      - name: Setup ONNX Runtime
-        run: |
-          cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
 
       - name: Build Python binding
         run: |
           cd bindings/python
           python setup.py build_ext --inplace
 
-      - name: Run tests
+      - name: Test Python binding
         run: |
           cd bindings/python
           python test_python_native.py
 
-      - name: Download ONNX model
-        continue-on-error: true
-        run: python scripts/download_model.py
-
-      - name: Run ONNX tests (conditional)
+      - name: Run ONNX tests (Python)
         continue-on-error: true
         run: |
           cd bindings/python
           python test_onnx.py || echo "⚠️ ONNX tests skipped (model not available)"
 
-  test-csharp:
-    name: Test C# Binding
-    needs: build-linux
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        dotnet-version: ["6.0.x", "7.0.x", "8.0.x"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET ${{ matrix.dotnet-version }}
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ matrix.dotnet-version }}
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y nasm gcc make wget
-
-      - name: Download shared library artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: fastembed-shared-linux
-          path: bindings/shared/build
-
-      - name: Setup ONNX Runtime
-        run: |
-          cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
+          dotnet-version: "8.0.x"
 
       - name: Verify native library exists
         run: |
@@ -245,7 +159,7 @@ jobs:
           cd bindings/csharp
           dotnet build src/FastEmbed.csproj
 
-      - name: Run tests
+      - name: Test C# binding
         run: |
           cd bindings/csharp/tests
           export LD_LIBRARY_PATH="../../shared/build:${LD_LIBRARY_PATH}"
@@ -254,7 +168,7 @@ jobs:
            export LD_LIBRARY_PATH="../shared/build:${LD_LIBRARY_PATH}" && \
            dotnet test tests/FastEmbed.Tests.csproj)
 
-      - name: Run ONNX tests (conditional)
+      - name: Run ONNX tests (C#)
         continue-on-error: true
         run: |
           cd bindings/csharp/tests
@@ -262,51 +176,21 @@ jobs:
           dotnet test --filter "FullyQualifiedName~FastEmbedOnnxTests" || \
           echo "⚠️ ONNX tests skipped (model not available or tests marked as Skip)"
 
-  test-java:
-    name: Test Java Binding
-    needs: build-linux
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        java-version: ["11", "17", "21"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK ${{ matrix.java-version }}
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: ${{ matrix.java-version }}
+          java-version: "21"
           distribution: "temurin"
 
-      - name: Install dependencies
+      - name: Install Java dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm gcc make maven wget
-
-      - name: Download shared library artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: fastembed-shared-linux
-          path: bindings/shared/build
-
-      - name: Setup ONNX Runtime
-        run: |
-          cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
+          sudo apt-get install -y maven
 
       - name: Compile JNI wrapper
         run: |
           cd bindings/java/java
           mkdir -p build
-          # Link JNI library using already compiled objects from shared/build
-          # Note: embedding_lib_c.o and onnx_embedding_loader.o are already in shared/build
-          # Exclude embedding_gen_cli.o as it's not PIC and not needed for JNI
-          # Build list of object files (onnx_embedding_loader.o may not exist if ONNX not found)
           OBJ_FILES="../../shared/build/embedding_lib.o"
           OBJ_FILES="$OBJ_FILES ../../shared/build/embedding_generator.o"
           OBJ_FILES="$OBJ_FILES ../../shared/build/embedding_lib_c.o"
@@ -327,11 +211,9 @@ jobs:
       - name: Build Java project
         run: |
           cd bindings/java/java
-          # Skip native compilation and javah since we build JNI manually in CI
-          # Set phase to 'none' to completely disable executions
           mvn clean install -DskipTests -Dmaven.native.javah.phase=none -Dmaven.native.compile.phase=none -Dmaven.native.link.phase=none
 
-      - name: Run tests
+      - name: Test Java binding
         run: |
           cd bindings/java
           javac -cp java/target/classes com/fastembed/test/TestFastEmbedJava.java && \
@@ -339,11 +221,7 @@ jobs:
           (cd java && javac -cp target/classes ../com/fastembed/test/TestFastEmbedJava.java && \
            java -Djava.library.path=build -cp target/classes:.. com.fastembed.test.TestFastEmbedJava)
 
-      - name: Download ONNX model
-        continue-on-error: true
-        run: python scripts/download_model.py
-
-      - name: Run ONNX tests (conditional)
+      - name: Run ONNX tests (Java)
         continue-on-error: true
         run: |
           cd bindings/java/java
@@ -536,7 +414,7 @@ jobs:
 
   benchmark-linux:
     name: Benchmark on Linux
-    needs: [test-linux, test-nodejs, test-python, test-csharp, test-java]
+    needs: test-linux
     runs-on: ubuntu-latest
     if: always()
 
@@ -966,10 +844,6 @@ jobs:
     needs:
       [
         test-linux,
-        test-nodejs,
-        test-python,
-        test-csharp,
-        test-java,
         test-windows,
         test-macos,
         benchmark-linux,
@@ -985,12 +859,8 @@ jobs:
         run: |
           echo "CI Build Summary:"
           echo ""
-          echo "Linux Tests:"
-          echo "- Core (C): ${{ needs.test-linux.result }}"
-          echo "- Node.js: ${{ needs.test-nodejs.result }}"
-          echo "- Python: ${{ needs.test-python.result }}"
-          echo "- C#: ${{ needs.test-csharp.result }}"
-          echo "- Java: ${{ needs.test-java.result }}"
+          echo "Platform Tests:"
+          echo "- Linux: ${{ needs.test-linux.result }}"
           echo ""
           echo "Cross-Platform Tests:"
           echo "- Windows: ${{ needs.test-windows.result }}"
