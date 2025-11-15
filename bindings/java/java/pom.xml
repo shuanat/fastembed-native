@@ -37,7 +37,7 @@
         <maven.compiler.target>11</maven.compiler.target>
         <junit.version>5.9.3</junit.version>
         <maven.native.skip>false</maven.native.skip>
-        <maven.javah.skip>false</maven.javah.skip>
+        <maven.javah.skip>true</maven.javah.skip>
         <maven.native.javah.phase>process-classes</maven.native.javah.phase>
         <maven.native.compile.phase>compile</maven.native.compile.phase>
         <maven.native.link.phase>compile</maven.native.link.phase>
@@ -118,6 +118,7 @@
                         <compilerStartOption>-I${JAVA_HOME}/include</compilerStartOption>
                         <compilerStartOption>-I${JAVA_HOME}/include/linux</compilerStartOption>
                         <compilerStartOption>-I${JAVA_HOME}/include/darwin</compilerStartOption>
+                        <compilerStartOption>-I${JAVA_HOME}/include/win32</compilerStartOption>
                         <compilerStartOption>-I../../shared/include</compilerStartOption>
                         <compilerStartOption>-I../../onnxruntime/include</compilerStartOption>
                         <compilerStartOption>-DUSE_ONNX_RUNTIME</compilerStartOption>
