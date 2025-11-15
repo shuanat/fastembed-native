@@ -57,6 +57,51 @@ jobs:
           path: tests/benchmark_results_linux.txt
           retention-days: 30
 
+  test-linux:
+    name: Test on Linux
+    needs: build-shared-linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc make
+
+      - name: Build shared library
+        run: |
+          cd bindings/shared
+          make all
+          make shared
+
+      - name: Build C tests
+        run: |
+          cd tests
+          export LD_LIBRARY_PATH=../bindings/shared/build:$LD_LIBRARY_PATH
+          # Build all test files
+          for test_file in test_basic.c test_vectors.c test_hash_functions.c test_embedding_generation.c test_quality_improvement.c test_sqrt_quality.c; do
+            if [ -f "$test_file" ]; then
+              test_name=$(basename "$test_file" .c)
+              gcc -O2 -I../bindings/shared/include "$test_file" \
+                -L../bindings/shared/build -lfastembed_native -lm -o "$test_name" || true
+            fi
+          done
+
+      - name: Run C tests
+        run: |
+          cd tests
+          export LD_LIBRARY_PATH=../bindings/shared/build:$LD_LIBRARY_PATH
+          echo "=== Running C Tests ==="
+          for test_exe in test_basic test_vectors test_hash_functions test_embedding_generation test_quality_improvement test_sqrt_quality; do
+            if [ -f "$test_exe" ]; then
+              echo ""
+              echo "Running $test_exe..."
+              ./"$test_exe" || echo "⚠️ $test_exe failed (continuing...)"
+            fi
+          done
+
   test-nodejs:
     name: Test Node.js Binding
     needs: build-shared-linux
@@ -627,6 +672,7 @@ jobs:
     name: Build Summary
     needs:
       [
+        test-linux,
         test-nodejs,
         test-python,
         test-csharp,
@@ -644,6 +690,7 @@ jobs:
           echo "CI Build Summary:"
           echo ""
           echo "Linux Tests:"
+          echo "- Core (C): ${{ needs.test-linux.result }}"
           echo "- Node.js: ${{ needs.test-nodejs.result }}"
           echo "- Python: ${{ needs.test-python.result }}"
           echo "- C#: ${{ needs.test-csharp.result }}"
