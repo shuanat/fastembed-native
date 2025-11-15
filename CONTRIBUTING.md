@@ -280,7 +280,7 @@ cd bindings/shared
 make clean && make
 ```
 
-The Makefile detects arm64 and compiles with `-DUSE_ONLY_C` flag.
+The Makefile detects arm64 and compiles native ARM64 NEON assembly using `as -arch arm64` for optimal performance.
 
 #### Error: `docker: command not found` (Local Docker Testing)
 

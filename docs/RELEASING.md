@@ -207,7 +207,7 @@ cd artifacts
 tar -czf fastembed-macos-x64-v1.0.1.tar.gz macos/
 ```
 
-**macOS arm64 Note**: The build system automatically uses a C-only fallback for macOS arm64 (Apple Silicon) due to NASM architecture limitations. The Makefile detects arm64 and compiles with `-DUSE_ONLY_C` flag.
+**macOS arm64 Note**: The build system automatically uses native ARM64 NEON assembly for macOS arm64 (Apple Silicon) for optimal performance. The Makefile detects arm64 and compiles ARM64 assembly files using `as -arch arm64`.
 
 ### Upload to GitHub Release (Manual)
 
