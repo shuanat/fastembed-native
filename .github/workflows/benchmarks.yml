@@ -156,25 +156,17 @@ jobs:
             bindings/nodejs/benchmark_nodejs_windows.txt
           retention-days: 30
 
-  benchmark-macos:
-    name: Benchmarks (macOS)
+  benchmark-macos-arm64:
+    name: Benchmarks (macOS ARM64)
     runs-on: macos-latest
-    strategy:
-      matrix:
-        arch: [x64, arm64]
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup architecture
         run: |
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            echo "ARCH=arm64" >> $GITHUB_ENV
-            echo "Building for Apple Silicon (ARM64)"
-          else
-            echo "ARCH=x64" >> $GITHUB_ENV
-            echo "Building for Intel (x64)"
-          fi
+          echo "ARCH=arm64" >> $GITHUB_ENV
+          echo "Building for Apple Silicon (ARM64)"
 
       - name: Install dependencies
         run: |
@@ -197,8 +189,8 @@ jobs:
         run: |
           cd tests
           export DYLD_LIBRARY_PATH=../bindings/shared/build:$DYLD_LIBRARY_PATH
-          ./benchmark > benchmark_results_macos_${{ matrix.arch }}.txt 2>&1 || true
-          cat benchmark_results_macos_${{ matrix.arch }}.txt
+          ./benchmark > benchmark_results_macos_arm64.txt 2>&1 || true
+          cat benchmark_results_macos_arm64.txt
 
       - name: Build Node.js binding
         run: |
@@ -209,8 +201,8 @@ jobs:
       - name: Run Node.js benchmark
         run: |
           cd bindings/nodejs
-          node benchmark.js > benchmark_nodejs_macos_${{ matrix.arch }}.txt 2>&1 || true
-          cat benchmark_nodejs_macos_${{ matrix.arch }}.txt
+          node benchmark.js > benchmark_nodejs_macos_arm64.txt 2>&1 || true
+          cat benchmark_nodejs_macos_arm64.txt
 
       - name: Build Python binding
         run: |
@@ -222,22 +214,22 @@ jobs:
         run: |
           cd bindings/python
           export DYLD_LIBRARY_PATH=../shared/build:$DYLD_LIBRARY_PATH
-          python3 benchmark.py > benchmark_python_macos_${{ matrix.arch }}.txt 2>&1 || true
-          cat benchmark_python_macos_${{ matrix.arch }}.txt
+          python3 benchmark.py > benchmark_python_macos_arm64.txt 2>&1 || true
+          cat benchmark_python_macos_arm64.txt
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-results-macos-${{ matrix.arch }}
+          name: benchmark-results-macos-arm64
           path: |
-            tests/benchmark_results_macos_${{ matrix.arch }}.txt
-            bindings/nodejs/benchmark_nodejs_macos_${{ matrix.arch }}.txt
-            bindings/python/benchmark_python_macos_${{ matrix.arch }}.txt
+            tests/benchmark_results_macos_arm64.txt
+            bindings/nodejs/benchmark_nodejs_macos_arm64.txt
+            bindings/python/benchmark_python_macos_arm64.txt
           retention-days: 30
 
   aggregate-results:
     name: Aggregate Benchmark Results
-    needs: [benchmark-linux, benchmark-windows, benchmark-macos]
+    needs: [benchmark-linux, benchmark-windows, benchmark-macos-arm64]
     runs-on: ubuntu-latest
     if: always()
 
@@ -261,11 +253,6 @@ jobs:
           echo "## Windows x64" >> BENCHMARK_RESULTS_CI.md
           echo '```' >> BENCHMARK_RESULTS_CI.md
           cat benchmark-results/benchmark-results-windows/*.txt >> BENCHMARK_RESULTS_CI.md 2>/dev/null || echo "No results" >> BENCHMARK_RESULTS_CI.md
-          echo '```' >> BENCHMARK_RESULTS_CI.md
-          echo "" >> BENCHMARK_RESULTS_CI.md
-          echo "## macOS x64" >> BENCHMARK_RESULTS_CI.md
-          echo '```' >> BENCHMARK_RESULTS_CI.md
-          cat benchmark-results/benchmark-results-macos-x64/*.txt >> BENCHMARK_RESULTS_CI.md 2>/dev/null || echo "No results" >> BENCHMARK_RESULTS_CI.md
           echo '```' >> BENCHMARK_RESULTS_CI.md
           echo "" >> BENCHMARK_RESULTS_CI.md
           echo "## macOS ARM64 (Apple Silicon)" >> BENCHMARK_RESULTS_CI.md
