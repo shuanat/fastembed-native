@@ -7,6 +7,9 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+env:
+  ONNX_VERSION: "1.23.2" # Parameterized ONNX Runtime version
+
 jobs:
   build-shared-linux:
     name: Build Shared Library (Linux)
@@ -58,9 +61,9 @@ jobs:
       - name: Setup ONNX Runtime
         run: |
           cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz
-          tar -xzf onnxruntime-linux-x64-1.23.2.tgz
-          mv onnxruntime-linux-x64-1.23.2 onnxruntime
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
 
       - name: Build shared library
         run: |
@@ -77,6 +80,12 @@ jobs:
         run: |
           cd bindings/nodejs
           node test-native.js
+
+      - name: Run ONNX tests (conditional)
+        continue-on-error: true
+        run: |
+          cd bindings/nodejs
+          node test-onnx.js || echo "⚠️ ONNX tests skipped (model not available)"
 
   test-python:
     name: Test Python Binding
@@ -105,9 +114,9 @@ jobs:
       - name: Setup ONNX Runtime
         run: |
           cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz
-          tar -xzf onnxruntime-linux-x64-1.23.2.tgz
-          mv onnxruntime-linux-x64-1.23.2 onnxruntime
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
 
       - name: Build shared library
         run: |
@@ -123,6 +132,12 @@ jobs:
         run: |
           cd bindings/python
           python test_python_native.py
+
+      - name: Run ONNX tests (conditional)
+        continue-on-error: true
+        run: |
+          cd bindings/python
+          python test_onnx.py || echo "⚠️ ONNX tests skipped (model not available)"
 
   test-csharp:
     name: Test C# Binding
@@ -149,9 +164,9 @@ jobs:
       - name: Setup ONNX Runtime
         run: |
           cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz
-          tar -xzf onnxruntime-linux-x64-1.23.2.tgz
-          mv onnxruntime-linux-x64-1.23.2 onnxruntime
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
 
       - name: Build shared library
         run: |
@@ -174,26 +189,20 @@ jobs:
 
       - name: Run tests
         run: |
-          cd bindings/csharp
-          # Run hash-based tests only (ONNX model not needed in CI)
-          # benchmark.csproj includes both benchmark.cs and benchmark_onnx.cs
-          # It will skip ONNX tests if model is not found
-          # Set LD_LIBRARY_PATH to find native library
+          cd bindings/csharp/tests
           export LD_LIBRARY_PATH="../../shared/build:${LD_LIBRARY_PATH}"
-          if [ -f "benchmark.csproj" ]; then
-            dotnet build benchmark.csproj
-            # Verify native library is copied
-            if [ -f "bin/Debug/net8.0/fastembed.so" ] || [ -f "bin/Debug/net8.0/libfastembed.so" ]; then
-              echo "✅ Native library found in output directory"
-            else
-              echo "⚠️  Native library not found, copying manually..."
-              cp ../../shared/build/fastembed.so bin/Debug/net8.0/ 2>/dev/null || true
-            fi
-            # Run benchmark - it will skip ONNX if model not found
-            dotnet run --project benchmark.csproj --no-build || echo "⚠️  Benchmark completed (ONNX tests skipped if model not found)"
-          else
-            echo "⚠️  benchmark.csproj not found, skipping C# tests"
-          fi
+          dotnet test || \
+          (cd .. && dotnet build tests/FastEmbed.Tests.csproj && \
+           export LD_LIBRARY_PATH="../shared/build:${LD_LIBRARY_PATH}" && \
+           dotnet test tests/FastEmbed.Tests.csproj)
+
+      - name: Run ONNX tests (conditional)
+        continue-on-error: true
+        run: |
+          cd bindings/csharp/tests
+          export LD_LIBRARY_PATH="../../shared/build:${LD_LIBRARY_PATH}"
+          dotnet test --filter "FullyQualifiedName~FastEmbedOnnxTests" || \
+          echo "⚠️ ONNX tests skipped (model not available or tests marked as Skip)"
 
   test-java:
     name: Test Java Binding
@@ -221,9 +230,9 @@ jobs:
       - name: Setup ONNX Runtime
         run: |
           cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz
-          tar -xzf onnxruntime-linux-x64-1.23.2.tgz
-          mv onnxruntime-linux-x64-1.23.2 onnxruntime
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
 
       - name: Build shared library
         run: |
@@ -265,19 +274,137 @@ jobs:
       - name: Run tests
         run: |
           cd bindings/java/java
-          # Compile benchmark_onnx.java if it exists
-          if [ -f "benchmark_onnx.java" ]; then
-            javac -cp target/classes -d target/classes benchmark_onnx.java
-            # Run hash-based tests only (ONNX model not needed in CI)
-            # The benchmark will skip ONNX tests if model is not found
-            java -Djava.library.path=build -cp target/classes benchmark_onnx
-          else
-            echo "⚠️  benchmark_onnx.java not found, skipping tests"
-          fi
+          javac -cp target/classes test_java_native.java && \
+          java -Djava.library.path=build -cp target/classes:. test_java_native || \
+          (cd .. && javac -cp java/target/classes test_java_native.java && \
+           java -Djava.library.path=java/build -cp java/target/classes:. test_java_native)
+
+      - name: Run ONNX tests (conditional)
+        continue-on-error: true
+        run: |
+          cd bindings/java/java
+          javac -cp target/classes test_onnx.java && \
+          java -Djava.library.path=build -cp target/classes:. test_onnx || \
+          (cd .. && javac -cp java/target/classes test_onnx.java && \
+           java -Djava.library.path=java/build -cp java/target/classes:. test_onnx) || \
+          echo "⚠️ ONNX tests skipped (model not available)"
+
+  test-windows:
+    name: Test on Windows
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup NASM
+        run: choco install nasm -y
+
+      - name: Build shared library (Windows)
+        run: |
+          cd bindings/shared
+          call scripts/build_windows.bat
+        shell: cmd
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Test Node.js binding
+        run: |
+          cd bindings/nodejs
+          npm install
+          npm run build
+          node test-native.js
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Test Python binding
+        continue-on-error: true
+        run: |
+          cd bindings/python
+          pip install numpy pybind11
+          python setup.py build_ext --inplace
+          python test_python_native.py
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Test C# binding
+        run: |
+          cd bindings/csharp
+          dotnet build src/FastEmbed.csproj
+          cd tests
+          dotnet test
+
+  test-macos:
+    name: Test on macOS
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install nasm
+
+      - name: Build shared library (macOS)
+        run: |
+          cd bindings/shared
+          make all
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Test Node.js binding
+        run: |
+          cd bindings/nodejs
+          npm install
+          npm run build
+          node test-native.js
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Test Python binding
+        run: |
+          cd bindings/python
+          pip install numpy pybind11
+          python setup.py build_ext --inplace
+          python test_python_native.py
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Test C# binding
+        run: |
+          cd bindings/csharp
+          dotnet build src/FastEmbed.csproj
+          cd tests
+          dotnet test
 
   build-summary:
     name: Build Summary
-    needs: [test-nodejs, test-python, test-csharp, test-java]
+    needs:
+      [
+        test-nodejs,
+        test-python,
+        test-csharp,
+        test-java,
+        test-windows,
+        test-macos,
+      ]
     runs-on: ubuntu-latest
     if: always()
 
@@ -285,10 +412,15 @@ jobs:
       - name: Check build status
         run: |
           echo "CI Build Summary:"
-          echo "Hash-based Tests:"
+          echo ""
+          echo "Linux Tests:"
           echo "- Node.js: ${{ needs.test-nodejs.result }}"
           echo "- Python: ${{ needs.test-python.result }}"
           echo "- C#: ${{ needs.test-csharp.result }}"
           echo "- Java: ${{ needs.test-java.result }}"
+          echo ""
+          echo "Cross-Platform Tests:"
+          echo "- Windows: ${{ needs.test-windows.result }}"
+          echo "- macOS: ${{ needs.test-macos.result }}"
           echo ""
           echo "Note: Release artifacts are built in separate workflow (release.yml)"

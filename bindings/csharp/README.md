@@ -47,8 +47,10 @@ cd ../csharp
 dotnet build src/FastEmbed.csproj
 
 # Run tests
-LD_LIBRARY_PATH=../shared/build dotnet run --project test_csharp_native.csproj
+cd tests && dotnet test
 ```
+
+**Test Suite**: The C# binding includes a comprehensive xUnit test suite in `tests/FastEmbed.Tests.csproj` with 49+ tests covering unit, integration, ONNX, and performance scenarios.
 
 ## Performance
 

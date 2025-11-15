@@ -14,7 +14,7 @@ Usage examples demonstrating FastEmbed integration in different programming lang
 | ----------- | --------------------------------------------------------------------------------- | -------- | -------- |
 | **Node.js** | [bindings/nodejs/test-native.js](../bindings/nodejs/test-native.js)               | N-API    | ✅ Stable |
 | **Python**  | [bindings/python/test_python_native.py](../bindings/python/test_python_native.py) | pybind11 | ✅ Stable |
-| **C#**      | [bindings/csharp/test_csharp_native.cs](../bindings/csharp/test_csharp_native.cs) | P/Invoke | ✅ Stable |
+| **C#**      | [bindings/csharp/tests/](../bindings/csharp/tests/) (xUnit suite, 49+ tests)      | P/Invoke | ✅ Stable |
 | **Java**    | [bindings/java/test_java_native.java](../bindings/java/test_java_native.java)     | JNI      | ✅ Stable |
 
 **Performance:** See [BENCHMARK_RESULTS.md](../BENCHMARK_RESULTS.md) for detailed performance data. Python achieves **0.012-0.048 ms** per embedding generation and **sub-microsecond** vector operations.
@@ -181,7 +181,7 @@ var client = new FastEmbedClient(dimension: 768);
 float[] embedding = client.GenerateEmbedding("Hello, world!");
 ```
 
-See: [bindings/csharp/test_csharp_native.cs](../bindings/csharp/test_csharp_native.cs)
+See: [bindings/csharp/tests/](../bindings/csharp/tests/) - Comprehensive xUnit test suite with 49+ tests
 
 ### Java (JNI)
 

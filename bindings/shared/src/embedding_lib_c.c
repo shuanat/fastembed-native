@@ -99,7 +99,8 @@ static int is_valid_dimension(int dimension) {
  * @note Performance: ~0.01-0.05ms for 128D, ~0.05-0.15ms for 768D
  * @note For BERT compatibility, use dimension=768 explicitly
  */
-int fastembed_generate(const char *text, float *output, int dimension) {
+FASTEMBED_EXPORT int fastembed_generate(const char *text, float *output,
+                                        int dimension) {
   /* Validate input parameters */
   if (!text || !output) {
     return -1;
@@ -155,8 +156,8 @@ int fastembed_generate(const char *text, float *output, int dimension) {
  * @note Vectors must have the same dimension
  * @note Performance: O(dimension), optimized with SIMD
  */
-float fastembed_dot_product(const float *vec1, const float *vec2,
-                            int dimension) {
+FASTEMBED_EXPORT float fastembed_dot_product(const float *vec1,
+                                             const float *vec2, int dimension) {
   if (!vec1 || !vec2 || dimension <= 0) {
     return 0.0f;
   }
@@ -185,8 +186,9 @@ float fastembed_dot_product(const float *vec1, const float *vec2,
  * @note Returns 0.0f if either vector has zero norm (division by zero)
  * @note Performance: O(dimension), optimized with SIMD
  */
-float fastembed_cosine_similarity(const float *vec1, const float *vec2,
-                                  int dimension) {
+FASTEMBED_EXPORT float fastembed_cosine_similarity(const float *vec1,
+                                                   const float *vec2,
+                                                   int dimension) {
   if (!vec1 || !vec2 || dimension <= 0) {
     return 0.0f;
   }
@@ -211,7 +213,7 @@ float fastembed_cosine_similarity(const float *vec1, const float *vec2,
  * @note Zero vector returns 0.0 norm
  * @note Performance: O(dimension), optimized with SIMD
  */
-float fastembed_vector_norm(const float *vec, int dimension) {
+FASTEMBED_EXPORT float fastembed_vector_norm(const float *vec, int dimension) {
   if (!vec || dimension <= 0) {
     return 0.0f;
   }
@@ -237,7 +239,7 @@ float fastembed_vector_norm(const float *vec, int dimension) {
  * @note Zero vectors remain unchanged (no division by zero)
  * @note Performance: O(dimension), optimized with SIMD
  */
-void fastembed_normalize(float *vec, int dimension) {
+FASTEMBED_EXPORT void fastembed_normalize(float *vec, int dimension) {
   if (!vec || dimension <= 0) {
     return;
   }
@@ -263,8 +265,9 @@ void fastembed_normalize(float *vec, int dimension) {
  * @note Result vector must be pre-allocated (not computed in-place)
  * @note Performance: O(dimension), optimized with SIMD
  */
-void fastembed_add_vectors(const float *vec1, const float *vec2, float *result,
-                           int dimension) {
+FASTEMBED_EXPORT void fastembed_add_vectors(const float *vec1,
+                                            const float *vec2, float *result,
+                                            int dimension) {
   if (!vec1 || !vec2 || !result || dimension <= 0) {
     return;
   }
@@ -431,8 +434,8 @@ int fastembed_onnx_get_model_dimension(const char *model_path) {
  * @note Supported dimensions: 128, 256, 512, 768, 1024, 2048
  * @note Uses hash-based embeddings (fastembed_generate) for all texts
  */
-int fastembed_batch_generate(const char **texts, int num_texts, float **outputs,
-                             int dimension) {
+FASTEMBED_EXPORT int fastembed_batch_generate(const char **texts, int num_texts,
+                                              float **outputs, int dimension) {
   if (!texts || !outputs || num_texts <= 0) {
     return -1;
   }

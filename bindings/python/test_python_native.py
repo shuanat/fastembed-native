@@ -84,11 +84,83 @@ try:
     print(f"  Average time: {avg_time:.2f}ms per embedding")
     print(f"  Throughput: {iterations/elapsed:.1f} embeddings/sec\n")
     
+    # Test 9: Error handling - null text
+    print("9. Testing error handling (None text)...")
+    try:
+        fastembed.generate_embedding(None)
+        print("✗ Should have raised error for None text")
+        sys.exit(1)
+    except (TypeError, ValueError) as e:
+        print(f"✓ Correctly raises error for None text")
+        print(f"  Error type: {type(e).__name__}")
+        print(f"  Error message: {str(e)}\n")
+    
+    # Test 10: Error handling - invalid dimension
+    print("10. Testing error handling (invalid dimension)...")
+    try:
+        invalid_client = FastEmbedNative(dimension=99)  # Invalid dimension
+        print("✗ Should have raised error for invalid dimension")
+        sys.exit(1)
+    except (ValueError, RuntimeError) as e:
+        print(f"✓ Correctly raises error for invalid dimension")
+        print(f"  Error message: {str(e)}\n")
+    
+    # Test 11: Error handling - null vector
+    print("11. Testing error handling (None vector)...")
+    try:
+        fastembed.cosine_similarity(None, embedding2)
+        print("✗ Should have raised error for None vector")
+        sys.exit(1)
+    except (TypeError, ValueError) as e:
+        print(f"✓ Correctly raises error for None vector")
+        print(f"  Error message: {str(e)}\n")
+    
+    # Test 12: Edge case - empty string
+    print("12. Testing edge case (empty string)...")
+    try:
+        fastembed.generate_embedding("")
+        print("✗ Should have raised error for empty string")
+        sys.exit(1)
+    except (ValueError, RuntimeError) as e:
+        print(f"✓ Correctly raises error for empty string")
+        print(f"  Error message: {str(e)}\n")
+    
+    # Test 13: Edge case - very long text
+    print("13. Testing edge case (very long text)...")
+    try:
+        long_text = "a" * 10000  # 10000 chars exceeds 8192 limit
+        fastembed.generate_embedding(long_text)
+        print("✗ Should have raised error for very long text")
+        sys.exit(1)
+    except (ValueError, RuntimeError) as e:
+        print(f"✓ Correctly raises error for very long text")
+        print(f"  Error message: {str(e)}\n")
+    
+    # Test 14: Edge case - unicode text
+    print("14. Testing edge case (unicode text)...")
+    unicode_text = "Привет мир こんにちは 世界 🌍"
+    unicode_emb = fastembed.generate_embedding(unicode_text)
+    print(f"✓ Unicode text handled correctly")
+    print(f"  Text: {unicode_text}")
+    print(f"  Embedding shape: {unicode_emb.shape}\n")
+    
+    # Test 15: Edge case - special characters
+    print("15. Testing edge case (special characters)...")
+    special_text = "Hello! @#$%^&*() []{} <>"
+    special_emb = fastembed.generate_embedding(special_text)
+    print(f"✓ Special characters handled correctly")
+    print(f"  Text: {special_text}")
+    print(f"  Embedding shape: {special_emb.shape}\n")
+    
     print("=" * 60)
-    print("ALL TESTS PASSED ✓")
+    print("ALL TESTS PASSED ✓ (15/15)")
     print("=" * 60)
     print("\nFastEmbed Python native module is working correctly!")
     print(f"Performance: ~{avg_time:.1f}ms per embedding (native speed)")
+    print("\nTest coverage:")
+    print("  • Happy path: 8 tests")
+    print("  • Error handling: 4 tests")
+    print("  • Edge cases: 3 tests")
     
 except ImportError as e:
     print(f"✗ Import error: {e}")

@@ -10,16 +10,16 @@ namespace FastEmbed
     internal static class FastEmbedNative
     {
         // Platform-specific library names
-        private const string LibraryName = "fastembed";
+        private const string LibraryName = "fastembed_native";
 
 #if WINDOWS
-        private const string DllName = "fastembed.dll";
+        private const string DllName = "fastembed_native.dll";
 #elif LINUX
         private const string DllName = "fastembed.so";
 #elif OSX
         private const string DllName = "libfastembed.dylib";
 #else
-        private const string DllName = "fastembed";
+        private const string DllName = "fastembed_native";
 #endif
 
         static FastEmbedNative()
@@ -139,7 +139,7 @@ namespace FastEmbed
         /// <param name="vector">Vector to normalize (modified in-place)</param>
         /// <param name="dimension">Vector dimension</param>
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void normalize_vector_asm(
+        public static extern void fastembed_normalize(
             [In, Out] float[] vector,
             int dimension
         );

@@ -1,6 +1,6 @@
 {
     "name": "fastembed",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Ultra-fast native embedding library with SIMD optimizations",
     "type": "module",
     "main": "lib/fastembed-native.js",

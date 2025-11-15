@@ -97,3 +97,6 @@ benchmark_final_output.txt
 # Internal development artifacts (not for public repository)
 plans/
 reports/
+
+# Build artifacts directory (compiled binaries, headers, etc.)
+artifacts/

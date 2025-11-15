@@ -29,19 +29,29 @@ class CMakeBuild(build_ext):
         except ImportError:
             raise RuntimeError("pybind11 is required for building FastEmbed native module")
         
+        # Check if ONNX Runtime is available
+        import os
+        onnx_include = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "include"))
+        use_onnx = os.path.exists(onnx_include) and os.path.exists(os.path.join(onnx_include, "onnxruntime_c_api.h"))
+        
         # Source files
         sources = [
             "src/fastembed_native.cpp",
-            "../shared/src/embedding_lib_c.c",
-            "../shared/src/onnx_embedding_loader.c"
+            "../shared/src/embedding_lib_c.c"
         ]
+        
+        # Add ONNX loader only if ONNX Runtime is available
+        if use_onnx:
+            sources.append("../shared/src/onnx_embedding_loader.c")
         
         # Include directories
         include_dirs = [
             pybind11_include,
-            "../shared/include",
-            "../onnxruntime/include"
+            "../shared/include"
         ]
+        
+        if use_onnx:
+            include_dirs.append(onnx_include)
         
         # Platform-specific settings
         extra_compile_args = []
@@ -70,13 +80,15 @@ class CMakeBuild(build_ext):
                 "/std:c++17",
                 "/O2",
                 "/W3",
-                "/DUSE_ONNX_RUNTIME"
+                "/DFASTEMBED_BUILDING_LIB"
             ]
             
-            # ONNX Runtime library
-            onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib", "onnxruntime.lib"))
-            if os.path.exists(onnx_lib_path):
-                extra_objects.append(onnx_lib_path)
+            # ONNX Runtime support (conditional)
+            if use_onnx:
+                extra_compile_args.append("/DUSE_ONNX_RUNTIME")
+                onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib", "onnxruntime.lib"))
+                if os.path.exists(onnx_lib_path):
+                    extra_objects.append(onnx_lib_path)
             
             # Copy ONNX Runtime DLL to build output after compilation
             self.post_build_onnx_dll = True
@@ -213,7 +225,7 @@ long_description = readme_file.read_text(encoding="utf-8") if readme_file.exists
 
 setup(
     name="fastembed-native",
-    version="1.0.0",
+    version="1.0.1",
     author="FastEmbed Team",
     description="Ultra-fast native embedding library with SIMD optimizations",
     long_description=long_description,

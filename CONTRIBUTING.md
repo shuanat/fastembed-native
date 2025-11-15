@@ -269,7 +269,7 @@ All new features must include tests:
 
 - **Node.js:** `bindings/nodejs/test-native.js`
 - **Python:** `bindings/python/test_python_native.py`
-- **C#:** `bindings/csharp/test_csharp_native.csproj`
+- **C#:** `bindings/csharp/tests/FastEmbed.Tests.csproj` (xUnit test suite)
 - **Java:** `bindings/java/TestFastEmbedJava.java`
 
 ### Running Tests
@@ -281,9 +281,11 @@ make test
 # Specific binding
 cd bindings/nodejs && node test-native.js
 cd bindings/python && python test_python_native.py
-cd bindings/csharp && LD_LIBRARY_PATH=../shared/build dotnet run --project test_csharp_native.csproj
+cd bindings/csharp/tests && dotnet test
 cd bindings/java && mvn test
 ```
+
+**Note for C#**: The `dotnet test` command automatically builds and runs the xUnit test suite in `bindings/csharp/tests/FastEmbed.Tests.csproj`.
 
 ### Test Coverage
 

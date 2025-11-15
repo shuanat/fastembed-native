@@ -1,0 +1,171 @@
+name: Build Release Artifacts
+
+on:
+  push:
+    tags:
+      - "v*.*.*" # Triggers on version tags (e.g., v1.0.1)
+  workflow_dispatch: # Allows manual trigger
+
+env:
+  ONNX_VERSION: "1.23.2"
+
+jobs:
+  build-linux:
+    name: Build Linux Artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc make
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
+
+      - name: Build shared library
+        run: |
+          cd bindings/shared
+          make all
+
+      - name: Package Linux artifacts
+        run: |
+          mkdir -p artifacts/linux
+          cp bindings/shared/build/*.so artifacts/linux/ || true
+          cp bindings/shared/build/*.a artifacts/linux/ || true
+          cp bindings/shared/include/*.h artifacts/linux/
+          cd artifacts
+          tar -czf fastembed-linux-x64-${{ github.ref_name }}.tar.gz linux/
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastembed-linux-x64
+          path: artifacts/fastembed-linux-x64-*.tar.gz
+          retention-days: 90
+
+  build-windows:
+    name: Build Windows Artifacts
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup NASM
+        run: choco install nasm -y
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          Invoke-WebRequest -Uri "https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-win-x64-${{ env.ONNX_VERSION }}.zip" -OutFile "onnxruntime.zip"
+          Expand-Archive -Path "onnxruntime.zip" -DestinationPath "."
+          Rename-Item -Path "onnxruntime-win-x64-${{ env.ONNX_VERSION }}" -NewName "onnxruntime"
+        shell: powershell
+
+      - name: Build shared library
+        run: |
+          cd bindings\shared
+          call scripts\build_windows.bat
+        shell: cmd
+
+      - name: Package Windows artifacts
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts\windows
+          Copy-Item -Path bindings\shared\build\*.dll -Destination artifacts\windows\ -ErrorAction SilentlyContinue
+          Copy-Item -Path bindings\shared\build\*.lib -Destination artifacts\windows\ -ErrorAction SilentlyContinue
+          Copy-Item -Path bindings\shared\include\*.h -Destination artifacts\windows\
+          cd artifacts
+          Compress-Archive -Path windows\* -DestinationPath fastembed-windows-x64-${{ github.ref_name }}.zip
+        shell: powershell
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastembed-windows-x64
+          path: artifacts/fastembed-windows-x64-*.zip
+          retention-days: 90
+
+  build-macos:
+    name: Build macOS Artifacts
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install nasm
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }}.tgz
+          mv onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }} onnxruntime
+
+      - name: Build shared library
+        run: |
+          cd bindings/shared
+          make all
+
+      - name: Package macOS artifacts
+        run: |
+          mkdir -p artifacts/macos
+          cp bindings/shared/build/*.dylib artifacts/macos/ || true
+          cp bindings/shared/build/*.a artifacts/macos/ || true
+          cp bindings/shared/include/*.h artifacts/macos/
+          cd artifacts
+          tar -czf fastembed-macos-x64-${{ github.ref_name }}.tar.gz macos/
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastembed-macos-x64
+          path: artifacts/fastembed-macos-x64-*.tar.gz
+          retention-days: 90
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Extract version from CHANGELOG
+        id: changelog
+        run: |
+          # Extract v1.0.1 section from CHANGELOG.md
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Extract release notes from CHANGELOG
+          awk '/^## \['$VERSION'\]/,/^## \[/' CHANGELOG.md | sed '1d;$d' > release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: FastEmbed ${{ steps.changelog.outputs.version }}
+          body_path: release-notes.md
+          files: |
+            artifacts/fastembed-linux-x64/*.tar.gz
+            artifacts/fastembed-windows-x64/*.zip
+            artifacts/fastembed-macos-x64/*.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

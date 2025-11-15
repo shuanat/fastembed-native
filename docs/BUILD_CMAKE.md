@@ -44,13 +44,23 @@ brew install cmake nasm
 ### Windows
 
 ```batch
-scripts\build_cmake_windows.bat
+REM Use CMake directly (see BUILD_CMAKE.md for instructions)
+cd bindings\shared
+mkdir build_cmake
+cd build_cmake
+cmake ..
+cmake --build .
 ```
 
 ### Linux/WSL/macOS
 
 ```bash
-bash scripts/build_cmake_linux.sh
+# Use CMake directly (see BUILD_CMAKE.md for instructions)
+cd bindings/shared
+mkdir -p build_cmake
+cd build_cmake
+cmake ..
+cmake --build .
 ```
 
 ## Manual Build

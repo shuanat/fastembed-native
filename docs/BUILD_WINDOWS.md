@@ -37,8 +37,14 @@ Final artifacts will appear in `bindings\shared\build\`:
 ### 2) Build All Bindings and Tests
 
 ```bat
-scripts\build_all_windows.bat
-scripts\test_all_windows.bat
+REM Build shared library first
+scripts\build_windows.bat
+
+REM Then build all bindings using Makefile
+make all
+
+REM Run tests
+make test
 ```
 
 ## Building and Testing by Language
