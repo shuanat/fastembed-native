@@ -161,9 +161,8 @@ class CMakeBuild(build_ext):
                 "-fPIC"
             ]
             
-            # Use C-only implementation on macOS arm64
-            if is_macos_arm64:
-                extra_compile_args.append("-DUSE_ONLY_C")
+            # macOS arm64: Use ARM64 NEON assembly (already compiled above)
+            # DO NOT add -DUSE_ONLY_C - we want to use ARM64 assembly, not C-only fallback!
             
             if use_onnx:
                 extra_compile_args.append("-DUSE_ONNX_RUNTIME")
