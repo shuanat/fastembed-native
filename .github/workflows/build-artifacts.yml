@@ -219,16 +219,18 @@ jobs:
           echo "::notice::Packaging $FILE_COUNT files"
 
           cd artifacts
-          tar -czf fastembed-linux-x64-${{ github.ref_name }}.tar.gz linux/
+          # Replace slashes in ref_name with dashes for valid filename
+          REF_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+          tar -czf "fastembed-linux-x64-${REF_NAME}.tar.gz" linux/
 
           # Verify archive was created
-          if [ ! -f "fastembed-linux-x64-${{ github.ref_name }}.tar.gz" ]; then
+          if [ ! -f "fastembed-linux-x64-${REF_NAME}.tar.gz" ]; then
             echo "::error::Failed to create Linux artifact archive"
             exit 1
           fi
 
-          ARCHIVE_SIZE=$(stat -f%z "fastembed-linux-x64-${{ github.ref_name }}.tar.gz" 2>/dev/null || stat -c%s "fastembed-linux-x64-${{ github.ref_name }}.tar.gz" 2>/dev/null || echo "unknown")
-          echo "::notice::Linux archive created: fastembed-linux-x64-${{ github.ref_name }}.tar.gz (${ARCHIVE_SIZE} bytes)"
+          ARCHIVE_SIZE=$(stat -f%z "fastembed-linux-x64-${REF_NAME}.tar.gz" 2>/dev/null || stat -c%s "fastembed-linux-x64-${REF_NAME}.tar.gz" 2>/dev/null || echo "unknown")
+          echo "::notice::Linux archive created: fastembed-linux-x64-${REF_NAME}.tar.gz (${ARCHIVE_SIZE} bytes)"
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -424,16 +426,18 @@ jobs:
           Copy-Item -Path bindings\csharp\nupkg\*.nupkg -Destination artifacts\windows\ -ErrorAction SilentlyContinue
           Copy-Item -Path bindings\java\java\target\*.jar -Destination artifacts\windows\ -ErrorAction SilentlyContinue
           cd artifacts
-          Compress-Archive -Path windows\* -DestinationPath fastembed-windows-x64-${{ github.ref_name }}.zip
+          # Replace slashes in ref_name with dashes for valid filename
+          $refName = "${{ github.ref_name }}" -replace '/', '-'
+          Compress-Archive -Path windows\* -DestinationPath "fastembed-windows-x64-${refName}.zip"
 
           # Verify archive was created
-          if (-not (Test-Path "fastembed-windows-x64-${{ github.ref_name }}.zip")) {
+          if (-not (Test-Path "fastembed-windows-x64-${refName}.zip")) {
             Write-Host "::error::Failed to create Windows artifact archive"
             exit 1
           }
 
-          $archiveSize = (Get-Item "fastembed-windows-x64-${{ github.ref_name }}.zip").Length
-          Write-Host "::notice::Windows archive created: fastembed-windows-x64-${{ github.ref_name }}.zip ($archiveSize bytes)"
+          $archiveSize = (Get-Item "fastembed-windows-x64-${refName}.zip").Length
+          Write-Host "::notice::Windows archive created: fastembed-windows-x64-${refName}.zip ($archiveSize bytes)"
         shell: powershell
 
       - name: Upload Windows artifacts
@@ -660,7 +664,7 @@ jobs:
           cp bindings/python/dist/*.whl artifacts/macos/ 2>/dev/null || true
           cp bindings/csharp/nupkg/*.nupkg artifacts/macos/ 2>/dev/null || true
           cp bindings/java/java/target/*.jar artifacts/macos/ 2>/dev/null || true
-          
+
           # Verify we have at least some files
           FILE_COUNT=$(ls -1 artifacts/macos/ 2>/dev/null | wc -l)
           if [ "$FILE_COUNT" -eq 0 ]; then
@@ -668,10 +672,12 @@ jobs:
             exit 1
           fi
           echo "::notice::Packaging $FILE_COUNT files"
-          
+
           cd artifacts
           ARCH=$(uname -m)
-          ARCHIVE_NAME="fastembed-macos-${ARCH}-${{ github.ref_name }}.tar.gz"
+          # Replace slashes in ref_name with dashes for valid filename
+          REF_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+          ARCHIVE_NAME="fastembed-macos-${ARCH}-${REF_NAME}.tar.gz"
           tar -czf "$ARCHIVE_NAME" macos/
 
           # Verify archive was created
