@@ -305,6 +305,14 @@ jobs:
           pwsh -File scripts\build_windows.ps1
         shell: powershell
 
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-win-x64-${{ env.ONNX_VERSION }}.zip
+          unzip -q onnxruntime-win-x64-${{ env.ONNX_VERSION }}.zip
+          mv onnxruntime-win-x64-${{ env.ONNX_VERSION }} onnxruntime
+        shell: bash
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -357,6 +365,13 @@ jobs:
         run: |
           cd bindings/shared
           make all
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-x64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime-osx-x64-${{ env.ONNX_VERSION }}.tgz
+          mv onnxruntime-osx-x64-${{ env.ONNX_VERSION }} onnxruntime
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
