@@ -10,7 +10,7 @@
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
         "../shared/include",
-        "../../bindings/onnxruntime/include"
+        "<!@(node -p \"require('path').resolve(process.cwd(),'..','..','bindings','onnxruntime','include')\")"
       ],
       "defines": ["NAPI_DISABLE_CPP_EXCEPTIONS", "USE_ONNX_RUNTIME"],
       "conditions": [
