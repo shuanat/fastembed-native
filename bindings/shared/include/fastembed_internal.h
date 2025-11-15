@@ -108,10 +108,23 @@ float vector_norm_asm(const float *vec, int dimension);
 void normalize_vector_asm(float *vec, int dimension);
 
 // Convenience aliases without _asm suffix for CLI tools
+// Use C implementations when assembly is not available (macOS arm64 C-only
+// mode)
+#ifdef USE_ONLY_C
+// C-only mode: use C implementations from embedding_lib_c.c
+// These are defined as wrapper functions that call fastembed_* functions
+extern float dot_product(const float *vec1, const float *vec2, int dimension);
+extern float cosine_similarity(const float *vec1, const float *vec2,
+                               int dimension);
+extern float vector_norm(const float *vec, int dimension);
+extern void normalize_vector(float *vec, int dimension);
+#else
+// Assembly mode: use assembly implementations
 #define dot_product dot_product_asm
 #define cosine_similarity cosine_similarity_asm
 #define vector_norm vector_norm_asm
 #define normalize_vector normalize_vector_asm
+#endif
 
 #ifdef __cplusplus
 }

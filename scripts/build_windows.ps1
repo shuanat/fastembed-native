@@ -400,15 +400,26 @@ function Invoke-CCompilation {
         
         Write-BuildLog "Compiling: $file -> $objFile" -Level INFO
         
+        # Check if ONNX Runtime is available
+        $onnxInclude = Join-Path (Join-Path $RepoRoot 'bindings') 'onnxruntime\include'
+        $useOnnx = Test-Path $onnxInclude
+        
         $clArgs = @(
             '/c',           # Compile only
             '/O2',          # Optimize for speed
             '/W3',          # Warning level 3
             '/nologo',      # Suppress copyright message
             "/I$IncludeDir", # Include directory
+            '/DFASTEMBED_BUILDING_LIB', # Define for building library (not importing)
             "/Fo:$objPath",  # Output object file
             $srcPath
         )
+        
+        # Add ONNX Runtime support if available
+        if ($useOnnx -and $file -eq 'onnx_embedding_loader.c') {
+            $clArgs += "/I$onnxInclude"
+            $clArgs += '/DUSE_ONNX_RUNTIME'
+        }
         
         $startTime = Get-Date
         cl @clArgs 2>&1 | ForEach-Object {

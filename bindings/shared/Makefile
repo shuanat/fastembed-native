@@ -128,8 +128,13 @@ $(BUILD_DIR)/%$(OBJ_EXT): $(SRC_DIR)/%.asm
 endif
 
 # Compile C files
+# Pass USE_ONLY_C flag if in C-only mode (macOS arm64)
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+ifeq ($(USE_ONLY_C),1)
+	$(CC) $(CFLAGS) $(INCLUDES) -DUSE_ONLY_C -c $< -o $@
+else
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+endif
 
 # ONNX Runtime support
 # Auto-detect ONNX Runtime: first check project root, then current dir, then /usr/local
