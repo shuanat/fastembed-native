@@ -83,14 +83,15 @@ jobs:
           echo "::notice::Platform: Linux (Ubuntu)"
           echo "::notice::Compiler: $(gcc --version | head -n1)"
           echo "::notice::NASM: $(nasm --version | head -n1)"
-
+          
           cd bindings/shared
           make all
-
+          make shared
+          
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
           echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Build completed in ${DURATION} seconds"
-
+          
           if [ $DURATION -gt 600 ]; then
             echo "::warning::Build time (${DURATION}s) exceeds expected threshold (600s)"
           fi
@@ -330,14 +331,25 @@ jobs:
           echo "::notice::Platform: macOS ($(uname -m))"
           echo "::notice::Compiler: $(clang --version | head -n1)"
           echo "::notice::NASM: $(nasm --version | head -n1)"
-
+          
           cd bindings/shared
+          # Ensure all files are compiled for the same architecture
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            export CC="clang -arch arm64"
+            export NASM_FLAGS="-f macho64"
+          else
+            export CC="clang -arch x86_64"
+            export NASM_FLAGS="-f macho64"
+          fi
+          make clean || true
           make all
-
+          make shared
+          
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
           echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Build completed in ${DURATION} seconds"
-
+          
           if [ $DURATION -gt 600 ]; then
             echo "::warning::Build time (${DURATION}s) exceeds expected threshold (600s)"
           fi

@@ -2,29 +2,40 @@
 
 # Compiler and flags
 NASM = nasm
-CC = gcc
+CC ?= gcc
 AR = ar
 CFLAGS = -O2 -Wall
 LDFLAGS = -shared
 
 # Detect OS
 UNAME_S := $(shell uname -s)
+
+# Use NASM_FLAGS from environment if set (for architecture-specific builds)
+# Otherwise set default based on OS
+ifndef NASM_FLAGS
+    ifeq ($(UNAME_S),Linux)
+        NASM_FLAGS = -f elf64
+    else ifeq ($(UNAME_S),Darwin)
+        NASM_FLAGS = -f macho64
+    else ifeq ($(OS),Windows_NT)
+        NASM_FLAGS = -f win64
+    endif
+endif
+
+# Set platform-specific variables
 ifeq ($(UNAME_S),Linux)
-    NASM_FLAGS = -f elf64
     TARGET_LIB = fastembed.a
     TARGET_DLL = fastembed.so
     OBJ_EXT = .o
     BUILD_SHARED = yes
 endif
 ifeq ($(UNAME_S),Darwin)
-    NASM_FLAGS = -f macho64
     TARGET_LIB = fastembed.a
     TARGET_DLL = fastembed.dylib
     OBJ_EXT = .o
     BUILD_SHARED = yes
 endif
 ifeq ($(OS),Windows_NT)
-    NASM_FLAGS = -f win64
     TARGET_LIB = fastembed.lib
     TARGET_DLL = fastembed.dll
     OBJ_EXT = .obj

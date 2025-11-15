@@ -73,7 +73,19 @@ echo FastEmbed Windows Build Script
 echo ========================================
 echo.
 
-REM Setup Visual Studio paths (use environment variable if available)
+REM Setup Visual Studio paths
+REM First check if GitHub Actions has already set up MSVC (via microsoft/setup-msbuild@v2)
+if defined VCToolsInstallDir (
+    echo [INFO] Using Visual Studio environment from GitHub Actions
+    REM Verify cl.exe is available
+    where cl >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo [INFO] MSVC compiler found in PATH
+        goto :vs_ready
+    )
+)
+
+REM Try to find Visual Studio Build Tools manually
 if defined ProgramFiles^(x86^) (
     set "VS_PATH=!ProgramFiles(x86)!\Microsoft Visual Studio\2022\BuildTools"
 ) else (
@@ -98,6 +110,15 @@ call "!VS_VCVARS!" >nul 2>&1
 if !errorlevel! neq 0 (
     echo [ERROR] Failed to setup Visual Studio environment
     echo [ERROR] Please verify Visual Studio Build Tools installation
+    exit /b 1
+)
+
+:vs_ready
+REM Verify cl.exe is available
+where cl >nul 2>&1
+if !errorlevel! neq 0 (
+    echo [ERROR] MSVC compiler (cl.exe) not found in PATH
+    echo [ERROR] Visual Studio environment setup may have failed
     exit /b 1
 )
 
