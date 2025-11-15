@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+artifacts/
+bindings/shared/build/
+bindings/nodejs/build/
+bindings/python/build/
+bindings/python/dist/
+bindings/python/*.egg-info/
+bindings/csharp/bin/
+bindings/csharp/obj/
+bindings/java/target/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CI/CD
+.github/
+
+# Documentation
+docs/
+*.md
+
+# Plans and reports
+plans/
+reports/
+
+# Tests (exclude from Docker, test separately)
+**/tests/
+**/__pycache__/
+*.pyc
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
+

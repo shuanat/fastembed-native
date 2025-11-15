@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  # Linux full build (all language bindings)
+  linux-build:
+    build:
+      context: .
+      dockerfile: Dockerfile.linux
+    volumes:
+      - .:/workspace
+      - linux-artifacts:/workspace/artifacts
+    environment:
+      - BUILD_TYPE=Release
+
+  # Python wheel build (isolated test)
+  python-build:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    volumes:
+      - .:/workspace
+      - python-dist:/workspace/bindings/python/dist
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # Interactive shell for debugging
+  linux-shell:
+    build:
+      context: .
+      dockerfile: Dockerfile.linux
+    volumes:
+      - .:/workspace
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+
+volumes:
+  linux-artifacts:
+  python-dist:
