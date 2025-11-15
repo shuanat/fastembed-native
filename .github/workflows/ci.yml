@@ -359,6 +359,7 @@ jobs:
 
   test-windows:
     name: Test on Windows
+    needs: build-shared-linux
     runs-on: windows-latest
 
     steps:
