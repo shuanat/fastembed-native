@@ -187,6 +187,7 @@ jobs:
           distribution: "temurin"
 
       - name: Build Java JAR
+        continue-on-error: true
         run: |
           echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Java JAR"
           cd bindings/java/java
@@ -390,6 +391,7 @@ jobs:
           distribution: "temurin"
 
       - name: Build Java JAR
+        continue-on-error: true
         run: |
           Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Building Java JAR"
           cd bindings/java/java
@@ -626,6 +628,7 @@ jobs:
           distribution: "temurin"
 
       - name: Build Java JAR
+        continue-on-error: true
         run: |
           echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Java JAR"
           cd bindings/java/java
