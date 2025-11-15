@@ -127,10 +127,11 @@ class CMakeBuild(build_ext):
             
             extra_objects = [obj for _, obj in asm_files]
             
+            # Compile flags for macOS
+            # Note: -march=native doesn't work on Apple Silicon (M1/M2/M3)
             extra_compile_args = [
                 "-O3",
-                "-fPIC",
-                "-march=native"
+                "-fPIC"
             ]
             
             if use_onnx:
