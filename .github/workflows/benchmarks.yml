@@ -54,7 +54,7 @@ jobs:
         run: |
           cd tests
           gcc -O2 -I../bindings/shared/include benchmark_improved.c \
-            -L../bindings/shared/build -lfastembed -lm -o benchmark
+            -L../bindings/shared/build -lfastembed_native -lm -o benchmark
           chmod +x benchmark
 
       - name: Run C benchmark
@@ -190,7 +190,7 @@ jobs:
         run: |
           cd tests
           gcc -O2 -I../bindings/shared/include benchmark_improved.c \
-            -L../bindings/shared/build -lfastembed -lm -o benchmark
+            -L../bindings/shared/build -lfastembed_native -lm -o benchmark
           chmod +x benchmark
 
       - name: Run C benchmark
