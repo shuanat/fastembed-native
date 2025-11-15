@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Test script for FastEmbed Python native module
 """
@@ -6,6 +7,12 @@ Test script for FastEmbed Python native module
 import sys
 import time
 import numpy as np
+import io
+
+# Fix Windows console encoding for Unicode characters
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 print("Testing FastEmbed Python Native Module...\n")
 print("=" * 60)
