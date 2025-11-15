@@ -36,6 +36,27 @@ jobs:
           path: bindings/shared/build/*.so
           retention-days: 7
 
+      - name: Build C benchmark
+        run: |
+          cd tests
+          gcc -O2 -I../bindings/shared/include benchmark_improved.c \
+            -L../bindings/shared/build -lfastembed_native -lm -o benchmark
+          chmod +x benchmark
+
+      - name: Run C benchmark
+        run: |
+          cd tests
+          export LD_LIBRARY_PATH=../bindings/shared/build:$LD_LIBRARY_PATH
+          ./benchmark > benchmark_results_linux.txt 2>&1 || true
+          cat benchmark_results_linux.txt
+
+      - name: Upload C benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-c-linux
+          path: tests/benchmark_results_linux.txt
+          retention-days: 30
+
   test-nodejs:
     name: Test Node.js Binding
     needs: build-shared-linux
