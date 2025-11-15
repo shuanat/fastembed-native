@@ -263,20 +263,19 @@ jobs:
 
       - name: Build shared library
         run: |
-          set START_TIME=%time%
-          echo ::notice::[%date% %time%] Starting Windows build
-          echo ::notice::Platform: Windows
-          echo ::notice::Compiler: MSVC (Visual Studio Build Tools)
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Starting Windows build"
+          Write-Host "::notice::Platform: Windows"
+          Write-Host "::notice::Compiler: MSVC (Visual Studio Build Tools)"
 
-          REM Verify we're in repository root
-          if not exist bindings\shared\src\embedding_lib.asm (
-            echo ::error::Repository structure not found. Expected bindings\shared\src\embedding_lib.asm
-            echo ::error::Current directory: %CD%
-            exit /b 1
-          )
+          # Verify repository root
+          if (-not (Test-Path "bindings\shared\src\embedding_lib.asm")) {
+            Write-Host "::error::Repository structure not found. Expected bindings\shared\src\embedding_lib.asm"
+            Write-Host "::error::Current directory: $PWD"
+            exit 1
+          }
 
-          # Call PowerShell build script (replaces fragile batch script)
-          pwsh -File scripts\build_windows.ps1 -ErrorAction Stop
+          # Call PowerShell build script (Phase 1, Task 1.2)
+          & ".\scripts\build_windows.ps1" -ErrorAction Stop
 
           Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Build completed"
         shell: powershell
