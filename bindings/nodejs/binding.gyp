@@ -20,9 +20,12 @@
             "../shared/src/embedding_lib.asm",
             "../shared/src/embedding_generator.asm"
           ],
-              "libraries": [
-                "<!@(node -p \"require('path').resolve(process.cwd(),'..','..','bindings','onnxruntime','lib','onnxruntime.lib').replace(/\\\\/g,'/')\")"
-              ],
+          "include_dirs": [
+            "<!@(node -p \"require('path').resolve(process.cwd(),'..','..','bindings','onnxruntime','include')\")"
+          ],
+          "libraries": [
+            "<!@(node -p \"require('path').resolve(process.cwd(),'..','..','bindings','onnxruntime','lib','onnxruntime.lib').replace(/\\\\/g,'/')\")"
+          ],
           "msvs_settings": {
             "VCCLCompilerTool": {
               "ExceptionHandling": 1,
@@ -79,6 +82,9 @@
           "sources": [
             "../shared/src/embedding_lib.asm",
             "../shared/src/embedding_generator.asm"
+          ],
+          "include_dirs": [
+            "<(module_root_dir)/../../bindings/onnxruntime/include"
           ],
           "cflags": ["-fPIC"],
           "cflags_cc": ["-fPIC", "-std=c++17"],

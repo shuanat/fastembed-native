@@ -65,7 +65,8 @@ static float dot_product_asm(float *vector_a, float *vector_b, int dimension) {
 }
 
 /** C implementation: cosine similarity */
-static float cosine_similarity_asm(float *vector_a, float *vector_b, int dimension) {
+static float cosine_similarity_asm(float *vector_a, float *vector_b,
+                                   int dimension) {
   float dot = 0.0f, norm_a = 0.0f, norm_b = 0.0f;
   for (int i = 0; i < dimension; i++) {
     dot += vector_a[i] * vector_b[i];
@@ -96,14 +97,16 @@ static void normalize_vector_asm(float *vector, int dimension) {
 }
 
 /** C implementation: add vectors */
-static void add_vectors_asm(float *vector_a, float *vector_b, float *result, int dimension) {
+static void add_vectors_asm(float *vector_a, float *vector_b, float *result,
+                            int dimension) {
   for (int i = 0; i < dimension; i++) {
     result[i] = vector_a[i] + vector_b[i];
   }
 }
 
 /** C implementation: generate embedding (placeholder - calls hash function) */
-static int generate_embedding_asm(const char *text, float *output, int dimension) {
+static int generate_embedding_asm(const char *text, float *output,
+                                  int dimension) {
   /* Simple hash-based implementation for C-only mode */
   size_t text_len = strlen(text);
   for (int i = 0; i < dimension; i++) {
@@ -111,7 +114,7 @@ static int generate_embedding_asm(const char *text, float *output, int dimension
     uint32_t hash = 2166136261u; /* FNV-1a offset basis */
     for (size_t j = 0; j < text_len; j++) {
       hash ^= (uint8_t)text[j];
-      hash *= 16777619u; /* FNV-1a prime */
+      hash *= 16777619u;         /* FNV-1a prime */
       hash ^= (uint32_t)(i + j); /* Position-dependent mixing */
     }
     /* Normalize to [-1, 1] range using sine */

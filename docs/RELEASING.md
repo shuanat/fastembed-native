@@ -140,16 +140,28 @@ mvn clean deploy -P release
 
 If you prefer to build artifacts manually:
 
+### Build Scripts
+
+FastEmbed provides platform-specific build scripts for manual building:
+
+- **Windows**: `scripts/build_windows.ps1` (PowerShell, enterprise-grade)
+- **Cross-platform**: `scripts/build_native.py` (Python, supports Linux/Windows/macOS)
+- **Linux/macOS**: `Makefile` (standard make-based build)
+
 ### Linux
 
 ```bash
+# Option 1: Using Makefile (recommended)
 cd bindings/shared
 make all
 
+# Option 2: Using Python script
+python scripts/build_native.py
+
 # Package artifacts
 mkdir -p artifacts/linux
-cp build/*.so artifacts/linux/
-cp build/*.a artifacts/linux/
+cp lib/*.so artifacts/linux/
+cp lib/*.a artifacts/linux/
 cp include/*.h artifacts/linux/
 cd artifacts
 tar -czf fastembed-linux-x64-v1.0.1.tar.gz linux/
@@ -158,32 +170,44 @@ tar -czf fastembed-linux-x64-v1.0.1.tar.gz linux/
 ### Windows
 
 ```powershell
-cd bindings\shared
-.\scripts\build_windows.bat
+# Build using PowerShell script (recommended)
+.\scripts\build_windows.ps1
 
 # Package artifacts
 New-Item -ItemType Directory -Force -Path artifacts\windows
-Copy-Item -Path build\*.dll -Destination artifacts\windows\
-Copy-Item -Path build\*.lib -Destination artifacts\windows\
-Copy-Item -Path include\*.h -Destination artifacts\windows\
+Copy-Item -Path bindings\shared\lib\* -Destination artifacts\windows\ -Include *.dll, *.lib
+Copy-Item -Path bindings\shared\include\*.h -Destination artifacts\windows\
 cd artifacts
 Compress-Archive -Path windows\* -DestinationPath fastembed-windows-x64-v1.0.1.zip
 ```
 
+**Note**: The PowerShell script (`build_windows.ps1`) has replaced the old batch script with:
+
+- Automatic Visual Studio Build Tools detection
+- Structured logging (INFO, SUCCESS, WARNING, ERROR, DEBUG)
+- ONNX Runtime integration
+- Standardized error messages
+
 ### macOS
 
 ```bash
+# Option 1: Using Makefile (recommended)
 cd bindings/shared
 make all
 
+# Option 2: Using Python script
+python scripts/build_native.py
+
 # Package artifacts
 mkdir -p artifacts/macos
-cp build/*.dylib artifacts/macos/
-cp build/*.a artifacts/macos/
+cp lib/*.dylib artifacts/macos/
+cp lib/*.a artifacts/macos/
 cp include/*.h artifacts/macos/
 cd artifacts
 tar -czf fastembed-macos-x64-v1.0.1.tar.gz macos/
 ```
+
+**macOS arm64 Note**: The build system automatically uses a C-only fallback for macOS arm64 (Apple Silicon) due to NASM architecture limitations. The Makefile detects arm64 and compiles with `-DUSE_ONLY_C` flag.
 
 ### Upload to GitHub Release (Manual)
 
@@ -314,6 +338,22 @@ git checkout -b hotfix/1.0.1-fix
   - Verify ONNX_VERSION env variable
   - Check ONNX Runtime releases page
   - Use local ONNX Runtime installation
+
+### "Build fails with 'NASM not found'" (Windows)
+
+- **Cause**: NASM assembler not installed or not in PATH
+- **Solution**:
+  - Install NASM: `choco install nasm` or download from <https://www.nasm.us/>
+  - Add to PATH: `C:\Program Files\NASM`
+  - Restart terminal
+
+### "Build fails with 'Visual Studio Build Tools not found'" (Windows)
+
+- **Cause**: MSVC compiler not installed
+- **Solution**:
+  - Install Visual Studio 2022 Build Tools
+  - Select "Desktop development with C++" workload
+  - Restart terminal
 
 ---
 
