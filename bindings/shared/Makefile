@@ -26,7 +26,7 @@ endif
 # Set platform-specific variables
 ifeq ($(UNAME_S),Linux)
     TARGET_LIB = fastembed.a
-    TARGET_DLL = fastembed.so
+    TARGET_DLL = libfastembed_native.so
     OBJ_EXT = .o
     BUILD_SHARED = yes
 endif
