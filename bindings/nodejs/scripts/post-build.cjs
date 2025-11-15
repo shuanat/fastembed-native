@@ -13,37 +13,37 @@ const platform = process.platform;
 
 if (platform === 'darwin') {
   console.log('[Post-Build] macOS detected - copying ONNX Runtime dylib...');
-  
+
   const projectRoot = path.resolve(__dirname, '../../..');
   const onnxLibDir = path.join(projectRoot, 'bindings/onnxruntime/lib');
   const buildDir = path.join(__dirname, '../build/Release');
-  
+
   // Find all dylib files in ONNX Runtime lib directory
   try {
     if (!fs.existsSync(onnxLibDir)) {
       console.log('[Post-Build] Warning: ONNX Runtime lib directory not found:', onnxLibDir);
       process.exit(0);
     }
-    
+
     const files = fs.readdirSync(onnxLibDir);
     const dylibFiles = files.filter(f => f.endsWith('.dylib'));
-    
+
     if (dylibFiles.length === 0) {
       console.log('[Post-Build] Warning: No dylib files found in:', onnxLibDir);
       process.exit(0);
     }
-    
+
     // Ensure build directory exists
     if (!fs.existsSync(buildDir)) {
       console.log('[Post-Build] Warning: Build directory not found:', buildDir);
       process.exit(0);
     }
-    
+
     // Copy each dylib file
     dylibFiles.forEach(file => {
       const src = path.join(onnxLibDir, file);
       const dest = path.join(buildDir, file);
-      
+
       try {
         fs.copyFileSync(src, dest);
         console.log('[Post-Build] ✓ Copied:', file);
@@ -51,7 +51,7 @@ if (platform === 'darwin') {
         console.error('[Post-Build] ✗ Failed to copy', file, ':', err.message);
       }
     });
-    
+
     console.log('[Post-Build] ✓ Post-build complete for macOS');
   } catch (err) {
     console.error('[Post-Build] Error:', err.message);
