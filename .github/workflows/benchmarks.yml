@@ -1,0 +1,282 @@
+# ============================================================================
+# Performance Benchmarks Workflow
+# ============================================================================
+#
+# Purpose:
+#   Run performance benchmarks across all platforms and language bindings
+#   to verify performance characteristics before release
+#
+# Trigger:
+#   - Manual trigger via workflow_dispatch
+#   - On release branches (release/*)
+#
+# Platforms:
+#   - Linux (x64) - Ubuntu latest
+#   - Windows (x64) - Windows latest
+#   - macOS (x64/arm64) - macOS latest
+#
+# ============================================================================
+
+name: Performance Benchmarks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [release/*]
+    paths:
+      - "bindings/**"
+      - "tests/benchmark*.c"
+      - ".github/workflows/benchmarks.yml"
+
+env:
+  ONNX_VERSION: "1.23.2"
+
+jobs:
+  benchmark-linux:
+    name: Benchmarks (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc make
+
+      - name: Build shared library
+        run: |
+          cd bindings/shared
+          make all
+          make shared
+
+      - name: Build C benchmark
+        run: |
+          cd tests
+          gcc -O2 -I../bindings/shared/include benchmark_improved.c \
+            -L../bindings/shared/build -lfastembed -lm -o benchmark
+          chmod +x benchmark
+
+      - name: Run C benchmark
+        run: |
+          cd tests
+          export LD_LIBRARY_PATH=../bindings/shared/build:$LD_LIBRARY_PATH
+          ./benchmark > benchmark_results_linux.txt 2>&1 || true
+          cat benchmark_results_linux.txt
+
+      - name: Build Node.js binding
+        run: |
+          cd bindings/nodejs
+          npm install
+          npm run build
+
+      - name: Run Node.js benchmark
+        run: |
+          cd bindings/nodejs
+          node benchmark.js > benchmark_nodejs_linux.txt 2>&1 || true
+          cat benchmark_nodejs_linux.txt
+
+      - name: Build Python binding
+        run: |
+          cd bindings/python
+          python3 -m pip install --upgrade pip
+          python3 setup.py build_ext --inplace
+
+      - name: Run Python benchmark
+        run: |
+          cd bindings/python
+          export LD_LIBRARY_PATH=../shared/build:$LD_LIBRARY_PATH
+          python3 benchmark.py > benchmark_python_linux.txt 2>&1 || true
+          cat benchmark_python_linux.txt
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-linux
+          path: |
+            tests/benchmark_results_linux.txt
+            bindings/nodejs/benchmark_nodejs_linux.txt
+            bindings/python/benchmark_python_linux.txt
+          retention-days: 30
+
+  benchmark-windows:
+    name: Benchmarks (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install NASM
+        run: |
+          choco install nasm -y
+
+      - name: Build shared library
+        run: |
+          cd bindings/shared
+          .\scripts\build_windows.ps1
+
+      - name: Build C benchmark
+        shell: pwsh
+        run: |
+          cd tests
+          cl /O2 /I..\bindings\shared\include benchmark_improved.c \
+            /link /LIBPATH:..\bindings\shared\build fastembed_native.lib /OUT:benchmark.exe
+          if ($LASTEXITCODE -ne 0) { Write-Output "Build failed, continuing..." }
+
+      - name: Run C benchmark
+        shell: pwsh
+        run: |
+          cd tests
+          $env:PATH = "..\bindings\shared\build;$env:PATH"
+          if (Test-Path "benchmark.exe") {
+            .\benchmark.exe > benchmark_results_windows.txt 2>&1
+            Get-Content benchmark_results_windows.txt
+          } else {
+            Write-Output "Benchmark executable not found, skipping..."
+          }
+
+      - name: Build Node.js binding
+        run: |
+          cd bindings/nodejs
+          npm install
+          npm run build
+
+      - name: Run Node.js benchmark
+        run: |
+          cd bindings/nodejs
+          node benchmark.js > benchmark_nodejs_windows.txt 2>&1 || echo "Benchmark failed"
+          type benchmark_nodejs_windows.txt
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-windows
+          path: |
+            tests/benchmark_results_windows.txt
+            bindings/nodejs/benchmark_nodejs_windows.txt
+          retention-days: 30
+
+  benchmark-macos:
+    name: Benchmarks (macOS)
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup architecture
+        run: |
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            echo "ARCH=arm64" >> $GITHUB_ENV
+            echo "Building for Apple Silicon (ARM64)"
+          else
+            echo "ARCH=x64" >> $GITHUB_ENV
+            echo "Building for Intel (x64)"
+          fi
+
+      - name: Install dependencies
+        run: |
+          brew install nasm || true
+
+      - name: Build shared library
+        run: |
+          cd bindings/shared
+          make all
+          make shared
+
+      - name: Build C benchmark
+        run: |
+          cd tests
+          gcc -O2 -I../bindings/shared/include benchmark_improved.c \
+            -L../bindings/shared/build -lfastembed -lm -o benchmark
+          chmod +x benchmark
+
+      - name: Run C benchmark
+        run: |
+          cd tests
+          export DYLD_LIBRARY_PATH=../bindings/shared/build:$DYLD_LIBRARY_PATH
+          ./benchmark > benchmark_results_macos_${{ matrix.arch }}.txt 2>&1 || true
+          cat benchmark_results_macos_${{ matrix.arch }}.txt
+
+      - name: Build Node.js binding
+        run: |
+          cd bindings/nodejs
+          npm install
+          npm run build
+
+      - name: Run Node.js benchmark
+        run: |
+          cd bindings/nodejs
+          node benchmark.js > benchmark_nodejs_macos_${{ matrix.arch }}.txt 2>&1 || true
+          cat benchmark_nodejs_macos_${{ matrix.arch }}.txt
+
+      - name: Build Python binding
+        run: |
+          cd bindings/python
+          python3 -m pip install --upgrade pip
+          python3 setup.py build_ext --inplace
+
+      - name: Run Python benchmark
+        run: |
+          cd bindings/python
+          export DYLD_LIBRARY_PATH=../shared/build:$DYLD_LIBRARY_PATH
+          python3 benchmark.py > benchmark_python_macos_${{ matrix.arch }}.txt 2>&1 || true
+          cat benchmark_python_macos_${{ matrix.arch }}.txt
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-macos-${{ matrix.arch }}
+          path: |
+            tests/benchmark_results_macos_${{ matrix.arch }}.txt
+            bindings/nodejs/benchmark_nodejs_macos_${{ matrix.arch }}.txt
+            bindings/python/benchmark_python_macos_${{ matrix.arch }}.txt
+          retention-days: 30
+
+  aggregate-results:
+    name: Aggregate Benchmark Results
+    needs: [benchmark-linux, benchmark-windows, benchmark-macos]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          path: benchmark-results
+
+      - name: Aggregate results
+        run: |
+          echo "# Benchmark Results - $(date +%Y-%m-%d)" > BENCHMARK_RESULTS_CI.md
+          echo "" >> BENCHMARK_RESULTS_CI.md
+          echo "## Linux x64" >> BENCHMARK_RESULTS_CI.md
+          echo '```' >> BENCHMARK_RESULTS_CI.md
+          cat benchmark-results/benchmark-results-linux/*.txt >> BENCHMARK_RESULTS_CI.md 2>/dev/null || echo "No results" >> BENCHMARK_RESULTS_CI.md
+          echo '```' >> BENCHMARK_RESULTS_CI.md
+          echo "" >> BENCHMARK_RESULTS_CI.md
+          echo "## Windows x64" >> BENCHMARK_RESULTS_CI.md
+          echo '```' >> BENCHMARK_RESULTS_CI.md
+          cat benchmark-results/benchmark-results-windows/*.txt >> BENCHMARK_RESULTS_CI.md 2>/dev/null || echo "No results" >> BENCHMARK_RESULTS_CI.md
+          echo '```' >> BENCHMARK_RESULTS_CI.md
+          echo "" >> BENCHMARK_RESULTS_CI.md
+          echo "## macOS x64" >> BENCHMARK_RESULTS_CI.md
+          echo '```' >> BENCHMARK_RESULTS_CI.md
+          cat benchmark-results/benchmark-results-macos-x64/*.txt >> BENCHMARK_RESULTS_CI.md 2>/dev/null || echo "No results" >> BENCHMARK_RESULTS_CI.md
+          echo '```' >> BENCHMARK_RESULTS_CI.md
+          echo "" >> BENCHMARK_RESULTS_CI.md
+          echo "## macOS ARM64 (Apple Silicon)" >> BENCHMARK_RESULTS_CI.md
+          echo '```' >> BENCHMARK_RESULTS_CI.md
+          cat benchmark-results/benchmark-results-macos-arm64/*.txt >> BENCHMARK_RESULTS_CI.md 2>/dev/null || echo "No results" >> BENCHMARK_RESULTS_CI.md
+          echo '```' >> BENCHMARK_RESULTS_CI.md
+          cat BENCHMARK_RESULTS_CI.md
+
+      - name: Upload aggregated results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-aggregated
+          path: BENCHMARK_RESULTS_CI.md
+          retention-days: 30
