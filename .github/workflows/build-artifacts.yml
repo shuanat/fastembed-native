@@ -363,7 +363,8 @@ jobs:
         run: |
           Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Building Python wheel"
           cd bindings/python
-          pip install build wheel pybind11 numpy
+          # Install build tools (pybind11, numpy declared in pyproject.toml)
+          pip install build wheel
           python -m build --wheel
           Write-Host "::notice::Python wheel built successfully"
         shell: powershell

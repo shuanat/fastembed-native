@@ -13,6 +13,16 @@ bindings/csharp/bin/
 bindings/csharp/obj/
 bindings/java/target/
 
+# ONNX Runtime (downloaded in container)
+bindings/onnxruntime*/
+bindings/*.tgz
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
 # IDE
 .vscode/
 .idea/

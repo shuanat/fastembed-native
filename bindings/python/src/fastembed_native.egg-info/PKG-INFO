@@ -1,0 +1,93 @@
+Metadata-Version: 2.4
+Name: fastembed-native
+Version: 1.0.1
+Summary: Ultra-fast native embedding library with SIMD optimizations
+Home-page: https://github.com/shuanat/fastembed-native
+Author: FastEmbed Team
+License: AGPL-3.0
+Project-URL: Homepage, https://github.com/shuanat/fastembed-native
+Keywords: embeddings,vector,simd,machine-learning
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: C++
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.20.0
+Requires-Dist: pybind11>=2.10.0
+Dynamic: home-page
+Dynamic: requires-python
+
+# FastEmbed Python Binding
+
+Native Python extension using pybind11 for ultra-fast embeddings and vector operations.
+
+## Installation
+
+```bash
+pip install .
+```
+
+Or for development:
+
+```bash
+python setup.py build_ext --inplace
+```
+
+## Usage
+
+```python
+import numpy as np
+from fastembed_native import FastEmbedNative
+
+client = FastEmbedNative(dimension=256)
+
+# Generate embedding
+embedding = client.generate_embedding("Hello, world!")
+
+# Vector operations
+similarity = client.cosine_similarity(vec1, vec2)
+norm = client.vector_norm(embedding)
+normalized = client.normalize_vector(embedding)
+```
+
+## API
+
+See main [FastEmbed README](../../README.md) for full API documentation.
+
+## Building
+
+### Prerequisites
+
+- Python 3.6+
+- pybind11
+- NASM (for assembly)
+- C++ compiler (MSVC on Windows, GCC/Clang on Linux/macOS)
+
+### Build Commands
+
+```bash
+pip install pybind11 numpy
+python setup.py build_ext --inplace  # Build in-place
+python setup.py install               # Install system-wide
+```
+
+## Performance
+
+**ONNX Runtime Performance** (Nov 2025):
+
+- ONNX embeddings: **28.6-123.0 ms** (8-35 emb/s depending on text length)
+  - Short text (108 chars): **28.6 ms** (35 emb/s)
+  - Medium text (460 chars): **51.9 ms** (19 emb/s)
+  - Long text (1574 chars): **123.0 ms** (8 emb/s)
+- Hash-based embeddings: **~0.01-0.1 ms** (~27,000 emb/s average)
+- Vector operations: **Sub-microsecond** latency
+
+See [BENCHMARK_RESULTS.md](../../BENCHMARK_RESULTS.md) for complete benchmark data.

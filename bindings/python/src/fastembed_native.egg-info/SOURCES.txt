@@ -1,0 +1,10 @@
+README.md
+pyproject.toml
+setup.py
+src/__init__.py
+src/fastembed_native.egg-info/PKG-INFO
+src/fastembed_native.egg-info/SOURCES.txt
+src/fastembed_native.egg-info/dependency_links.txt
+src/fastembed_native.egg-info/not-zip-safe
+src/fastembed_native.egg-info/requires.txt
+src/fastembed_native.egg-info/top_level.txt
