@@ -348,12 +348,12 @@ jobs:
         run: |
           cd bindings/csharp
           # Verify native library exists
-          if ! ls ../shared/lib/libfastembed.dylib 1> /dev/null 2>&1; then
-            echo "::error::libfastembed.dylib not found in ../shared/lib/"
+          if ! ls ../shared/lib/libfastembed_native.dylib 1> /dev/null 2>&1; then
+            echo "::error::libfastembed_native.dylib not found in ../shared/lib/"
             ls -la ../shared/lib/ || echo "lib directory doesn't exist"
             exit 1
           fi
-          echo "✅ Native library found: $(ls -lh ../shared/lib/libfastembed.dylib)"
+          echo "✅ Native library found: $(ls -lh ../shared/lib/libfastembed_native.dylib)"
           dotnet build src/FastEmbed.csproj
           cd tests
           dotnet test
@@ -417,12 +417,12 @@ jobs:
         run: |
           cd bindings/csharp
           # Verify native library exists
-          if ! ls ../shared/lib/libfastembed.dylib 1> /dev/null 2>&1; then
-            echo "::error::libfastembed.dylib not found in ../shared/lib/"
+          if ! ls ../shared/lib/libfastembed_native.dylib 1> /dev/null 2>&1; then
+            echo "::error::libfastembed_native.dylib not found in ../shared/lib/"
             ls -la ../shared/lib/ || echo "lib directory doesn't exist"
             exit 1
           fi
-          echo "✅ Native library found: $(ls -lh ../shared/lib/libfastembed.dylib)"
+          echo "✅ Native library found: $(ls -lh ../shared/lib/libfastembed_native.dylib)"
           dotnet build src/FastEmbed.csproj
           cd tests
           dotnet test
