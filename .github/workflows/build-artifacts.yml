@@ -288,14 +288,29 @@ jobs:
         run: |
           Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Validating Windows build artifacts"
 
-          # Check DLL exists
+          # Debug: Show current directory and build directory contents
+          Write-Host "::notice::Current directory: $(Get-Location)"
+          Write-Host "::notice::Build directory contents:"
+          if (Test-Path "bindings\shared\build") {
+            Get-ChildItem -Path "bindings\shared\build\" -ErrorAction SilentlyContinue | Select-Object Name, Length, FullName | Format-Table
+          } else {
+            Write-Host "::warning::Build directory does not exist: bindings\shared\build"
+          }
+
+          # Check DLL exists (try both fastembed_native.dll and *.dll pattern)
           $dllFiles = Get-ChildItem -Path "bindings\shared\build\*.dll" -ErrorAction SilentlyContinue
           if (-not $dllFiles) {
-            Write-Host "::error::Windows DLL not found"
-            Write-Host "::error::Expected: bindings\shared\build\*.dll"
-            Write-Host "::error::Found files:"
-            Get-ChildItem -Path "bindings\shared\build\" -ErrorAction SilentlyContinue | Select-Object Name, Length
-            exit 1
+            # Try specific name
+            if (Test-Path "bindings\shared\build\fastembed_native.dll") {
+              Write-Host "::notice::Found DLL: bindings\shared\build\fastembed_native.dll"
+              $dllFiles = Get-Item "bindings\shared\build\fastembed_native.dll"
+            } else {
+              Write-Host "::error::Windows DLL not found"
+              Write-Host "::error::Expected: bindings\shared\build\fastembed_native.dll or bindings\shared\build\*.dll"
+              Write-Host "::error::Found files:"
+              Get-ChildItem -Path "bindings\shared\build\" -ErrorAction SilentlyContinue | Select-Object Name, Length
+              exit 1
+            }
           }
 
           # Check LIB exists
@@ -468,11 +483,19 @@ jobs:
           ARCH=$(uname -m)
           if [ "$ARCH" = "arm64" ]; then
             export CC="clang -arch arm64"
+            export CXX="clang++ -arch arm64"
             export NASM_FLAGS="-f macho64"
+            export ARCH_FLAGS="-arch arm64"
           else
             export CC="clang -arch x86_64"
+            export CXX="clang++ -arch x86_64"
             export NASM_FLAGS="-f macho64"
+            export ARCH_FLAGS="-arch x86_64"
           fi
+          # Verify architecture consistency
+          echo "::notice::Architecture: $ARCH"
+          echo "::notice::CC: $CC"
+          echo "::notice::NASM_FLAGS: $NASM_FLAGS"
           make clean || true
           make all
           make shared

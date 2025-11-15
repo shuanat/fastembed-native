@@ -74,7 +74,9 @@ fastembed.a: $(BUILD_DIR)/$(TARGET_LIB)
 
 # Build static library
 $(BUILD_DIR)/$(TARGET_LIB): $(OBJECTS)
+	@rm -f $(BUILD_DIR)/$(TARGET_LIB)
 	$(AR) rcs $(BUILD_DIR)/$(TARGET_LIB) $(OBJECTS)
+	@if command -v ranlib >/dev/null 2>&1; then ranlib $(BUILD_DIR)/$(TARGET_LIB); fi
 	@echo "Built: $(BUILD_DIR)/$(TARGET_LIB)"
 
 # Build shared library (optional)
@@ -163,6 +165,7 @@ $(BUILD_DIR)/onnx_embedding_loader.o: $(SRC_DIR)/onnx_embedding_loader.c
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -f $(SRC_DIR)/*.o $(SRC_DIR)/*.obj test_basic test_basic.exe
+	@if [ -d "$(BUILD_DIR)" ]; then rm -rf $(BUILD_DIR); fi
 	rm -f test_hash_functions test_hash_functions.exe
 	rm -f test_embedding_generation test_embedding_generation.exe
 	rm -f test_quality_improvement test_quality_improvement.exe

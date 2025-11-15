@@ -10,7 +10,7 @@
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
         "../shared/include",
-        "../../onnxruntime/include"
+        "../../bindings/onnxruntime/include"
       ],
       "defines": ["NAPI_DISABLE_CPP_EXCEPTIONS", "USE_ONNX_RUNTIME"],
       "conditions": [
@@ -20,7 +20,7 @@
             "../shared/src/embedding_generator.asm"
           ],
               "libraries": [
-                "<!@(node -p \"require('path').resolve(process.cwd(),'..','..','onnxruntime','lib','onnxruntime.lib').replace(/\\\\/g,'/')\")"
+                "<!@(node -p \"require('path').resolve(process.cwd(),'..','..','bindings','onnxruntime','lib','onnxruntime.lib').replace(/\\\\/g,'/')\")"
               ],
           "msvs_settings": {
             "VCCLCompilerTool": {
@@ -53,8 +53,8 @@
           ],
           "cflags": ["-fPIC"],
           "cflags_cc": ["-fPIC", "-std=c++17"],
-          "libraries": ["-lm", "-L<(module_root_dir)/../onnxruntime/lib", "-lonnxruntime"],
-          "ldflags": ["-Wl,-rpath,<(module_root_dir)/../onnxruntime/lib"],
+          "libraries": ["-lm", "-L<(module_root_dir)/../../bindings/onnxruntime/lib", "-lonnxruntime"],
+          "ldflags": ["-Wl,-rpath,<(module_root_dir)/../../bindings/onnxruntime/lib"],
           "rules": [
             {
               "rule_name": "asm_to_o",
@@ -81,8 +81,8 @@
           ],
           "cflags": ["-fPIC"],
           "cflags_cc": ["-fPIC", "-std=c++17"],
-          "libraries": ["-lm", "-L<(module_root_dir)/../onnxruntime/lib", "-lonnxruntime"],
-          "ldflags": ["-Wl,-rpath,<(module_root_dir)/../onnxruntime/lib"],
+          "libraries": ["-lm", "-L<(module_root_dir)/../../bindings/onnxruntime/lib", "-lonnxruntime"],
+          "ldflags": ["-Wl,-rpath,<(module_root_dir)/../../bindings/onnxruntime/lib"],
           "rules": [
             {
               "rule_name": "asm_to_o",
