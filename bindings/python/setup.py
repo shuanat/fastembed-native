@@ -128,13 +128,13 @@ class CMakeBuild(build_ext):
             extra_objects = [obj for _, obj in asm_files]
             
             extra_compile_args = [
-                "-std=c++17",
                 "-O3",
                 "-fPIC",
-                "-march=native",
-                "-DUSE_ONNX_RUNTIME"
+                "-march=native"
             ]
-            # Note: C files will show warning about -std=c++17, but compile correctly
+            
+            if use_onnx:
+                extra_compile_args.append("-DUSE_ONNX_RUNTIME")
             
             # ONNX Runtime library
             onnx_lib_path = os.path.normpath(os.path.join(os.getcwd(), "..", "onnxruntime", "lib"))
@@ -165,10 +165,13 @@ class CMakeBuild(build_ext):
         for ext in self.extensions:
             ext.sources = sources
             ext.include_dirs = include_dirs
-            ext.extra_compile_args = extra_compile_args
             ext.extra_link_args = extra_link_args
             ext.extra_objects = extra_objects
             ext.language = "c++"
+            
+            # Set compile args per source file to avoid C++17 flag on C files
+            # setuptools will handle this automatically based on file extension
+            ext.extra_compile_args = extra_compile_args
         
         # Build using parent class
         build_ext.build_extensions(self)
