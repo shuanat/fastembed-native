@@ -53,7 +53,15 @@ See CHANGELOG.md for full details."
 git push origin v1.0.1
 ```
 
-**Note**: Pushing the tag automatically triggers the `build-artifacts.yml` workflow!
+**Note**: Pushing the tag automatically triggers the `build-artifacts.yml` workflow, which builds:
+
+- Native libraries (`.so`, `.dll`, `.dylib`, `.a`)
+- Node.js package (`.tgz`)
+- Python wheel (`.whl`)
+- C# NuGet package (`.nupkg`)
+- Java JAR (`.jar`)
+
+All artifacts are packaged into platform-specific archives and attached to the GitHub Release.
 
 ### 3. Monitor GitHub Actions
 
@@ -70,9 +78,9 @@ git push origin v1.0.1
 1. Go to: `https://github.com/YOUR_USERNAME/FastEmbed/releases`
 2. Verify release `v1.0.1` was created
 3. Check artifacts are attached:
-   - `fastembed-linux-x64-v1.0.1.tar.gz`
-   - `fastembed-windows-x64-v1.0.1.zip`
-   - `fastembed-macos-x64-v1.0.1.tar.gz`
+   - `fastembed-linux-x64-v1.0.1.tar.gz` (includes native libs + Node.js + Python + C# + Java)
+   - `fastembed-windows-x64-v1.0.1.zip` (includes native libs + Node.js + Python + C# + Java)
+   - `fastembed-macos-x64-v1.0.1.tar.gz` (includes native libs + Node.js + Python + C# + Java)
 
 ### 5. Publish to Package Registries
 

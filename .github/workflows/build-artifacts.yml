@@ -3,8 +3,8 @@
 # ============================================================================
 #
 # Purpose:
-#   Build cross-platform native libraries for FastEmbed releases
-#   Creates GitHub Release with artifacts for Linux, Windows, and macOS
+#   Build cross-platform native libraries and language bindings for FastEmbed releases
+#   Creates GitHub Release with all artifacts (native libs + Node.js + Python + C# + Java)
 #
 # Trigger:
 #   - Push of version tag (v*.*.*) - e.g., v1.0.1
@@ -21,14 +21,15 @@
 #   3. Download ONNX Runtime 1.23.2
 #   4. Build shared native library (C/Assembly)
 #   5. Validate build artifacts
-#   6. Package artifacts (tar.gz for Linux/macOS, zip for Windows)
-#   7. Create GitHub Release with artifacts
+#   6. Build language bindings (Node.js, Python, C#, Java)
+#   7. Package all artifacts (tar.gz for Linux/macOS, zip for Windows)
+#   8. Create GitHub Release with all artifacts
 #
 # Expected Build Times:
-#   - Linux: ~3-5 minutes
-#   - Windows: ~5-8 minutes
-#   - macOS: ~4-6 minutes
-#   - Total: ~12-19 minutes
+#   - Linux: ~10-15 minutes (includes all bindings)
+#   - Windows: ~15-20 minutes (includes all bindings)
+#   - macOS: ~12-18 minutes (includes all bindings)
+#   - Total: ~37-53 minutes
 #
 # Troubleshooting:
 #   - Build failures: Check compiler version, NASM version (>= 2.14)
@@ -83,15 +84,15 @@ jobs:
           echo "::notice::Platform: Linux (Ubuntu)"
           echo "::notice::Compiler: $(gcc --version | head -n1)"
           echo "::notice::NASM: $(nasm --version | head -n1)"
-          
+
           cd bindings/shared
           make all
           make shared
-          
+
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
           echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Build completed in ${DURATION} seconds"
-          
+
           if [ $DURATION -gt 600 ]; then
             echo "::warning::Build time (${DURATION}s) exceeds expected threshold (600s)"
           fi
@@ -137,13 +138,73 @@ jobs:
 
           echo "::notice::All Linux artifacts validated successfully"
 
-      - name: Package Linux artifacts
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build Node.js binding
         run: |
-          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Packaging Linux artifacts"
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Node.js binding"
+          cd bindings/nodejs
+          npm install
+          npm run build
+          npm pack
+          echo "::notice::Node.js package built successfully"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Python wheel
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Python wheel"
+          cd bindings/python
+          pip install build wheel pybind11 numpy
+          python -m build --wheel
+          echo "::notice::Python wheel built successfully"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build C# NuGet
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building C# NuGet package"
+          cd bindings/csharp
+          dotnet pack src/FastEmbed.csproj -c Release -o nupkg
+          echo "::notice::C# NuGet package built successfully"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Build Java JAR
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Java JAR"
+          cd bindings/java/java
+          if [ -f "build_jni_linux.sh" ]; then
+            chmod +x build_jni_linux.sh
+            bash build_jni_linux.sh
+          fi
+          mvn clean package
+          echo "::notice::Java JAR built successfully"
+
+      - name: Package all Linux artifacts
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Packaging all Linux artifacts"
           mkdir -p artifacts/linux
           cp bindings/shared/build/*.so artifacts/linux/ || true
           cp bindings/shared/build/*.a artifacts/linux/ || true
           cp bindings/shared/include/*.h artifacts/linux/
+          cp bindings/nodejs/*.tgz artifacts/linux/ 2>/dev/null || true
+          cp bindings/python/dist/*.whl artifacts/linux/ 2>/dev/null || true
+          cp bindings/csharp/nupkg/*.nupkg artifacts/linux/ 2>/dev/null || true
+          cp bindings/java/java/target/*.jar artifacts/linux/ 2>/dev/null || true
           cd artifacts
           tar -czf fastembed-linux-x64-${{ github.ref_name }}.tar.gz linux/
 
@@ -263,13 +324,76 @@ jobs:
           Write-Host "::notice::All Windows artifacts validated successfully"
         shell: powershell
 
-      - name: Package Windows artifacts
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build Node.js binding
         run: |
-          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Packaging Windows artifacts"
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Building Node.js binding"
+          cd bindings/nodejs
+          npm install
+          npm run build
+          npm pack
+          Write-Host "::notice::Node.js package built successfully"
+        shell: powershell
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Python wheel
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Building Python wheel"
+          cd bindings/python
+          pip install build wheel pybind11 numpy
+          python -m build --wheel
+          Write-Host "::notice::Python wheel built successfully"
+        shell: powershell
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build C# NuGet
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Building C# NuGet package"
+          cd bindings/csharp
+          dotnet pack src/FastEmbed.csproj -c Release -o nupkg
+          Write-Host "::notice::C# NuGet package built successfully"
+        shell: powershell
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Build Java JAR
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Building Java JAR"
+          cd bindings/java/java
+          if (Test-Path "build_jni.bat") {
+            .\build_jni.bat
+          }
+          mvn clean package
+          Write-Host "::notice::Java JAR built successfully"
+        shell: powershell
+
+      - name: Package all Windows artifacts
+        run: |
+          Write-Host "::notice::[$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')] Packaging all Windows artifacts"
           New-Item -ItemType Directory -Force -Path artifacts\windows
           Copy-Item -Path bindings\shared\build\*.dll -Destination artifacts\windows\ -ErrorAction SilentlyContinue
           Copy-Item -Path bindings\shared\build\*.lib -Destination artifacts\windows\ -ErrorAction SilentlyContinue
           Copy-Item -Path bindings\shared\include\*.h -Destination artifacts\windows\
+          Copy-Item -Path bindings\nodejs\*.tgz -Destination artifacts\windows\ -ErrorAction SilentlyContinue
+          Copy-Item -Path bindings\python\dist\*.whl -Destination artifacts\windows\ -ErrorAction SilentlyContinue
+          Copy-Item -Path bindings\csharp\nupkg\*.nupkg -Destination artifacts\windows\ -ErrorAction SilentlyContinue
+          Copy-Item -Path bindings\java\java\target\*.jar -Destination artifacts\windows\ -ErrorAction SilentlyContinue
           cd artifacts
           Compress-Archive -Path windows\* -DestinationPath fastembed-windows-x64-${{ github.ref_name }}.zip
 
@@ -320,9 +444,16 @@ jobs:
       - name: Setup ONNX Runtime
         run: |
           cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }}.tgz
-          tar -xzf onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }}.tgz
-          mv onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }} onnxruntime
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-arm64-${{ env.ONNX_VERSION }}.tgz
+            tar -xzf onnxruntime-osx-arm64-${{ env.ONNX_VERSION }}.tgz
+            mv onnxruntime-osx-arm64-${{ env.ONNX_VERSION }} onnxruntime
+          else
+            wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }}.tgz
+            tar -xzf onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }}.tgz
+            mv onnxruntime-osx-x86_64-${{ env.ONNX_VERSION }} onnxruntime
+          fi
 
       - name: Build shared library
         run: |
@@ -331,7 +462,7 @@ jobs:
           echo "::notice::Platform: macOS ($(uname -m))"
           echo "::notice::Compiler: $(clang --version | head -n1)"
           echo "::notice::NASM: $(nasm --version | head -n1)"
-          
+
           cd bindings/shared
           # Ensure all files are compiled for the same architecture
           ARCH=$(uname -m)
@@ -345,11 +476,11 @@ jobs:
           make clean || true
           make all
           make shared
-          
+
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
           echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Build completed in ${DURATION} seconds"
-          
+
           if [ $DURATION -gt 600 ]; then
             echo "::warning::Build time (${DURATION}s) exceeds expected threshold (600s)"
           fi
@@ -395,13 +526,73 @@ jobs:
 
           echo "::notice::All macOS artifacts validated successfully"
 
-      - name: Package macOS artifacts
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build Node.js binding
         run: |
-          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Packaging macOS artifacts"
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Node.js binding"
+          cd bindings/nodejs
+          npm install
+          npm run build
+          npm pack
+          echo "::notice::Node.js package built successfully"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Python wheel
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Python wheel"
+          cd bindings/python
+          pip install build wheel pybind11 numpy
+          python -m build --wheel
+          echo "::notice::Python wheel built successfully"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build C# NuGet
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building C# NuGet package"
+          cd bindings/csharp
+          dotnet pack src/FastEmbed.csproj -c Release -o nupkg
+          echo "::notice::C# NuGet package built successfully"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Build Java JAR
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Java JAR"
+          cd bindings/java/java
+          if [ -f "build_jni_linux.sh" ]; then
+            chmod +x build_jni_linux.sh
+            bash build_jni_linux.sh
+          fi
+          mvn clean package
+          echo "::notice::Java JAR built successfully"
+
+      - name: Package all macOS artifacts
+        run: |
+          echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Packaging all macOS artifacts"
           mkdir -p artifacts/macos
           cp bindings/shared/build/*.dylib artifacts/macos/ || true
           cp bindings/shared/build/*.a artifacts/macos/ || true
           cp bindings/shared/include/*.h artifacts/macos/
+          cp bindings/nodejs/*.tgz artifacts/macos/ 2>/dev/null || true
+          cp bindings/python/dist/*.whl artifacts/macos/ 2>/dev/null || true
+          cp bindings/csharp/nupkg/*.nupkg artifacts/macos/ 2>/dev/null || true
+          cp bindings/java/java/target/*.jar artifacts/macos/ 2>/dev/null || true
           cd artifacts
           tar -czf fastembed-macos-x64-${{ github.ref_name }}.tar.gz macos/
 
