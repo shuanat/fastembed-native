@@ -422,6 +422,7 @@ jobs:
 
   test-macos:
     name: Test on macOS
+    needs: build-shared-linux
     runs-on: macos-latest
 
     steps:
