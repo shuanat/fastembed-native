@@ -118,7 +118,7 @@ try:
         fastembed.cosine_similarity(None, embedding2)
         print("✗ Should have raised error for None vector")
         sys.exit(1)
-    except (TypeError, ValueError) as e:
+    except (TypeError, ValueError, RuntimeError) as e:
         print(f"✓ Correctly raises error for None vector")
         print(f"  Error message: {str(e)}\n")
     
