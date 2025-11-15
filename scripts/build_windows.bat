@@ -54,7 +54,7 @@ exit /b 1
 :found_root
 REM Change to repository root
 cd /d "!REPO_ROOT!"
-if !errorlevel! neq 0 (
+if errorlevel 1 (
     echo [ERROR] Failed to change to repository root directory
     echo [ERROR] Path: !REPO_ROOT!
     exit /b 1
@@ -85,7 +85,7 @@ REM ============================================================================
 
 REM First, check if cl.exe is already available in PATH
 where cl >nul 2>&1
-if !errorlevel! equ 0 (
+if not errorlevel 1 (
     echo [INFO] MSVC compiler found in PATH
     echo [INFO] Using existing Visual Studio environment
     goto :vs_ready
@@ -114,9 +114,9 @@ if defined VSWHERE_PATH (
         if exist "!VS_VCVARS!" (
             echo [INFO] Setting up Visual Studio environment from: !VS_PATH!
             call "!VS_VCVARS!" >nul 2>&1
-            if !errorlevel! equ 0 (
+            if not errorlevel 1 (
                 where cl >nul 2>&1
-                if !errorlevel! equ 0 (
+                if not errorlevel 1 (
                     echo [INFO] MSVC compiler configured successfully
                     goto :vs_ready
                 )
@@ -138,9 +138,9 @@ if defined MSBUILD (
         if exist "!VS_VCVARS!" (
             echo [INFO] Found Visual Studio via MSBuild path: !VS_PATH!
             call "!VS_VCVARS!" >nul 2>&1
-            if !errorlevel! equ 0 (
+            if not errorlevel 1 (
                 where cl >nul 2>&1
-                if !errorlevel! equ 0 (
+                if not errorlevel 1 (
                     echo [INFO] MSVC compiler configured successfully
                     goto :vs_ready
                 )
@@ -157,7 +157,7 @@ if defined VCToolsInstallDir (
         set "PATH=!VCToolsInstallDir!\bin\Hostx64\x64;!PATH!"
         echo [INFO] Added VCToolsInstallDir to PATH
         where cl >nul 2>&1
-        if !errorlevel! equ 0 (
+        if not errorlevel 1 (
             echo [INFO] MSVC compiler found via VCToolsInstallDir
             goto :vs_ready
         )
@@ -181,9 +181,9 @@ for /L %%I in (0,1,6) do (
         if exist "!VS_VCVARS!" (
             echo [INFO] Found Visual Studio at: !VS_PATH!
             call "!VS_VCVARS!" >nul 2>&1
-            if !errorlevel! equ 0 (
+            if not errorlevel 1 (
                 where cl >nul 2>&1
-                if !errorlevel! equ 0 (
+                if not errorlevel 1 (
                     echo [INFO] MSVC compiler configured successfully
                     goto :vs_ready
                 )
@@ -268,7 +268,7 @@ REM Create build directory
 if not exist "!BUILD_DIR!" (
     echo [INFO] Creating build directory...
     mkdir "!BUILD_DIR!"
-    if !errorlevel! neq 0 (
+    if errorlevel 1 (
         echo [ERROR] Failed to create build directory: !BUILD_DIR!
         exit /b 1
     )
@@ -281,7 +281,7 @@ echo ========================================
 
 echo [INFO] Compiling embedding_lib.asm...
 "!NASM_EXE!" -f win64 "!SRC_DIR!\embedding_lib.asm" -o "!BUILD_DIR!\embedding_lib.obj"
-if !errorlevel! neq 0 (
+if errorlevel 1 (
     echo [ERROR] Failed to compile embedding_lib.asm
     echo [ERROR] Command: "!NASM_EXE!" -f win64 "!SRC_DIR!\embedding_lib.asm" -o "!BUILD_DIR!\embedding_lib.obj"
     exit /b 1
@@ -289,7 +289,7 @@ if !errorlevel! neq 0 (
 
 echo [INFO] Compiling embedding_generator.asm...
 "!NASM_EXE!" -f win64 "!SRC_DIR!\embedding_generator.asm" -o "!BUILD_DIR!\embedding_generator.obj"
-if !errorlevel! neq 0 (
+if errorlevel 1 (
     echo [ERROR] Failed to compile embedding_generator.asm
     echo [ERROR] Command: "!NASM_EXE!" -f win64 "!SRC_DIR!\embedding_generator.asm" -o "!BUILD_DIR!\embedding_generator.obj"
     exit /b 1
@@ -317,7 +317,7 @@ if "!USE_ONNX!"=="1" (
 ) else (
     cl /O2 /W3 /c /I"!INC_DIR!" /DFASTEMBED_BUILDING_LIB "!SRC_DIR!\embedding_lib_c.c" /Fo:"!BUILD_DIR!\embedding_lib_c.obj" >nul 2>&1
 )
-if !errorlevel! neq 0 (
+if errorlevel 1 (
     echo [ERROR] Failed to compile embedding_lib_c.c
     echo [ERROR] Running with verbose output...
     if "!USE_ONNX!"=="1" (
@@ -332,7 +332,7 @@ REM Compile ONNX loader if ONNX Runtime is available
 if "!USE_ONNX!"=="1" (
     echo [INFO] Compiling onnx_embedding_loader.c with ONNX Runtime support...
     cl /O2 /W3 /c /I"!INC_DIR!" /I"!ONNX_INCLUDE!" /DUSE_ONNX_RUNTIME /DFASTEMBED_BUILDING_LIB "!SRC_DIR!\onnx_embedding_loader.c" /Fo:"!BUILD_DIR!\onnx_embedding_loader.obj" >nul 2>&1
-    if !errorlevel! neq 0 (
+    if errorlevel 1 (
         echo [WARN] Failed to compile onnx_embedding_loader.c - ONNX support disabled
         set "USE_ONNX=0"
     ) else (
@@ -365,7 +365,7 @@ if exist "!DEF_FILE!" (
     echo [WARN] DEF file not found, linking without exports
     link /DLL /OUT:"!BUILD_DIR!\fastembed_native.dll" !LINK_OBJS! !LINK_LIBPATHS! !LINK_LIBS! >nul 2>&1
 )
-if !errorlevel! neq 0 (
+if errorlevel 1 (
     echo [ERROR] Failed to link DLL
     echo [ERROR] Running with verbose output...
     if exist "!DEF_FILE!" (
@@ -380,7 +380,7 @@ REM Copy ONNX Runtime DLL to build directory if available
 if "!USE_ONNX!"=="1" (
     if exist "!ONNX_LIB!\onnxruntime.dll" (
         copy /Y "!ONNX_LIB!\onnxruntime.dll" "!BUILD_DIR!\" >nul 2>&1
-        if !errorlevel! equ 0 (
+        if not errorlevel 1 (
             echo [INFO] Copied ONNX Runtime DLL to build directory
         ) else (
             echo [WARN] Failed to copy ONNX Runtime DLL (non-critical)
