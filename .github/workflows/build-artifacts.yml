@@ -646,7 +646,11 @@ jobs:
         run: |
           echo "::notice::[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Building Java JAR"
           cd bindings/java/java
-          if [ -f "build_jni_linux.sh" ]; then
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ] && [ -f "build_jni_macos.sh" ]; then
+            chmod +x build_jni_macos.sh
+            bash build_jni_macos.sh
+          elif [ -f "build_jni_linux.sh" ]; then
             chmod +x build_jni_linux.sh
             bash build_jni_linux.sh
           fi

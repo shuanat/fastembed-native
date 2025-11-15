@@ -233,16 +233,17 @@ static napi_value GenerateOnnxEmbedding(napi_env env, napi_callback_info info) {
       error_message = error_buffer;
     }
 
-    free(model_path);
-    free(text);
-    free(output);
-
-    // Create detailed error message with diagnostic info
+    // Create detailed error message with diagnostic info BEFORE freeing memory
     char detailed_error[1024];
     snprintf(detailed_error, sizeof(detailed_error),
              "Failed to generate ONNX embedding: %s (model_path: %s, "
              "text_length: %zu, dimension: %d)",
              error_message, model_path, strlen(text), dimension);
+
+    // Free memory AFTER using pointers in snprintf
+    free(model_path);
+    free(text);
+    free(output);
 
     napi_throw_error(env, nullptr, detailed_error);
     return nullptr;
