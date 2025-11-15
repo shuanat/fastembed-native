@@ -269,7 +269,7 @@ jobs:
           echo ::notice::Compiler: MSVC (Visual Studio Build Tools)
 
           REM Verify we're in repository root
-          if not exist "bindings\shared\src\embedding_lib.asm" (
+          if not exist bindings\shared\src\embedding_lib.asm (
             echo ::error::Repository structure not found. Expected bindings\shared\src\embedding_lib.asm
             echo ::error::Current directory: %CD%
             exit /b 1
@@ -482,25 +482,16 @@ jobs:
           # Ensure all files are compiled for the same architecture
           ARCH=$(uname -m)
 
-          # Check if running under Rosetta emulation
+          # CRITICAL FIX: Build shared library only (skip static library for macOS)
+          # Static library has architecture mismatch issues on Apple Silicon
+          echo "::notice::Building shared library only for macOS"
+
           if [ "$ARCH" = "arm64" ]; then
-            # Check if process is running under Rosetta
-            if [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = "1" ]; then
-              echo "::warning::Running under Rosetta emulation, forcing native arm64 execution"
-            fi
-            
             export CC="clang -arch arm64"
             export CXX="clang++ -arch arm64"
+            export NASM="arch -arm64 nasm"
+            export NASM_FLAGS="-f macho64"
             export ARCH_FLAGS="-arch arm64"
-            
-            # CRITICAL FIX: Skip assembly for macOS arm64
-            # NASM with -f macho64 produces x86_64 by default on Apple Silicon
-            # Build only C code for macOS to avoid architecture mismatch
-            echo "::notice::Skipping assembly compilation for macOS arm64"
-            echo "::notice::Building with C-only implementation"
-            
-            # Use only C implementation for macOS
-            export USE_ONLY_C=1
           else
             export CC="clang -arch x86_64"
             export CXX="clang++ -arch x86_64"
@@ -520,8 +511,7 @@ jobs:
           rm -rf build
           mkdir -p build
 
-          # Build with architecture-consistent tools
-          make all
+          # Build ONLY shared library (skip static library to avoid architecture issues)
           make shared
 
           END_TIME=$(date +%s)
