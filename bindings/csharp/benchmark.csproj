@@ -23,8 +23,12 @@
   </ItemGroup>
   
   <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+    <!-- Linux -->
     <None Include="../../shared/lib/libfastembed.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/lib/libfastembed.so')" />
     <None Include="../../onnxruntime/lib/libonnxruntime.so" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/libonnxruntime.so')" />
+    <!-- macOS -->
+    <None Include="../../shared/lib/libfastembed.dylib" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../shared/lib/libfastembed.dylib')" />
+    <None Include="../../onnxruntime/lib/libonnxruntime.dylib" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../onnxruntime/lib/libonnxruntime.dylib')" />
   </ItemGroup>
 
 </Project>

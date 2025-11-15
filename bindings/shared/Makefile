@@ -32,7 +32,7 @@ ifeq ($(UNAME_S),Linux)
 endif
 ifeq ($(UNAME_S),Darwin)
     TARGET_LIB = fastembed.a
-    TARGET_DLL = fastembed.dylib
+    TARGET_DLL = libfastembed.dylib
     OBJ_EXT = .o
     BUILD_SHARED = yes
 endif
