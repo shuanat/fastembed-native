@@ -7,6 +7,7 @@ Thank you for your interest in contributing to FastEmbed! We welcome contributio
 - [Code of Conduct](#code-of-conduct)
 - [How to Contribute](#how-to-contribute)
 - [Development Setup](#development-setup)
+- [Branching Strategy](#branching-strategy)
 - [Pull Request Process](#pull-request-process)
 - [Coding Guidelines](#coding-guidelines)
 - [Testing](#testing)
@@ -56,7 +57,9 @@ Use the [Feature Request template](.github/ISSUE_TEMPLATE/feature_request.md).
 4. **Run tests** to ensure they pass
 5. **Commit** with clear messages (`git commit -m "Add feature X"`)
 6. **Push** to your fork (`git push origin feature/my-feature`)
-7. **Open a Pull Request** to the `main` branch
+7. **Open a Pull Request** to the appropriate `release/*` branch (e.g., `release/1.0.1`)
+
+**Note:** See [Branching Strategy](docs/BRANCHING_STRATEGY.md) for detailed information about our branch workflow.
 
 ---
 
@@ -92,6 +95,41 @@ make java     # Java binding
 ```
 
 See [docs/BUILD_NATIVE.md](docs/BUILD_NATIVE.md) for detailed build instructions.
+
+---
+
+## Branching Strategy
+
+FastEmbed uses a simplified Git Flow strategy optimized for multi-platform native library development.
+
+### Quick Overview
+
+- **`master`** - Stable production branch (protected)
+- **`release/*`** - Release preparation branches (e.g., `release/1.0.1`)
+- **`feature/*`** - Feature development branches
+- **`hotfix/*`** - Critical fix branches
+
+### Workflow
+
+1. **Create feature branch** from `master` or `release/*`
+2. **Develop and test** your changes
+3. **Create PR** to appropriate `release/*` branch
+4. **After review and merge**, feature is included in release
+5. **Release branch** is merged to `master` when ready
+6. **Version tag** is created on `master` (e.g., `v1.0.1`)
+7. **Tag triggers** automatic artifact creation and GitHub Release
+
+### Detailed Documentation
+
+For complete information about:
+
+- Branch types and purposes
+- Workflow diagrams
+- Branch protection rules
+- Release process
+- Hotfix process
+
+See [Branching Strategy](docs/BRANCHING_STRATEGY.md).
 
 ---
 
@@ -318,8 +356,7 @@ If you encounter an error not listed here:
 
 1. **Check Build Logs**: Look for `::error::` messages with details and solutions
 2. **Search Issues**: [GitHub Issues](https://github.com/shuanat/fastembed-native/issues)
-3. **Ask in Discussions**: [GitHub Discussions](https://github.com/shuanat/fastembed-native/discussions)
-4. **Open an Issue**: Include:
+3. **Open an Issue**: Include:
    - OS and version
    - Compiler and version
    - Full error message and stack trace
@@ -328,6 +365,23 @@ If you encounter an error not listed here:
 ---
 
 ## Pull Request Process
+
+### Branching Strategy
+
+FastEmbed uses a simplified Git Flow strategy:
+
+- **`master`** - Stable production branch (protected, only accepts merges from `release/*`)
+- **`release/*`** - Release preparation branches (e.g., `release/1.0.1`)
+- **`feature/*`** - Feature development branches
+- **`hotfix/*`** - Critical fix branches
+
+**Workflow:**
+
+```
+feature/* → release/* → master → (tag v*.*.*) → artifacts
+```
+
+For detailed information, see [Branching Strategy](docs/BRANCHING_STRATEGY.md).
 
 ### Before Submitting
 
@@ -343,26 +397,32 @@ If you encounter an error not listed here:
 
 4. **Add tests** for new features
 
-5. **Rebase** on latest `main` branch:
+5. **Rebase** on latest target branch:
 
    ```bash
+   # For feature branches targeting release/*
    git fetch upstream
-   git rebase upstream/main
+   git rebase upstream/release/1.0.1  # Replace with actual release branch
    ```
 
 ### PR Requirements
 
-- **Clear title** describing the change
+- **Clear title** describing the change (follow [Conventional Commits](https://www.conventionalcommits.org/))
 - **Description** explaining what and why
 - **Reference issues** (e.g., "Fixes #123")
 - **All CI checks pass** (GitHub Actions)
 - **Code review approval** from maintainers
+- **Target correct branch**:
+  - Feature branches → `release/*` (e.g., `release/1.0.1`)
+  - Hotfix branches → `master` or `release/*` (depending on urgency)
 
 ### Review Process
 
 - Maintainers will review within 3-5 business days
 - Address review comments promptly
 - Once approved, maintainers will merge
+- After merge to `release/*`, features will be included in the next release
+- After merge to `master`, a version tag will be created to trigger artifact builds
 
 ---
 
@@ -556,7 +616,6 @@ By contributing, you agree that your contributions will be licensed under the pr
 ## Questions?
 
 - **GitHub Issues:** [Open an issue](https://github.com/shuanat/fastembed-native/issues)
-- **GitHub Discussions:** [Join discussions](https://github.com/shuanat/fastembed-native/discussions)
 
 ---
 

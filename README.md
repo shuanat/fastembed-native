@@ -261,7 +261,7 @@ embedding = client.generate_embedding("machine learning")
 print(embedding.shape)  # (768,)
 ```
 
-#### C #
+#### C\#
 
 **Windows**:
 
@@ -392,7 +392,7 @@ See each binding's README for language-specific API details.
 
 ## 🏗️ Project Structure
 
-```
+```text
 fastembed/
 ├── bindings/
 │   ├── shared/           # C/Assembly core library
@@ -558,32 +558,48 @@ cd bindings/java && mvn test
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────┐
-│   User Application (4 language bindings)    │
-│   Node.js │ Python │ C# │ Java              │
-└────┬──────┴───┬────┴────┬────┴──────────────┘
-     │          │         │         │
-     ▼          ▼         ▼         ▼
-┌────────────────────────────────────────────┐
-│         Language Binding Layer             │
-│  N-API │ pybind11 │ P/Invoke │ JNI         │
-└────────────────┬───────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────────────────────┐
-│       FastEmbed C Library (shared/)        │
-│  - Hash-based embedding generation         │
-│  - Vector operations (dot, cosine, norm)   │
-└────────────────┬───────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────────────────────┐
-│   Optimized Assembly Code (x86-64)         │
-│  - SIMD instructions (SSE4, AVX2)          │
-│  - Hand-optimized hot paths                │
-│  - System V ABI compliant                  │
-└────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph App["Application Layer"]
+        NodeJS["Node.js"]
+        Python["Python"]
+        CSharp["C#"]
+        Java["Java"]
+    end
+
+    subgraph Bind["Language Binding Layer"]
+        NAPI["N-API"]
+        PyBind["pybind11"]
+        PInvoke["P/Invoke"]
+        JNI["JNI"]
+    end
+
+    subgraph CLib["FastEmbed C Library"]
+        HashAPI["Hash-based<br/>Embeddings"]
+        VecAPI["Vector<br/>Operations"]
+        ONNXAPI["ONNX<br/>Runtime"]
+    end
+
+    subgraph Asm["Assembly Layer"]
+        SIMD["SIMD Optimized<br/>SSE4/AVX2<br/>x86-64"]
+    end
+
+    NodeJS --> NAPI
+    Python --> PyBind
+    CSharp --> PInvoke
+    Java --> JNI
+
+    NAPI --> CLib
+    PyBind --> CLib
+    PInvoke --> CLib
+    JNI --> CLib
+
+    CLib --> Asm
+
+    style App fill:#e1f5ff
+    style Bind fill:#fff4e1
+    style CLib fill:#e8f5e9
+    style Asm fill:#fce4ec
 ```
 
 ---
@@ -627,9 +643,8 @@ Built with:
 ## 📞 Support
 
 - 📖 [Documentation](docs/)
-- 🐛 Issue Tracker (GitHub Issues)
-- 💬 Discussions (GitHub Discussions)
-- 📝 **Commercial License Requests:** open a GitHub Issue → "License Request" template
+- 🐛 [Issue Tracker](https://github.com/shuanat/fastembed-native/issues) (GitHub Issues)
+- 📝 **Commercial License Requests:** open a [GitHub Issue](https://github.com/shuanat/fastembed-native/issues/new?template=license-request.md) → "License Request" template
 
 ---
 
@@ -637,6 +652,6 @@ Built with:
 
 **Made with ❤️ for developers who need fast, reliable embeddings**
 
-⭐ **Star us on GitHub** if you find this useful!
+⭐ [**Star us on GitHub**](https://github.com/shuanat/fastembed-native) if you find this useful!
 
 </div>

@@ -90,13 +90,10 @@ benchmark_results/
 benchmark_output*.txt
 benchmark_final_output.txt
 
-# Keep main benchmark documentation
-!BENCHMARK_RESULTS.md
-!ONNX_BENCHMARK_REPORT.md
-
 # Internal development artifacts (not for public repository)
 plans/
 reports/
+PRERELEASE_CHECKLIST.md
 
 # Build artifacts directory (compiled binaries, headers, etc.)
 artifacts/

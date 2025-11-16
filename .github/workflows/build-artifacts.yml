@@ -54,6 +54,9 @@ on:
       - "v*.*.*" # Triggers on version tags (e.g., v1.0.1)
   workflow_dispatch: # Allows manual trigger
 
+permissions:
+  contents: write  # Required for creating GitHub releases
+
 env:
   ONNX_VERSION: "1.23.2"
 
@@ -753,9 +756,40 @@ jobs:
           # Extract v1.0.1 section from CHANGELOG.md
           VERSION="${GITHUB_REF#refs/tags/v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
 
           # Extract release notes from CHANGELOG
-          awk '/^## \['$VERSION'\]/,/^## \[/' CHANGELOG.md | sed '1d;$d' > release-notes.md
+          # Use awk to extract section between version header and next version header or end of file
+          awk -v version="$VERSION" '
+            BEGIN { found=0; in_section=0 }
+            /^## \[' version '\]/ { found=1; in_section=1; next }
+            /^## \[/ && in_section { exit }
+            in_section { print }
+          ' CHANGELOG.md > release-notes.md || {
+            echo "::warning::Failed to extract release notes, using fallback"
+            echo "## FastEmbed $VERSION" > release-notes.md
+            echo "" >> release-notes.md
+            echo "See CHANGELOG.md for full details." >> release-notes.md
+          }
+
+          # Verify release notes file exists and has content
+          if [ ! -s release-notes.md ]; then
+            echo "::warning::Release notes file is empty, using fallback"
+            echo "## FastEmbed $VERSION" > release-notes.md
+            echo "" >> release-notes.md
+            echo "See CHANGELOG.md for full details." >> release-notes.md
+          fi
+
+          echo "::notice::Release notes extracted:"
+          cat release-notes.md
+
+      - name: List downloaded artifacts
+        run: |
+          echo "::notice::Listing downloaded artifacts structure:"
+          find artifacts -type f -name "*.tar.gz" -o -name "*.zip" | head -20
+          echo ""
+          echo "::notice::Artifact directories:"
+          ls -la artifacts/ || echo "No artifacts directory found"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -763,9 +797,9 @@ jobs:
           name: FastEmbed ${{ steps.changelog.outputs.version }}
           body_path: release-notes.md
           files: |
-            artifacts/fastembed-linux-x64/*.tar.gz
-            artifacts/fastembed-windows-x64/*.zip
-            artifacts/fastembed-macos-*/*.tar.gz
+            artifacts/fastembed-linux-x64/**/*.tar.gz
+            artifacts/fastembed-windows-x64/**/*.zip
+            artifacts/fastembed-macos-*/**/*.tar.gz
           draft: false
           prerelease: false
         env:

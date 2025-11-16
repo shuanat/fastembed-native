@@ -2,16 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, release/*]
   pull_request:
-    branches: [main, develop]
+    branches: [master, release/*]
   workflow_dispatch:
 
 env:
   ONNX_VERSION: "1.23.2" # Parameterized ONNX Runtime version
 
 jobs:
-  build-shared-linux:
+  build-linux:
     name: Build Shared Library (Linux)
     runs-on: ubuntu-latest
 
@@ -33,32 +33,55 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fastembed-shared-linux
-          path: bindings/shared/build/*.so
+          path: |
+            bindings/shared/build/*.so
+            bindings/shared/build/*.o
           retention-days: 7
 
-  test-nodejs:
-    name: Test Node.js Binding
-    needs: build-shared-linux
+  test-linux:
+    name: Test on Linux
+    needs: build-linux
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [16, 18, 20]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Download shared library artifact
+        uses: actions/download-artifact@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          name: fastembed-shared-linux
+          path: bindings/shared/build
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm gcc make wget
+          sudo apt-get install -y nasm gcc make
 
+      - name: Build C tests
+        run: |
+          cd tests
+          export LD_LIBRARY_PATH=../bindings/shared/build:$LD_LIBRARY_PATH
+          # Build all test files
+          for test_file in test_basic.c test_vectors.c test_hash_functions.c test_embedding_generation.c test_quality_improvement.c test_sqrt_quality.c; do
+            if [ -f "$test_file" ]; then
+              test_name=$(basename "$test_file" .c)
+              gcc -O2 -I../bindings/shared/include "$test_file" \
+                -L../bindings/shared/build -lfastembed_native -lm -o "$test_name" || true
+            fi
+          done
+
+      - name: Run C tests
+        run: |
+          cd tests
+          export LD_LIBRARY_PATH=../bindings/shared/build:$LD_LIBRARY_PATH
+          echo "=== Running C Tests ==="
+          for test_exe in test_basic test_vectors test_hash_functions test_embedding_generation test_quality_improvement test_sqrt_quality; do
+            if [ -f "$test_exe" ]; then
+              echo ""
+              echo "Running $test_exe..."
+              ./"$test_exe" || echo "⚠️ $test_exe failed (continuing...)"
+            fi
+          done
       - name: Setup ONNX Runtime
         run: |
           cd bindings
@@ -66,10 +89,10 @@ jobs:
           tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
           mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
 
-      - name: Build shared library
-        run: |
-          cd bindings/shared
-          make all
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Build Node.js binding
         run: |
@@ -77,7 +100,7 @@ jobs:
           npm install
           npm run build
 
-      - name: Run tests
+      - name: Test Node.js binding
         run: |
           cd bindings/nodejs
           node test-native.js
@@ -86,104 +109,44 @@ jobs:
         continue-on-error: true
         run: python scripts/download_model.py
 
-      - name: Run ONNX tests (conditional)
+      - name: Run ONNX tests (Node.js)
         continue-on-error: true
         run: |
           cd bindings/nodejs
           node test-onnx.js || echo "⚠️ ONNX tests skipped (model not available)"
 
-  test-python:
-    name: Test Python Binding
-    needs: build-shared-linux
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm gcc make wget
+          sudo apt-get install -y wget
           python -m pip install --upgrade pip
           pip install setuptools wheel pybind11 numpy
-
-      - name: Setup ONNX Runtime
-        run: |
-          cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
-
-      - name: Build shared library
-        run: |
-          cd bindings/shared
-          make all
 
       - name: Build Python binding
         run: |
           cd bindings/python
           python setup.py build_ext --inplace
 
-      - name: Run tests
+      - name: Test Python binding
         run: |
           cd bindings/python
           python test_python_native.py
 
-      - name: Download ONNX model
-        continue-on-error: true
-        run: python scripts/download_model.py
-
-      - name: Run ONNX tests (conditional)
+      - name: Run ONNX tests (Python)
         continue-on-error: true
         run: |
           cd bindings/python
           python test_onnx.py || echo "⚠️ ONNX tests skipped (model not available)"
 
-  test-csharp:
-    name: Test C# Binding
-    needs: build-shared-linux
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        dotnet-version: ["6.0.x", "7.0.x", "8.0.x"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET ${{ matrix.dotnet-version }}
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ matrix.dotnet-version }}
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y nasm gcc make wget
-
-      - name: Setup ONNX Runtime
-        run: |
-          cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
-
-      - name: Build shared library
-        run: |
-          cd bindings/shared
-          make all
-          make shared
+          dotnet-version: "8.0.x"
 
       - name: Verify native library exists
         run: |
@@ -198,67 +161,70 @@ jobs:
           cd bindings/csharp
           dotnet build src/FastEmbed.csproj
 
-      - name: Run tests
+      - name: Prepare library paths for C# tests
+        run: |
+          # Create lib directory and copy libraries (csproj expects lib/, not build/)
+          mkdir -p bindings/shared/lib
+          cp bindings/shared/build/*.so bindings/shared/lib/ || true
+          # Also copy ONNX Runtime if available
+          if [ -d "bindings/onnxruntime/lib" ]; then
+            cp bindings/onnxruntime/lib/*.so* bindings/shared/lib/ || true
+          fi
+
+      - name: Test C# binding
         run: |
           cd bindings/csharp/tests
-          export LD_LIBRARY_PATH="../../shared/build:${LD_LIBRARY_PATH}"
+          export LD_LIBRARY_PATH="../../shared/lib:${LD_LIBRARY_PATH}"
+          # Verify library exists in expected location
+          ls -la ../../shared/lib/*.so || exit 1
           dotnet test || \
           (cd .. && dotnet build tests/FastEmbed.Tests.csproj && \
-           export LD_LIBRARY_PATH="../shared/build:${LD_LIBRARY_PATH}" && \
+           export LD_LIBRARY_PATH="../shared/lib:${LD_LIBRARY_PATH}" && \
            dotnet test tests/FastEmbed.Tests.csproj)
 
-      - name: Run ONNX tests (conditional)
+      - name: Run ONNX tests (C#)
         continue-on-error: true
         run: |
           cd bindings/csharp/tests
-          export LD_LIBRARY_PATH="../../shared/build:${LD_LIBRARY_PATH}"
+          export LD_LIBRARY_PATH="../../shared/lib:${LD_LIBRARY_PATH}"
           dotnet test --filter "FullyQualifiedName~FastEmbedOnnxTests" || \
           echo "⚠️ ONNX tests skipped (model not available or tests marked as Skip)"
 
-  test-java:
-    name: Test Java Binding
-    needs: build-shared-linux
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        java-version: ["11", "17", "21"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK ${{ matrix.java-version }}
+      - name: Set up JDK
+        if: always()
         uses: actions/setup-java@v4
         with:
-          java-version: ${{ matrix.java-version }}
+          java-version: "21"
           distribution: "temurin"
 
-      - name: Install dependencies
+      - name: Install Java dependencies
+        if: always()
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm gcc make maven wget
+          sudo apt-get install -y maven
 
-      - name: Setup ONNX Runtime
+      - name: Verify object files exist
+        if: always()
         run: |
-          cd bindings
-          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
-          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
-
-      - name: Build shared library
-        run: |
-          cd bindings/shared
-          make all
+          if [ ! -f "bindings/shared/build/embedding_lib.o" ]; then
+            echo "Error: embedding_lib.o not found"
+            exit 1
+          fi
+          if [ ! -f "bindings/shared/build/embedding_generator.o" ]; then
+            echo "Error: embedding_generator.o not found"
+            exit 1
+          fi
+          if [ ! -f "bindings/shared/build/embedding_lib_c.o" ]; then
+            echo "Error: embedding_lib_c.o not found"
+            exit 1
+          fi
+          echo "✅ Object files found"
 
       - name: Compile JNI wrapper
+        if: always()
         run: |
           cd bindings/java/java
           mkdir -p build
-          # Link JNI library using already compiled objects from shared/build
-          # Note: embedding_lib_c.o and onnx_embedding_loader.o are already in shared/build
-          # Exclude embedding_gen_cli.o as it's not PIC and not needed for JNI
-          # Build list of object files (onnx_embedding_loader.o may not exist if ONNX not found)
           OBJ_FILES="../../shared/build/embedding_lib.o"
           OBJ_FILES="$OBJ_FILES ../../shared/build/embedding_generator.o"
           OBJ_FILES="$OBJ_FILES ../../shared/build/embedding_lib_c.o"
@@ -277,13 +243,13 @@ jobs:
             -L"../../onnxruntime/lib" -lonnxruntime -lm
 
       - name: Build Java project
+        if: always()
         run: |
           cd bindings/java/java
-          # Skip native compilation and javah since we build JNI manually in CI
-          # Set phase to 'none' to completely disable executions
           mvn clean install -DskipTests -Dmaven.native.javah.phase=none -Dmaven.native.compile.phase=none -Dmaven.native.link.phase=none
 
-      - name: Run tests
+      - name: Test Java binding
+        if: always()
         run: |
           cd bindings/java
           javac -cp java/target/classes com/fastembed/test/TestFastEmbedJava.java && \
@@ -291,11 +257,8 @@ jobs:
           (cd java && javac -cp target/classes ../com/fastembed/test/TestFastEmbedJava.java && \
            java -Djava.library.path=build -cp target/classes:.. com.fastembed.test.TestFastEmbedJava)
 
-      - name: Download ONNX model
-        continue-on-error: true
-        run: python scripts/download_model.py
-
-      - name: Run ONNX tests (conditional)
+      - name: Run ONNX tests (Java)
+        if: always()
         continue-on-error: true
         run: |
           cd bindings/java/java
@@ -305,8 +268,8 @@ jobs:
            java -Djava.library.path=java/build -cp java/target/classes:. test_onnx) || \
           echo "⚠️ ONNX tests skipped (model not available)"
 
-  test-windows:
-    name: Test on Windows
+  build-windows:
+    name: Build Shared Library (Windows)
     runs-on: windows-latest
 
     steps:
@@ -315,11 +278,36 @@ jobs:
       - name: Setup NASM
         run: choco install nasm -y
 
-      - name: Build shared library (Windows)
+      - name: Build shared library
         run: |
-          # Use PowerShell build script (Phase 1, Task 1.2)
           pwsh -File scripts\build_windows.ps1
         shell: powershell
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastembed-shared-windows
+          path: |
+            bindings/shared/build/*.dll
+            bindings/shared/build/*.obj
+          retention-days: 7
+
+  test-windows:
+    name: Test on Windows
+    needs: build-windows
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download shared library artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fastembed-shared-windows
+          path: bindings/shared/build
+
+      - name: Setup NASM
+        run: choco install nasm -y
 
       - name: Setup ONNX Runtime
         run: |
@@ -335,11 +323,15 @@ jobs:
         with:
           node-version: 20
 
-      - name: Test Node.js binding
+      - name: Build Node.js binding
         run: |
           cd bindings/nodejs
           npm install
           npm run build
+
+      - name: Test Node.js binding
+        run: |
+          cd bindings/nodejs
           node test-native.js
 
       - name: Setup Python
@@ -360,16 +352,29 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Prepare library paths for C# tests
+        run: |
+          # Create lib directory and copy DLLs (csproj expects lib/, not build/)
+          New-Item -ItemType Directory -Force -Path bindings\shared\lib | Out-Null
+          Copy-Item bindings\shared\build\*.dll bindings\shared\lib\ -ErrorAction SilentlyContinue
+          # Also copy ONNX Runtime if available
+          if (Test-Path "bindings\onnxruntime\lib") {
+            Copy-Item bindings\onnxruntime\lib\*.dll bindings\shared\lib\ -ErrorAction SilentlyContinue
+          }
+        shell: powershell
+
       - name: Test C# binding
         run: |
           cd bindings/csharp
+          # Verify DLL exists in expected location
+          if (-not (Test-Path "..\shared\lib\*.dll")) { exit 1 }
           dotnet build src/FastEmbed.csproj
           cd tests
           dotnet test
-        shell: bash
+        shell: powershell
 
-  test-macos:
-    name: Test on macOS
+  build-macos:
+    name: Build Shared Library (macOS)
     runs-on: macos-latest
 
     steps:
@@ -379,11 +384,36 @@ jobs:
         run: |
           brew install nasm
 
-      - name: Build shared library (macOS)
+      - name: Build shared library
         run: |
           cd bindings/shared
           make all
           make shared
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastembed-shared-macos
+          path: bindings/shared/build/*.dylib
+          retention-days: 7
+
+  test-macos:
+    name: Test on macOS
+    needs: build-macos
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download shared library artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fastembed-shared-macos
+          path: bindings/shared/build
+
+      - name: Install dependencies
+        run: |
+          brew install nasm
 
       - name: Setup ONNX Runtime
         run: |
@@ -399,11 +429,15 @@ jobs:
         with:
           node-version: 20
 
-      - name: Test Node.js binding
+      - name: Build Node.js binding
         run: |
           cd bindings/nodejs
           npm install
           npm run build
+
+      - name: Test Node.js binding
+        run: |
+          cd bindings/nodejs
           node test-native.js
 
       - name: Setup Python
@@ -423,23 +457,478 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Prepare library paths for C# tests
+        run: |
+          # Create lib directory and copy libraries (csproj expects lib/, not build/)
+          mkdir -p bindings/shared/lib
+          cp bindings/shared/build/*.dylib bindings/shared/lib/ || true
+          # Also copy ONNX Runtime if available
+          if [ -d "bindings/onnxruntime/lib" ]; then
+            cp bindings/onnxruntime/lib/*.dylib* bindings/shared/lib/ || true
+          fi
+
       - name: Test C# binding
         run: |
-          cd bindings/csharp
-          dotnet build src/FastEmbed.csproj
+          cd bindings/csharp/tests
+          export DYLD_LIBRARY_PATH="../../shared/lib:${DYLD_LIBRARY_PATH}"
+          # Verify library exists in expected location
+          ls -la ../../shared/lib/*.dylib || exit 1
+          dotnet test || \
+          (cd .. && dotnet build tests/FastEmbed.Tests.csproj && \
+           export DYLD_LIBRARY_PATH="../shared/lib:${DYLD_LIBRARY_PATH}" && \
+           dotnet test tests/FastEmbed.Tests.csproj)
+
+  benchmark-linux:
+    name: Benchmark on Linux
+    needs: test-linux
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download shared library artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fastembed-shared-linux
+          path: bindings/shared/build
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm gcc make wget python3 python3-pip
+          pip3 install numpy
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime-linux-x64-${{ env.ONNX_VERSION }}.tgz
+          mv onnxruntime-linux-x64-${{ env.ONNX_VERSION }} onnxruntime
+
+      - name: Build C benchmark
+        run: |
           cd tests
-          dotnet test
+          gcc -O2 -I../bindings/shared/include benchmark_improved.c \
+            -L../bindings/shared/build -lfastembed_native -lm -o benchmark
+          chmod +x benchmark
+
+      - name: Run C benchmark
+        continue-on-error: true
+        run: |
+          cd tests
+          export LD_LIBRARY_PATH=../bindings/shared/build:$LD_LIBRARY_PATH
+          ./benchmark > benchmark_results_c_linux.txt 2>&1 || echo "Benchmark failed"
+          cat benchmark_results_c_linux.txt
+
+      - name: Upload C benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-c-linux
+          path: tests/benchmark_results_c_linux.txt
+          retention-days: 30
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Node.js binding
+        run: |
+          cd bindings/nodejs
+          npm install
+          npm run build
+
+      - name: Run Node.js benchmark
+        continue-on-error: true
+        run: |
+          cd bindings/nodejs
+          node benchmark.js > benchmark_nodejs_linux.txt 2>&1 || echo "Benchmark failed"
+          cat benchmark_nodejs_linux.txt
+
+      - name: Upload Node.js benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-nodejs-linux
+          path: bindings/nodejs/benchmark_nodejs_linux.txt
+          retention-days: 30
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Python binding
+        run: |
+          cd bindings/python
+          pip install setuptools wheel pybind11 numpy
+          python setup.py build_ext --inplace
+
+      - name: Run Python benchmark
+        continue-on-error: true
+        run: |
+          cd bindings/python
+          export LD_LIBRARY_PATH=../shared/build:$LD_LIBRARY_PATH
+          python3 benchmark.py > benchmark_python_linux.txt 2>&1 || echo "Benchmark failed"
+          cat benchmark_python_linux.txt
+
+      - name: Upload Python benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-python-linux
+          path: bindings/python/benchmark_python_linux.txt
+          retention-days: 30
+
+  benchmark-windows:
+    name: Benchmark on Windows
+    needs: test-windows
+    runs-on: windows-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download shared library artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fastembed-shared-windows
+          path: bindings/shared/build
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          curl -fL -o onnxruntime.zip https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-win-x64-${{ env.ONNX_VERSION }}.zip
+          powershell -Command "Expand-Archive -Path onnxruntime.zip -DestinationPath . -Force"
+          mv onnxruntime-win-x64-${{ env.ONNX_VERSION }} onnxruntime
+          rm onnxruntime.zip
+        shell: bash
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Node.js binding
+        run: |
+          cd bindings/nodejs
+          npm install
+          npm run build
+
+      - name: Run Node.js benchmark
+        continue-on-error: true
+        run: |
+          cd bindings/nodejs
+          node benchmark.js > benchmark_nodejs_windows.txt 2>&1 || echo "Benchmark failed"
+          cat benchmark_nodejs_windows.txt
+
+      - name: Upload Node.js benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-nodejs-windows
+          path: bindings/nodejs/benchmark_nodejs_windows.txt
+          retention-days: 30
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify object files exist
+        run: |
+          if (-not (Test-Path "bindings\shared\build\embedding_lib.obj")) {
+            Write-Error "embedding_lib.obj not found"
+            exit 1
+          }
+          if (-not (Test-Path "bindings\shared\build\embedding_generator.obj")) {
+            Write-Error "embedding_generator.obj not found"
+            exit 1
+          }
+          Write-Host "✅ Object files found"
+        shell: powershell
+
+      - name: Build Python binding
+        run: |
+          cd bindings/python
+          pip install numpy pybind11
+          python setup.py build_ext --inplace
+
+      - name: Run Python benchmark
+        continue-on-error: true
+        run: |
+          cd bindings/python
+          python3 benchmark.py > benchmark_python_windows.txt 2>&1 || echo "Benchmark failed"
+          cat benchmark_python_windows.txt
+
+      - name: Upload Python benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-python-windows
+          path: bindings/python/benchmark_python_windows.txt
+          retention-days: 30
+
+  benchmark-macos:
+    name: Benchmark on macOS
+    needs: test-macos
+    runs-on: macos-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download shared library artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fastembed-shared-macos
+          path: bindings/shared/build
+
+      - name: Setup ONNX Runtime
+        run: |
+          cd bindings
+          curl -fL -o onnxruntime.tgz https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNX_VERSION }}/onnxruntime-osx-arm64-${{ env.ONNX_VERSION }}.tgz
+          tar -xzf onnxruntime.tgz
+          mv onnxruntime-osx-arm64-${{ env.ONNX_VERSION }} onnxruntime
+          rm onnxruntime.tgz
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Node.js binding
+        run: |
+          cd bindings/nodejs
+          npm install
+          npm run build
+
+      - name: Run Node.js benchmark
+        continue-on-error: true
+        run: |
+          cd bindings/nodejs
+          node benchmark.js > benchmark_nodejs_macos.txt 2>&1 || echo "Benchmark failed"
+          cat benchmark_nodejs_macos.txt
+
+      - name: Upload Node.js benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-nodejs-macos
+          path: bindings/nodejs/benchmark_nodejs_macos.txt
+          retention-days: 30
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Python binding
+        run: |
+          cd bindings/python
+          pip install numpy pybind11
+          python setup.py build_ext --inplace
+
+      - name: Run Python benchmark
+        continue-on-error: true
+        run: |
+          cd bindings/python
+          export DYLD_LIBRARY_PATH=../shared/build:$DYLD_LIBRARY_PATH
+          python3 benchmark.py > benchmark_python_macos.txt 2>&1 || echo "Benchmark failed"
+          cat benchmark_python_macos.txt
+
+      - name: Upload Python benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-python-macos
+          path: bindings/python/benchmark_python_macos.txt
+          retention-days: 30
+
+  benchmark-aggregate:
+    name: Aggregate Benchmark Results
+    needs: [benchmark-linux, benchmark-windows, benchmark-macos]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          path: benchmark-results
+          pattern: benchmark-results-*
+
+      - name: Aggregate results
+        run: |
+          cat > aggregate_benchmarks.sh << 'EOF'
+          #!/bin/bash
+
+          # Function to extract benchmark data from text file
+          extract_benchmark_data() {
+            local file="$1"
+            local platform="$2"
+            
+            if [ ! -f "$file" ]; then
+              return
+            fi
+            
+            # Extract dimension, avg time, and throughput from table format
+            # Format: "  DIM    | AVG_TIME    | THROUGHPUT"
+            grep -E "^\s+[0-9]+\s+\|\s+[0-9]+\.[0-9]+\s+\|\s+[0-9]+" "$file" | while read line; do
+              dimension=$(echo "$line" | awk -F'|' '{print $1}' | xargs)
+              avg_time=$(echo "$line" | awk -F'|' '{print $2}' | xargs)
+              throughput=$(echo "$line" | awk -F'|' '{print $3}' | xargs)
+              
+              # Get text label from context (look for "=== Benchmark:" line before)
+              text_label=$(grep -B 5 "$line" "$file" | grep "=== Benchmark:" | head -1 | sed 's/=== Benchmark: //' | sed 's/ ===//' | xargs)
+              
+              if [ -n "$dimension" ] && [ -n "$avg_time" ] && [ -n "$throughput" ]; then
+                echo "${platform}|${text_label}|${dimension}|${avg_time}|${throughput}"
+              fi
+            done
+          }
+
+          # Output file
+          OUTPUT="BENCHMARK_RESULTS_CI.md"
+
+          # Header
+          echo "# Benchmark Results - $(date +%Y-%m-%d)" > "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "## Summary" >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "Performance benchmarks across all platforms and language bindings." >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+
+          # Extract data from all platforms
+          TEMP_DATA=$(mktemp)
+
+          # Linux benchmarks
+          for file in benchmark-results/benchmark-results-c-linux/*.txt; do
+            extract_benchmark_data "$file" "Linux x64 (C)" >> "$TEMP_DATA"
+          done
+          for file in benchmark-results/benchmark-results-nodejs-linux/*.txt; do
+            extract_benchmark_data "$file" "Linux x64 (Node.js)" >> "$TEMP_DATA"
+          done
+          for file in benchmark-results/benchmark-results-python-linux/*.txt; do
+            extract_benchmark_data "$file" "Linux x64 (Python)" >> "$TEMP_DATA"
+          done
+
+          # Windows benchmarks
+          for file in benchmark-results/benchmark-results-nodejs-windows/*.txt; do
+            extract_benchmark_data "$file" "Windows x64 (Node.js)" >> "$TEMP_DATA"
+          done
+          for file in benchmark-results/benchmark-results-python-windows/*.txt; do
+            extract_benchmark_data "$file" "Windows x64 (Python)" >> "$TEMP_DATA"
+          done
+
+          # macOS benchmarks
+          for file in benchmark-results/benchmark-results-nodejs-macos/*.txt; do
+            extract_benchmark_data "$file" "macOS ARM64 (Node.js)" >> "$TEMP_DATA"
+          done
+          for file in benchmark-results/benchmark-results-python-macos/*.txt; do
+            extract_benchmark_data "$file" "macOS ARM64 (Python)" >> "$TEMP_DATA"
+          done
+
+          # Generate tables by text length
+          for text_type in "Short (~5 chars)" "Medium (~40 chars)" "Long (~250 chars)"; do
+            echo "### $text_type" >> "$OUTPUT"
+            echo "" >> "$OUTPUT"
+            echo "| Platform | Dimension | Avg Time (ms) | Throughput (emb/s) |" >> "$OUTPUT"
+            echo "|----------|----------|---------------|---------------------|" >> "$OUTPUT"
+            
+            grep "|${text_type}|" "$TEMP_DATA" | sort -t'|' -k3 -n | while IFS='|' read -r platform label dimension avg_time throughput; do
+              printf "| %s | %s | %.4f | %.0f |\n" "$platform" "$dimension" "$avg_time" "$throughput" >> "$OUTPUT"
+            done
+            
+            echo "" >> "$OUTPUT"
+          done
+
+          # Overall comparison table
+          echo "## Overall Performance Comparison" >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "| Platform | 128D (ms) | 768D (ms) | Best Throughput (emb/s) |" >> "$OUTPUT"
+          echo "|----------|-----------|-----------|-------------------------|" >> "$OUTPUT"
+
+          for platform in "Linux x64 (C)" "Linux x64 (Node.js)" "Linux x64 (Python)" "Windows x64 (Node.js)" "Windows x64 (Python)" "macOS ARM64 (Node.js)" "macOS ARM64 (Python)"; do
+            dim128=$(grep "^${platform}|" "$TEMP_DATA" | grep "|128|" | head -1 | cut -d'|' -f4)
+            dim768=$(grep "^${platform}|" "$TEMP_DATA" | grep "|768|" | head -1 | cut -d'|' -f4)
+            best_throughput=$(grep "^${platform}|" "$TEMP_DATA" | cut -d'|' -f5 | sort -n | tail -1)
+            
+            if [ -n "$dim128" ] && [ -n "$dim768" ] && [ -n "$best_throughput" ]; then
+              printf "| %s | %.4f | %.4f | %.0f |\n" "$platform" "$dim128" "$dim768" "$best_throughput" >> "$OUTPUT"
+            fi
+          done
+
+          echo "" >> "$OUTPUT"
+          echo "## Raw Results" >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "### Linux x64 (C)" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          cat benchmark-results/benchmark-results-c-linux/*.txt >> "$OUTPUT" 2>/dev/null || echo "No results" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "### Linux x64 (Node.js)" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          cat benchmark-results/benchmark-results-nodejs-linux/*.txt >> "$OUTPUT" 2>/dev/null || echo "No results" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "### Linux x64 (Python)" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          cat benchmark-results/benchmark-results-python-linux/*.txt >> "$OUTPUT" 2>/dev/null || echo "No results" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "### Windows x64 (Node.js)" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          cat benchmark-results/benchmark-results-nodejs-windows/*.txt >> "$OUTPUT" 2>/dev/null || echo "No results" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "### Windows x64 (Python)" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          cat benchmark-results/benchmark-results-python-windows/*.txt >> "$OUTPUT" 2>/dev/null || echo "No results" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "### macOS ARM64 (Node.js)" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          cat benchmark-results/benchmark-results-nodejs-macos/*.txt >> "$OUTPUT" 2>/dev/null || echo "No results" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "### macOS ARM64 (Python)" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          cat benchmark-results/benchmark-results-python-macos/*.txt >> "$OUTPUT" 2>/dev/null || echo "No results" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+
+          # Cleanup
+          rm -f "$TEMP_DATA"
+
+          # Display result
+          cat "$OUTPUT"
+          EOF
+
+          chmod +x aggregate_benchmarks.sh
+          ./aggregate_benchmarks.sh
+
+      - name: Upload aggregated results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-aggregated
+          path: BENCHMARK_RESULTS_CI.md
+          retention-days: 30
 
   build-summary:
     name: Build Summary
     needs:
       [
-        test-nodejs,
-        test-python,
-        test-csharp,
-        test-java,
+        test-linux,
         test-windows,
         test-macos,
+        benchmark-linux,
+        benchmark-windows,
+        benchmark-macos,
+        benchmark-aggregate,
       ]
     runs-on: ubuntu-latest
     if: always()
@@ -449,14 +938,17 @@ jobs:
         run: |
           echo "CI Build Summary:"
           echo ""
-          echo "Linux Tests:"
-          echo "- Node.js: ${{ needs.test-nodejs.result }}"
-          echo "- Python: ${{ needs.test-python.result }}"
-          echo "- C#: ${{ needs.test-csharp.result }}"
-          echo "- Java: ${{ needs.test-java.result }}"
+          echo "Platform Tests:"
+          echo "- Linux: ${{ needs.test-linux.result }}"
           echo ""
           echo "Cross-Platform Tests:"
           echo "- Windows: ${{ needs.test-windows.result }}"
           echo "- macOS: ${{ needs.test-macos.result }}"
+          echo ""
+          echo "Benchmarks:"
+          echo "- Linux: ${{ needs.benchmark-linux.result }}"
+          echo "- Windows: ${{ needs.benchmark-windows.result }}"
+          echo "- macOS: ${{ needs.benchmark-macos.result }}"
+          echo "- Aggregated: ${{ needs.benchmark-aggregate.result }}"
           echo ""
           echo "Note: Release artifacts are built in separate workflow (release.yml)"

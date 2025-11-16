@@ -7,22 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- **Test Suite Fixes (2025-01-15):**
-  - **Node.js**: Fixed missing ONNX Runtime headers on Windows and macOS by adding explicit `include_dirs` to `binding.gyp`
-  - **Python**: Fixed `ModuleNotFoundError` by adding post-build copy step in `setup.py` for `--inplace` builds
-  - **C#**: Fixed `DllNotFoundException` by updating `.csproj` files with correct DLL paths (`shared/lib/`) and correct DLL names (`fastembed_native.dll`, `libfastembed.so`)
-  - **Java**: Fixed file naming mismatch by removing duplicate `test_java_native.java` and updating CI workflow to use `TestFastEmbedJava.java`
-  - All test suites should now pass on all platforms (Linux, Windows, macOS) and all language versions
-
 ### Added
 
 - (Future improvements will be listed here)
 
 ---
 
-## [1.0.1] - 2025-01-14
+## [1.0.1] - 2025-01-16
 
 ### Added
 
@@ -57,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Consolidated overlapping content in BUILD_*.md files with cross-references
     - Translated all documentation to English (100% English coverage)
     - Improved navigation and discoverability of documentation
+  - **Branching Strategy Documentation (2025-01-16):**
+    - Added comprehensive BRANCHING_STRATEGY.md with Git Flow workflow
+    - Updated CONTRIBUTING.md with new branching strategy
+    - Updated CI workflow triggers for release branches
 
 - **Scripts Restructure and Refactor (2025-01-14):**
   - Removed 13 unused scripts (70% reduction: from 19 to 5 scripts)
@@ -93,10 +88,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version number consistency across all language bindings
 - Missing C# test suite (now comprehensive test coverage)
 - XML documentation comments for FastEmbedException
+- **Security (2025-01-15):**
+  - Fixed use-after-free vulnerability in `fastembed_napi.cc` (moved `free()` calls after `snprintf`)
+- **Build System (2025-01-15):**
+  - Fixed Java JAR build failures on all platforms (Linux, Windows, macOS)
+  - Fixed Maven `javah` phase execution issues
+  - Fixed build-artifacts workflow packaging failures
+  - Added ONNX Runtime linking to Windows build script
+  - Fixed artifact naming (replaced slashes in ref_name)
+- **macOS ARM64 (2025-01-15):**
+  - Implemented native ARM64 NEON assembly for Apple Silicon (replaces C-only fallback)
+  - Fixed Mach-O section syntax for ARM64 assembly files
+  - Improved performance on macOS ARM64 (native SIMD instead of C fallback)
+- **CI/CD (2025-01-15):**
+  - Fixed CI fail-fast behavior (added `fail-fast: false` to all matrix strategies)
+  - Fixed C# macOS TextSimilarity precision test expectations
+  - Fixed Java test expectations for C-only implementation
+- **Test Suite Fixes (2025-01-15):**
+  - **Node.js**: Fixed missing ONNX Runtime headers on Windows and macOS by adding explicit `include_dirs` to `binding.gyp`
+  - **Python**: Fixed `ModuleNotFoundError` by adding post-build copy step in `setup.py` for `--inplace` builds
+  - **C#**: Fixed `DllNotFoundException` by updating `.csproj` files with correct DLL paths (`shared/lib/`) and correct DLL names (`fastembed_native.dll`, `libfastembed.so`)
+  - **Java**: Fixed file naming mismatch by removing duplicate `test_java_native.java` and updating CI workflow to use `TestFastEmbedJava.java`
+  - All test suites should now pass on all platforms (Linux, Windows, macOS) and all language versions
 
 ### Security
 
-- No security fixes in this release
+- Fixed use-after-free vulnerability in Node.js N-API binding (`fastembed_napi.cc:242`)
 
 ---
 
@@ -193,12 +210,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting bugs, request
 
 ## Version History Summary
 
-| Version | Date       | Highlights                                                                        |
-| ------- | ---------- | --------------------------------------------------------------------------------- |
-| 1.0.1   | 2025-01-14 | Improved hash algorithm, C# tests, ONNX support, breaking change: default 768→128 |
-| 1.0.0   | 2024-11-01 | Full multi-language support (4 bindings), ABI fix                                 |
-| 0.2.0   | 2024-10-25 | C# and Java bindings, Weaviate integration                                        |
-| 0.1.0   | 2024-10-15 | Initial release (Node.js, Python, C library)                                      |
+| Version | Date       | Highlights                                                                                                    |
+| ------- | ---------- | ------------------------------------------------------------------------------------------------------------- |
+| 1.0.1   | 2025-01-16 | Improved hash algorithm, C# tests, ONNX support, ARM64 NEON, security fixes, breaking change: default 768→128 |
+| 1.0.0   | 2024-11-01 | Full multi-language support (4 bindings), ABI fix                                                             |
+| 0.2.0   | 2024-10-25 | C# and Java bindings, Weaviate integration                                                                    |
+| 0.1.0   | 2024-10-15 | Initial release (Node.js, Python, C library)                                                                  |
 
 ---
 
@@ -206,5 +223,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting bugs, request
 
 - [GitHub Repository](https://github.com/shuanat/fastembed-native)
 - [Issue Tracker](https://github.com/shuanat/fastembed-native/issues)
-- [Discussions](https://github.com/shuanat/fastembed-native/discussions)
 - [Documentation](docs/)
