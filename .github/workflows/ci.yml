@@ -33,7 +33,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fastembed-shared-linux
-          path: bindings/shared/build/*.so
+          path: |
+            bindings/shared/build/*.so
+            bindings/shared/build/*.o
           retention-days: 7
 
   test-linux:
@@ -200,6 +202,23 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y maven
+
+      - name: Verify object files exist
+        if: always()
+        run: |
+          if [ ! -f "bindings/shared/build/embedding_lib.o" ]; then
+            echo "Error: embedding_lib.o not found"
+            exit 1
+          fi
+          if [ ! -f "bindings/shared/build/embedding_generator.o" ]; then
+            echo "Error: embedding_generator.o not found"
+            exit 1
+          fi
+          if [ ! -f "bindings/shared/build/embedding_lib_c.o" ]; then
+            echo "Error: embedding_lib_c.o not found"
+            exit 1
+          fi
+          echo "✅ Object files found"
 
       - name: Compile JNI wrapper
         if: always()
