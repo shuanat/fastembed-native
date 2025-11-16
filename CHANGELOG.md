@@ -223,5 +223,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting bugs, request
 
 - [GitHub Repository](https://github.com/shuanat/fastembed-native)
 - [Issue Tracker](https://github.com/shuanat/fastembed-native/issues)
-- [Discussions](https://github.com/shuanat/fastembed-native/discussions)
 - [Documentation](docs/)

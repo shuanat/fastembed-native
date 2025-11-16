@@ -222,7 +222,6 @@ Want to add more examples? See [CONTRIBUTING.md](../CONTRIBUTING.md).
 ## 📞 Support
 
 - **Issues**: [GitHub Issues](https://github.com/shuanat/fastembed-native/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/shuanat/fastembed-native/discussions)
 - **Documentation**: [docs/](../docs/)
 
 ---

@@ -356,8 +356,7 @@ If you encounter an error not listed here:
 
 1. **Check Build Logs**: Look for `::error::` messages with details and solutions
 2. **Search Issues**: [GitHub Issues](https://github.com/shuanat/fastembed-native/issues)
-3. **Ask in Discussions**: [GitHub Discussions](https://github.com/shuanat/fastembed-native/discussions)
-4. **Open an Issue**: Include:
+3. **Open an Issue**: Include:
    - OS and version
    - Compiler and version
    - Full error message and stack trace
@@ -617,7 +616,6 @@ By contributing, you agree that your contributions will be licensed under the pr
 ## Questions?
 
 - **GitHub Issues:** [Open an issue](https://github.com/shuanat/fastembed-native/issues)
-- **GitHub Discussions:** [Join discussions](https://github.com/shuanat/fastembed-native/discussions)
 
 ---
 

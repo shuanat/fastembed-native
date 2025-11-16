@@ -228,7 +228,6 @@ tar -czf fastembed-macos-x64-v1.0.1.tar.gz macos/
 ### 1. Announce Release
 
 - Update project README.md with new version
-- Post announcement in Discussions
 - Update documentation site (if any)
 - Notify users via social media / blog
 
@@ -409,7 +408,6 @@ macos/
 For questions or issues with the release process:
 
 - Open an issue: `https://github.com/YOUR_USERNAME/FastEmbed/issues`
-- Discussions: `https://github.com/YOUR_USERNAME/FastEmbed/discussions`
 
 ---
 
