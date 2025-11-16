@@ -159,35 +159,50 @@ jobs:
           cd bindings/csharp
           dotnet build src/FastEmbed.csproj
 
+      - name: Prepare library paths for C# tests
+        run: |
+          # Create lib directory and copy libraries (csproj expects lib/, not build/)
+          mkdir -p bindings/shared/lib
+          cp bindings/shared/build/*.so bindings/shared/lib/ || true
+          # Also copy ONNX Runtime if available
+          if [ -d "bindings/onnxruntime/lib" ]; then
+            cp bindings/onnxruntime/lib/*.so* bindings/shared/lib/ || true
+          fi
+
       - name: Test C# binding
         run: |
           cd bindings/csharp/tests
-          export LD_LIBRARY_PATH="../../shared/build:${LD_LIBRARY_PATH}"
+          export LD_LIBRARY_PATH="../../shared/lib:${LD_LIBRARY_PATH}"
+          # Verify library exists in expected location
+          ls -la ../../shared/lib/*.so || exit 1
           dotnet test || \
           (cd .. && dotnet build tests/FastEmbed.Tests.csproj && \
-           export LD_LIBRARY_PATH="../shared/build:${LD_LIBRARY_PATH}" && \
+           export LD_LIBRARY_PATH="../shared/lib:${LD_LIBRARY_PATH}" && \
            dotnet test tests/FastEmbed.Tests.csproj)
 
       - name: Run ONNX tests (C#)
         continue-on-error: true
         run: |
           cd bindings/csharp/tests
-          export LD_LIBRARY_PATH="../../shared/build:${LD_LIBRARY_PATH}"
+          export LD_LIBRARY_PATH="../../shared/lib:${LD_LIBRARY_PATH}"
           dotnet test --filter "FullyQualifiedName~FastEmbedOnnxTests" || \
           echo "⚠️ ONNX tests skipped (model not available or tests marked as Skip)"
 
       - name: Set up JDK
+        if: always()
         uses: actions/setup-java@v4
         with:
           java-version: "21"
           distribution: "temurin"
 
       - name: Install Java dependencies
+        if: always()
         run: |
           sudo apt-get update
           sudo apt-get install -y maven
 
       - name: Compile JNI wrapper
+        if: always()
         run: |
           cd bindings/java/java
           mkdir -p build
@@ -209,11 +224,13 @@ jobs:
             -L"../../onnxruntime/lib" -lonnxruntime -lm
 
       - name: Build Java project
+        if: always()
         run: |
           cd bindings/java/java
           mvn clean install -DskipTests -Dmaven.native.javah.phase=none -Dmaven.native.compile.phase=none -Dmaven.native.link.phase=none
 
       - name: Test Java binding
+        if: always()
         run: |
           cd bindings/java
           javac -cp java/target/classes com/fastembed/test/TestFastEmbedJava.java && \
@@ -222,6 +239,7 @@ jobs:
            java -Djava.library.path=build -cp target/classes:.. com.fastembed.test.TestFastEmbedJava)
 
       - name: Run ONNX tests (Java)
+        if: always()
         continue-on-error: true
         run: |
           cd bindings/java/java
@@ -250,7 +268,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fastembed-shared-windows
-          path: bindings/shared/build/*.dll
+          path: |
+            bindings/shared/build/*.dll
+            bindings/shared/build/*.obj
           retention-days: 7
 
   test-windows:
@@ -313,13 +333,26 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Prepare library paths for C# tests
+        run: |
+          # Create lib directory and copy DLLs (csproj expects lib/, not build/)
+          New-Item -ItemType Directory -Force -Path bindings\shared\lib | Out-Null
+          Copy-Item bindings\shared\build\*.dll bindings\shared\lib\ -ErrorAction SilentlyContinue
+          # Also copy ONNX Runtime if available
+          if (Test-Path "bindings\onnxruntime\lib") {
+            Copy-Item bindings\onnxruntime\lib\*.dll bindings\shared\lib\ -ErrorAction SilentlyContinue
+          }
+        shell: powershell
+
       - name: Test C# binding
         run: |
           cd bindings/csharp
+          # Verify DLL exists in expected location
+          if (-not (Test-Path "..\shared\lib\*.dll")) { exit 1 }
           dotnet build src/FastEmbed.csproj
           cd tests
           dotnet test
-        shell: bash
+        shell: powershell
 
   build-macos:
     name: Build Shared Library (macOS)
@@ -405,12 +438,26 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Prepare library paths for C# tests
+        run: |
+          # Create lib directory and copy libraries (csproj expects lib/, not build/)
+          mkdir -p bindings/shared/lib
+          cp bindings/shared/build/*.dylib bindings/shared/lib/ || true
+          # Also copy ONNX Runtime if available
+          if [ -d "bindings/onnxruntime/lib" ]; then
+            cp bindings/onnxruntime/lib/*.dylib* bindings/shared/lib/ || true
+          fi
+
       - name: Test C# binding
         run: |
-          cd bindings/csharp
-          dotnet build src/FastEmbed.csproj
-          cd tests
-          dotnet test
+          cd bindings/csharp/tests
+          export DYLD_LIBRARY_PATH="../../shared/lib:${DYLD_LIBRARY_PATH}"
+          # Verify library exists in expected location
+          ls -la ../../shared/lib/*.dylib || exit 1
+          dotnet test || \
+          (cd .. && dotnet build tests/FastEmbed.Tests.csproj && \
+           export DYLD_LIBRARY_PATH="../shared/lib:${DYLD_LIBRARY_PATH}" && \
+           dotnet test tests/FastEmbed.Tests.csproj)
 
   benchmark-linux:
     name: Benchmark on Linux
@@ -570,6 +617,19 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Verify object files exist
+        run: |
+          if (-not (Test-Path "bindings\shared\build\embedding_lib.obj")) {
+            Write-Error "embedding_lib.obj not found"
+            exit 1
+          }
+          if (-not (Test-Path "bindings\shared\build\embedding_generator.obj")) {
+            Write-Error "embedding_generator.obj not found"
+            exit 1
+          }
+          Write-Host "✅ Object files found"
+        shell: powershell
 
       - name: Build Python binding
         run: |
