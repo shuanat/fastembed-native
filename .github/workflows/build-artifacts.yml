@@ -54,6 +54,9 @@ on:
       - "v*.*.*" # Triggers on version tags (e.g., v1.0.1)
   workflow_dispatch: # Allows manual trigger
 
+permissions:
+  contents: write  # Required for creating GitHub releases
+
 env:
   ONNX_VERSION: "1.23.2"
 
@@ -756,8 +759,13 @@ jobs:
           echo "Extracted version: $VERSION"
 
           # Extract release notes from CHANGELOG
-          # Use awk to extract section between version header and next version header
-          awk '/^## \['"$VERSION"'\]/,/^## \[/{if(/^## \['"$VERSION"'\]/) next; if(/^## \[/) exit; print}' CHANGELOG.md > release-notes.md || {
+          # Use awk to extract section between version header and next version header or end of file
+          awk -v version="$VERSION" '
+            BEGIN { found=0; in_section=0 }
+            /^## \[' version '\]/ { found=1; in_section=1; next }
+            /^## \[/ && in_section { exit }
+            in_section { print }
+          ' CHANGELOG.md > release-notes.md || {
             echo "::warning::Failed to extract release notes, using fallback"
             echo "## FastEmbed $VERSION" > release-notes.md
             echo "" >> release-notes.md
@@ -772,6 +780,7 @@ jobs:
             echo "See CHANGELOG.md for full details." >> release-notes.md
           fi
 
+          echo "::notice::Release notes extracted:"
           cat release-notes.md
 
       - name: List downloaded artifacts
